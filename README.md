@@ -113,3 +113,15 @@ Para garantizar la estabilidad del proyecto y el trabajo en equipo, se establece
    - Realizar commits atómicos y descriptivos.
    - Subir la rama y abrir un **Pull Request (PR)** hacia la rama correspondiente.
    - Todo PR debe pasar la integración continua (CI de GitHub Actions) y contar con la revisión de al menos un miembro del equipo antes del merge.
+
+---
+
+## 📌 Flujo de Pull Requests y Entregas
+
+Para mantener la trazabilidad, control de calidad y visibilidad en las entregas, **todo Pull Request (PR) debe utilizar la plantilla oficial (`.github/pull_request_template.md`) e incluir obligatoriamente**:
+
+1. **Descripción concisa de los cambios:** Explicación técnica y funcional de la solución implementada.
+2. **Enlace al Ticket de Trello asociado:** Vínculo o nombre de la tarjeta en el tablero del IESETyFP.
+3. **Evidencia visual (Obligatorio):** Captura de pantalla o GIF demostrativo arrastrado en el cuerpo del PR que valide el funcionamiento de la interfaz (Tailwind CSS) o de los procesos en terminal.
+4. **Checklist de verificación:** Confirmación de que las pruebas (`python manage.py test`) pasaron en verde y no se versionaron credenciales ni archivos `.env`.
+
