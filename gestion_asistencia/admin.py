@@ -18,22 +18,39 @@ class DocenteAdmin(admin.ModelAdmin):
     list_display = (
         "apellido",
         "nombre",
+        "tipo_documento",
         "dni",
-        "sexo",
-        "contacto",
+        "cuil_dgi",
+        "localidad",
         "total_horas_semanales",
         "activo",
     )
-    list_filter = ("activo", "sexo")
-    search_fields = ("apellido", "nombre", "dni")
+    list_filter = ("activo", "sexo", "estado_civil", "localidad", "provincia")
+    search_fields = (
+        "apellido",
+        "nombre",
+        "dni",
+        "cuil_dgi",
+        "inscripcion_dgr",
+        "domicilio_calle",
+    )
     ordering = ("apellido", "nombre")
 
 
 @admin.register(EspacioCurricular)
 class EspacioCurricularAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "nombre", "carrera", "anio")
-    list_filter = ("carrera", "anio")
-    search_fields = ("codigo", "nombre", "carrera")
+    list_display = (
+        "codigo",
+        "nombre",
+        "carrera",
+        "anio",
+        "comision",
+        "turno",
+        "regimen",
+        "aula",
+    )
+    list_filter = ("carrera", "anio", "turno", "regimen", "comision")
+    search_fields = ("codigo", "nombre", "carrera", "plan_estudio", "aula")
     ordering = ("carrera", "anio", "nombre")
 
 
@@ -41,18 +58,26 @@ class EspacioCurricularAdmin(admin.ModelAdmin):
 class CargoDocenteAdmin(admin.ModelAdmin):
     list_display = (
         "docente",
+        "tipo_cargo",
         "materia",
         "situacion_revista",
+        "docente_reemplazado",
         "total_horas_semanales",
-        "resolucion",
+        "codigo_cargo",
         "fecha_alta",
+        "fecha_baja",
     )
-    list_filter = ("situacion_revista", "materia__carrera")
+    list_filter = ("tipo_cargo", "situacion_revista", "materia__carrera")
     search_fields = (
         "docente__apellido",
         "docente__nombre",
         "docente__dni",
         "materia__nombre",
+        "codigo_cargo",
+        "codigo_motivo",
+        "resolucion",
+        "docente_reemplazado__apellido",
+        "docente_reemplazado__nombre",
     )
 
 
@@ -62,11 +87,13 @@ class TipoLicenciaAdmin(admin.ModelAdmin):
         "codigo",
         "articulo",
         "descripcion",
+        "categoria",
+        "forma_pago",
         "goce_haberes",
         "tope_anual",
         "activo",
     )
-    list_filter = ("goce_haberes", "activo")
+    list_filter = ("categoria", "forma_pago", "goce_haberes", "activo")
     search_fields = ("codigo", "articulo", "descripcion")
 
 
@@ -74,16 +101,20 @@ class TipoLicenciaAdmin(admin.ModelAdmin):
 class RegistroAsistenciaAdmin(admin.ModelAdmin):
     list_display = (
         "fecha",
+        "fecha_hasta",
         "docente",
         "estado",
+        "justifica",
         "tipo_licencia",
+        "numero_disposicion",
         "horas_afectadas",
     )
-    list_filter = ("estado", "fecha", "tipo_licencia")
+    list_filter = ("estado", "justifica", "fecha", "tipo_licencia")
     search_fields = (
         "docente__apellido",
         "docente__nombre",
         "docente__dni",
+        "numero_disposicion",
         "observaciones",
     )
     date_hierarchy = "fecha"

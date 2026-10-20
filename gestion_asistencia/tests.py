@@ -178,3 +178,145 @@ class ModelosRelacionalesTests(TestCase):
                 fecha=fecha,
                 estado="AUSENTE",
             )
+
+    def test_cargo_suplente_requiere_docente_reemplazado(self):
+        """Suplente sin docente reemplazado emite ValidationError en clean()."""
+        cargo_suplente = CargoDocente(
+            docente=self.docente,
+            materia=self.espacio,
+            situacion_revista="SUPLENTE",
+            horas_lunes=2,
+            docente_reemplazado=None,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            cargo_suplente.full_clean()
+        self.assertIn("docente_reemplazado", ctx.exception.message_dict)
+        error_msg = ctx.exception.message_dict["docente_reemplazado"][0]
+        self.assertIn(
+            "Debe especificar el docente reemplazado para una suplencia según "
+            "Formulario DP-01",
+            error_msg,
+        )
+
+    def test_cargo_suplente_con_docente_reemplazado_valido(self):
+        """Suplente con docente reemplazado valida y persiste exitosamente."""
+        docente_reemplazado = Docente.objects.create(
+            dni="28123456",
+            apellido="Ramírez",
+            nombre="Carlos",
+            sexo="M",
+        )
+        cargo_suplente = CargoDocente(
+            docente=self.docente,
+            materia=self.espacio,
+            situacion_revista="SUPLENTE",
+            docente_reemplazado=docente_reemplazado,
+            horas_martes=3,
+        )
+        cargo_suplente.full_clean()
+        cargo_suplente.save()
+        self.assertEqual(
+            cargo_suplente.docente_reemplazado, docente_reemplazado
+        )
+        self.assertIn(
+            cargo_suplente, docente_reemplazado.suplencias_recibidas.all()
+        )
+
+    def test_cargo_administrativo_sin_materia(self):
+        """Permite cargo administrativo sin materia (null=True)."""
+        cargo_adm = CargoDocente(
+            docente=self.docente,
+            materia=None,
+            tipo_cargo="CARGO_ADM",
+            situacion_revista="TITULAR",
+            horas_lunes=5,
+        )
+        cargo_adm.full_clean()
+        cargo_adm.save()
+        self.assertIsNone(cargo_adm.materia)
+        self.assertIn("Cargo Administrativo / Bedel", str(cargo_adm))
+
+    def test_tipo_licencia_categoria_permiso_cincuenta_porciento(self):
+        """Licencia PERMISO con CINCUENTA_PORCIENTO sincroniza goce_haberes=False."""
+        licencia = TipoLicencia.objects.create(
+            codigo="PERM-50",
+            articulo="Art. 210",
+            descripcion="Permiso gremial parcial",
+            categoria="PERMISO",
+            forma_pago="CINCUENTA_PORCIENTO",
+        )
+        self.assertEqual(licencia.categoria, "PERMISO")
+        self.assertEqual(licencia.forma_pago, "CINCUENTA_PORCIENTO")
+        self.assertFalse(licencia.goce_haberes)
+        self.assertIn("[S/Goce]", str(licencia))
+
+    def test_tipo_licencia_categoria_inasistencia_cincuenta_porciento(self):
+        """Inasistencia con CINCUENTA_PORCIENTO sincroniza goce_haberes=False."""
+        inasistencia = TipoLicencia.objects.create(
+            codigo="INA-50",
+            articulo="Art. 105",
+            descripcion="Inasistencia justificada al 50%",
+            categoria="INASISTENCIA",
+            forma_pago="CINCUENTA_PORCIENTO",
+        )
+        self.assertEqual(inasistencia.categoria, "INASISTENCIA")
+        self.assertEqual(inasistencia.forma_pago, "CINCUENTA_PORCIENTO")
+        self.assertFalse(inasistencia.goce_haberes)
+
+    def test_docente_campos_oficiales_formulario_1(self):
+        """Verifica campos ampliados según Formulario N° 1 de Agente (Chaco)."""
+        docente = Docente.objects.create(
+            dni="40123987",
+            apellido="Benítez",
+            nombre="Mariano",
+            tipo_documento="DNI",
+            fecha_nacimiento=datetime.date(1995, 5, 14),
+            estado_civil="Soltero",
+            nacionalidad="Argentina",
+            cuil_dgi="20-40123987-3",
+            inscripcion_dgr="99-887766-5",
+            domicilio_calle="Av. Las Heras 727",
+            barrio="Centro",
+            localidad="Resistencia",
+            codigo_postal="3500",
+            provincia="Chaco",
+        )
+        self.assertEqual(docente.tipo_documento, "DNI")
+        self.assertEqual(docente.cuil_dgi, "20-40123987-3")
+        self.assertEqual(docente.provincia, "Chaco")
+
+    def test_espacio_curricular_campos_oficiales(self):
+        """Verifica nuevos campos comision, turno, regimen, aula y plan_estudio."""
+        espacio = EspacioCurricular.objects.create(
+            codigo="BD-202",
+            nombre="Bases de Datos",
+            carrera="Tecnicatura Superior en Desarrollo de Software",
+            anio=2,
+            comision="A",
+            turno="NOCHE",
+            regimen="CUAT_1",
+            aula="Laboratorio 1",
+            plan_estudio="Plan Res. 4500/22",
+        )
+        self.assertEqual(espacio.comision, "A")
+        self.assertEqual(espacio.turno, "NOCHE")
+        self.assertEqual(espacio.regimen, "CUAT_1")
+        self.assertEqual(espacio.aula, "Laboratorio 1")
+        self.assertEqual(espacio.plan_estudio, "Plan Res. 4500/22")
+
+    def test_registro_asistencia_formulario_dl01_campos(self):
+        """Verifica campos fecha_hasta, justifica y numero_disposicion (DL-01)."""
+        asistencia = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            fecha=datetime.date(2026, 11, 2),
+            fecha_hasta=datetime.date(2026, 11, 6),
+            estado="LICENCIA",
+            tipo_licencia=self.tipo_licencia,
+            justifica=True,
+            numero_disposicion="Disp. D-045/26",
+            observaciones="Licencia médica otorgada",
+        )
+        asistencia.full_clean()
+        self.assertEqual(asistencia.fecha_hasta, datetime.date(2026, 11, 6))
+        self.assertTrue(asistencia.justifica)
+        self.assertEqual(asistencia.numero_disposicion, "Disp. D-045/26")
