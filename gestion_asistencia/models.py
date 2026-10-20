@@ -18,6 +18,13 @@ class Docente(models.Model):
     ]
 
     dni = models.CharField(max_length=20, unique=True, verbose_name="DNI")
+    tipo_documento = models.CharField(
+        max_length=10,
+        default="DNI",
+        blank=True,
+        null=True,
+        verbose_name="Tipo de Documento",
+    )
     apellido = models.CharField(max_length=100, verbose_name="Apellido")
     nombre = models.CharField(max_length=100, verbose_name="Nombre")
     sexo = models.CharField(
@@ -25,6 +32,69 @@ class Docente(models.Model):
         choices=SEXO_CHOICES,
         default="M",
         verbose_name="Sexo",
+    )
+    fecha_nacimiento = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Nacimiento",
+    )
+    estado_civil = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="Estado Civil",
+    )
+    nacionalidad = models.CharField(
+        max_length=50,
+        default="Argentina",
+        blank=True,
+        null=True,
+        verbose_name="Nacionalidad",
+    )
+    cuil_dgi = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="CUIL / N° Inscripción DGI",
+    )
+    inscripcion_dgr = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="N° Inscripción DGR",
+    )
+    domicilio_calle = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name="Calle y N° / Nomenclatura",
+    )
+    barrio = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Barrio",
+    )
+    localidad = models.CharField(
+        max_length=100,
+        default="Resistencia",
+        blank=True,
+        null=True,
+        verbose_name="Localidad",
+    )
+    codigo_postal = models.CharField(
+        max_length=10,
+        default="3500",
+        blank=True,
+        null=True,
+        verbose_name="Código Postal",
+    )
+    provincia = models.CharField(
+        max_length=50,
+        default="Chaco",
+        blank=True,
+        null=True,
+        verbose_name="Provincia",
     )
     contacto = models.CharField(
         max_length=150,
@@ -62,6 +132,23 @@ class Docente(models.Model):
 class EspacioCurricular(models.Model):
     """Asignaturas, materias o talleres de las carreras técnicas y profesorados."""
 
+    COMISION_CHOICES = [
+        ("UNICA", "Única"),
+        ("A", "Comisión A"),
+        ("B", "Comisión B"),
+        ("C", "Comisión C"),
+    ]
+    TURNO_CHOICES = [
+        ("MANANA", "Mañana"),
+        ("TARDE", "Tarde"),
+        ("NOCHE", "Noche"),
+    ]
+    REGIMEN_CHOICES = [
+        ("ANUAL", "Anual"),
+        ("CUAT_1", "1° Cuatrimestre"),
+        ("CUAT_2", "2° Cuatrimestre"),
+    ]
+
     codigo = models.CharField(
         max_length=30, unique=True, verbose_name="Código de Espacio"
     )
@@ -70,6 +157,36 @@ class EspacioCurricular(models.Model):
     )
     carrera = models.CharField(max_length=150, verbose_name="Carrera")
     anio = models.PositiveSmallIntegerField(verbose_name="Año de la Carrera")
+    comision = models.CharField(
+        max_length=10,
+        choices=COMISION_CHOICES,
+        default="UNICA",
+        verbose_name="Comisión",
+    )
+    turno = models.CharField(
+        max_length=10,
+        choices=TURNO_CHOICES,
+        default="NOCHE",
+        verbose_name="Turno",
+    )
+    regimen = models.CharField(
+        max_length=10,
+        choices=REGIMEN_CHOICES,
+        default="ANUAL",
+        verbose_name="Régimen de Cursado",
+    )
+    aula = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Aula",
+    )
+    plan_estudio = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Plan de Estudio",
+    )
     fecha_creacion = models.DateTimeField(
         auto_now_add=True, verbose_name="Fecha de Creación"
     )
@@ -85,14 +202,18 @@ class EspacioCurricular(models.Model):
 
 class CargoDocente(models.Model):
     """
-    Designación de un docente en un espacio curricular y su distribución
-    semanal de horas cátedra por día hábil.
+    Designación de un docente en un espacio curricular o cargo institucional
+    y su distribución semanal de horas cátedra por día hábil.
     """
 
     SITUACION_CHOICES = [
         ("TITULAR", "Titular"),
         ("INTERINO", "Interino"),
         ("SUPLENTE", "Suplente"),
+    ]
+    TIPO_CARGO_CHOICES = [
+        ("HORAS_CATEDRA", "Horas Cátedra"),
+        ("CARGO_ADM", "Cargo Administrativo / Bedel"),
     ]
 
     docente = models.ForeignKey(
@@ -101,9 +222,29 @@ class CargoDocente(models.Model):
         related_name="cargos",
         verbose_name="Docente",
     )
+    tipo_cargo = models.CharField(
+        max_length=20,
+        choices=TIPO_CARGO_CHOICES,
+        default="HORAS_CATEDRA",
+        verbose_name="Tipo de Cargo",
+    )
+    codigo_cargo = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Código de Cargo",
+    )
+    codigo_motivo = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name="Código de Motivo",
+    )
     materia = models.ForeignKey(
         EspacioCurricular,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="cargos",
         verbose_name="Espacio Curricular",
     )
@@ -112,6 +253,14 @@ class CargoDocente(models.Model):
         choices=SITUACION_CHOICES,
         default="INTERINO",
         verbose_name="Situación de Revista",
+    )
+    docente_reemplazado = models.ForeignKey(
+        Docente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="suplencias_recibidas",
+        verbose_name="Docente Reemplazado",
     )
     horas_lunes = models.PositiveSmallIntegerField(
         default=0, verbose_name="Horas Lunes"
@@ -137,17 +286,35 @@ class CargoDocente(models.Model):
     fecha_alta = models.DateField(
         blank=True, null=True, verbose_name="Fecha de Alta"
     )
+    fecha_baja = models.DateField(
+        blank=True, null=True, verbose_name="Fecha de Baja"
+    )
 
     class Meta:
         verbose_name = "Cargo Docente"
         verbose_name_plural = "Cargos Docentes"
-        ordering = ["docente__apellido", "materia__nombre"]
+        ordering = ["docente__apellido", "docente__nombre"]
 
     def __str__(self):
+        materia_display = (
+            self.materia.nombre if self.materia else self.get_tipo_cargo_display()
+        )
         return (
-            f"{self.docente.nombre_completo} en {self.materia.nombre} "
+            f"{self.docente.nombre_completo} en {materia_display} "
             f"({self.get_situacion_revista_display()})"
         )
+
+    def clean(self):
+        super().clean()
+        if self.situacion_revista == "SUPLENTE" and not self.docente_reemplazado:
+            raise ValidationError(
+                {
+                    "docente_reemplazado": (
+                        "Debe especificar el docente reemplazado para una suplencia "
+                        "según Formulario DP-01"
+                    )
+                }
+            )
 
     @property
     def total_horas_semanales(self):
@@ -181,6 +348,17 @@ class TipoLicencia(models.Model):
     institucional del IESETyFP.
     """
 
+    CATEGORIA_CHOICES = [
+        ("LICENCIA", "Licencia"),
+        ("PERMISO", "Permiso"),
+        ("INASISTENCIA", "Inasistencia"),
+    ]
+    FORMA_PAGO_CHOICES = [
+        ("CON_GOCE", "Con Goce de haberes"),
+        ("SIN_GOCE", "Sin goce de haberes"),
+        ("CINCUENTA_PORCIENTO", "Con 50% de haberes"),
+    ]
+
     codigo = models.CharField(
         max_length=20, unique=True, verbose_name="Código"
     )
@@ -189,6 +367,18 @@ class TipoLicencia(models.Model):
     )
     descripcion = models.CharField(
         max_length=255, verbose_name="Descripción"
+    )
+    categoria = models.CharField(
+        max_length=15,
+        choices=CATEGORIA_CHOICES,
+        default="LICENCIA",
+        verbose_name="Categoría",
+    )
+    forma_pago = models.CharField(
+        max_length=25,
+        choices=FORMA_PAGO_CHOICES,
+        default="CON_GOCE",
+        verbose_name="Forma de Pago",
     )
     goce_haberes = models.BooleanField(
         default=True, verbose_name="Goce de Haberes"
@@ -210,6 +400,13 @@ class TipoLicencia(models.Model):
         goce = "C/Goce" if self.goce_haberes else "S/Goce"
         return f"{self.articulo} ({self.codigo}) - {self.descripcion} [{goce}]"
 
+    def save(self, *args, **kwargs):
+        if not self.goce_haberes and self.forma_pago == "CON_GOCE":
+            self.forma_pago = "SIN_GOCE"
+        else:
+            self.goce_haberes = (self.forma_pago == "CON_GOCE")
+        super().save(*args, **kwargs)
+
 
 class RegistroAsistencia(models.Model):
     """
@@ -230,11 +427,20 @@ class RegistroAsistencia(models.Model):
         verbose_name="Docente",
     )
     fecha = models.DateField(verbose_name="Fecha")
+    fecha_hasta = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha Hasta",
+    )
     estado = models.CharField(
         max_length=15,
         choices=ESTADO_CHOICES,
         default="PRESENTE",
         verbose_name="Estado de Asistencia",
+    )
+    justifica = models.BooleanField(
+        default=True,
+        verbose_name="Justifica",
     )
     tipo_licencia = models.ForeignKey(
         TipoLicencia,
@@ -243,6 +449,12 @@ class RegistroAsistencia(models.Model):
         blank=True,
         related_name="registros_asistencia",
         verbose_name="Tipo de Licencia",
+    )
+    numero_disposicion = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Número de Disposición",
     )
     observaciones = models.TextField(
         blank=True, verbose_name="Observaciones / Justificación"
