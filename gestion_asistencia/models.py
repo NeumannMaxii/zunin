@@ -1,11 +1,74 @@
 """
 Modelos relacionales para el Sistema de Bedelía del IESETyFP.
 Gestiona el cuerpo docente, espacios curriculares, asignación de cargos,
-catálogo de tipos de licencias y el registro diario de asistencia.
+catálogos de referencia, licencias y el registro diario de asistencia.
 """
 
-from django.db import models
+import datetime
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
+
+
+class Carrera(models.Model):
+    """Carrera o tecnicatura formativa dictada en el IESETyFP."""
+
+    codigo = models.CharField(
+        max_length=20, unique=True, verbose_name="Código"
+    )
+    nombre = models.CharField(
+        max_length=150, verbose_name="Nombre de la Carrera"
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Carrera"
+        verbose_name_plural = "Carreras"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
+class CargoCatalogo(models.Model):
+    """Catálogo administrable de cargos o funciones docentes."""
+
+    codigo = models.CharField(
+        max_length=30, unique=True, verbose_name="Código de Cargo"
+    )
+    descripcion = models.CharField(
+        max_length=150, verbose_name="Descripción"
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Cargo de Catálogo"
+        verbose_name_plural = "Cargos de Catálogo"
+        ordering = ["codigo"]
+
+    def __str__(self):
+        return f"{self.codigo} - {self.descripcion}"
+
+
+class TipoAutorizacion(models.Model):
+    """Tipo de instrumento administrativo de designación o cobertura."""
+
+    nombre = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Tipo de Autorización",
+        help_text="Ej: RESOLUCIÓN, DISPOSICIÓN",
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Tipo de Autorización"
+        verbose_name_plural = "Tipos de Autorizaciones"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
 
 
 class Docente(models.Model):
@@ -109,6 +172,22 @@ class Docente(models.Model):
     fecha_modificacion = models.DateTimeField(
         auto_now=True, verbose_name="Fecha de Modificación"
     )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="docentes_creados",
+        verbose_name="Creado por",
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="docentes_modificados",
+        verbose_name="Modificado por",
+    )
 
     class Meta:
         verbose_name = "Docente"
@@ -210,6 +289,9 @@ class CargoDocente(models.Model):
         ("TITULAR", "Titular"),
         ("INTERINO", "Interino"),
         ("SUPLENTE", "Suplente"),
+        ("TIT", "Titular (TIT)"),
+        ("INT", "Interino (INT)"),
+        ("SUP", "Suplente (SUP)"),
     ]
     TIPO_CARGO_CHOICES = [
         ("HORAS_CATEDRA", "Horas Cátedra"),
@@ -240,6 +322,30 @@ class CargoDocente(models.Model):
         null=True,
         verbose_name="Código de Motivo",
     )
+    carrera_ref = models.ForeignKey(
+        Carrera,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargos",
+        verbose_name="Carrera",
+    )
+    cargo_catalogo = models.ForeignKey(
+        CargoCatalogo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargos",
+        verbose_name="Cargo de Catálogo",
+    )
+    tipo_autorizacion = models.ForeignKey(
+        TipoAutorizacion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargos",
+        verbose_name="Tipo de Autorización",
+    )
     materia = models.ForeignKey(
         EspacioCurricular,
         on_delete=models.PROTECT,
@@ -262,6 +368,23 @@ class CargoDocente(models.Model):
         related_name="suplencias_recibidas",
         verbose_name="Docente Reemplazado",
     )
+    numero_autorizacion = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Número de Autorización",
+    )
+    anio_autorizacion = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Año de Autorización",
+    )
+    organismo_emisor = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Organismo Emisor",
+    )
     horas_lunes = models.PositiveSmallIntegerField(
         default=0, verbose_name="Horas Lunes"
     )
@@ -277,6 +400,39 @@ class CargoDocente(models.Model):
     horas_viernes = models.PositiveSmallIntegerField(
         default=0, verbose_name="Horas Viernes"
     )
+    dia_lunes = models.CharField(
+        max_length=15, blank=True, default="", verbose_name="Día Lunes (Texto)"
+    )
+    dia_martes = models.CharField(
+        max_length=15, blank=True, default="", verbose_name="Día Martes (Texto)"
+    )
+    dia_miercoles = models.CharField(
+        max_length=15,
+        blank=True,
+        default="",
+        verbose_name="Día Miércoles (Texto)",
+    )
+    dia_jueves = models.CharField(
+        max_length=15, blank=True, default="", verbose_name="Día Jueves (Texto)"
+    )
+    dia_viernes = models.CharField(
+        max_length=15,
+        blank=True,
+        default="",
+        verbose_name="Día Viernes (Texto)",
+    )
+    desde_texto = models.CharField(
+        max_length=50,
+        blank=True,
+        default="SIN INICIO",
+        verbose_name="Desde (Texto)",
+    )
+    hasta_texto = models.CharField(
+        max_length=50,
+        blank=True,
+        default="SIN TERMINO",
+        verbose_name="Hasta (Texto)",
+    )
     resolucion = models.CharField(
         max_length=100,
         blank=True,
@@ -289,6 +445,26 @@ class CargoDocente(models.Model):
     fecha_baja = models.DateField(
         blank=True, null=True, verbose_name="Fecha de Baja"
     )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    observaciones = models.TextField(
+        blank=True, null=True, verbose_name="Observaciones"
+    )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargos_creados",
+        verbose_name="Creado por",
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargos_modificados",
+        verbose_name="Modificado por",
+    )
 
     class Meta:
         verbose_name = "Cargo Docente"
@@ -297,7 +473,13 @@ class CargoDocente(models.Model):
 
     def __str__(self):
         materia_display = (
-            self.materia.nombre if self.materia else self.get_tipo_cargo_display()
+            self.materia.nombre
+            if self.materia
+            else (
+                self.cargo_catalogo.descripcion
+                if self.cargo_catalogo
+                else self.get_tipo_cargo_display()
+            )
         )
         return (
             f"{self.docente.nombre_completo} en {materia_display} "
@@ -315,6 +497,30 @@ class CargoDocente(models.Model):
                     )
                 }
             )
+
+    def es_designacion_vigente(self, fecha_referencia=None):
+        """
+        Retorna True si activo=True y hasta_texto contiene 'SIN TERMINO'
+        o si al parsear hasta_texto como fecha es >= fecha_referencia.
+        """
+        if not self.activo:
+            return False
+        if fecha_referencia is None:
+            fecha_referencia = timezone.now().date()
+        elif isinstance(fecha_referencia, datetime.datetime):
+            fecha_referencia = fecha_referencia.date()
+
+        texto = (self.hasta_texto or "").strip().upper()
+        if "SIN TERMINO" in texto or "SIN TÉRMINO" in texto or not texto:
+            return True
+
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                f_dt = datetime.datetime.strptime(texto, fmt).date()
+                return f_dt >= fecha_referencia
+            except ValueError:
+                continue
+        return False
 
     @property
     def total_horas_semanales(self):
@@ -358,15 +564,25 @@ class TipoLicencia(models.Model):
         ("SIN_GOCE", "Sin goce de haberes"),
         ("CINCUENTA_PORCIENTO", "Con 50% de haberes"),
     ]
+    CUADRO_CHOICES = [
+        ("DL-01", "DL-01 - Licencias por Enfermedad"),
+        ("DL-02", "DL-02 - Inasistencias, Permisos y Otras Licencias"),
+    ]
 
     codigo = models.CharField(
         max_length=20, unique=True, verbose_name="Código"
     )
     articulo = models.CharField(
-        max_length=50, verbose_name="Artículo Legal (ej: 340-A)"
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Artículo Legal (ej: 340-A)",
     )
     descripcion = models.CharField(
-        max_length=255, verbose_name="Descripción"
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Descripción",
     )
     categoria = models.CharField(
         max_length=15,
@@ -390,6 +606,47 @@ class TipoLicencia(models.Model):
         help_text="Dejar en blanco si no tiene tope anual fijado.",
     )
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    situacion_revista_aplicable = models.CharField(
+        max_length=50,
+        blank=True,
+        default="TIT,INT,SUP",
+        help_text="Situaciones de revista elegibles",
+        verbose_name="Situación de Revista Aplicable",
+    )
+    tipo_novedad_excel = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Tipo según catálogo",
+    )
+    cantidad_duracion = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Cantidad / Duración permitida",
+    )
+    cuadro_mensual = models.CharField(
+        max_length=10,
+        choices=CUADRO_CHOICES,
+        default="DL-02",
+        verbose_name="Cuadro Mensual",
+    )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tipos_licencia_creados",
+        verbose_name="Creado por",
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tipos_licencia_modificados",
+        verbose_name="Modificado por",
+    )
 
     class Meta:
         verbose_name = "Tipo de Licencia"
@@ -398,7 +655,8 @@ class TipoLicencia(models.Model):
 
     def __str__(self):
         goce = "C/Goce" if self.goce_haberes else "S/Goce"
-        return f"{self.articulo} ({self.codigo}) - {self.descripcion} [{goce}]"
+        art = f"{self.articulo} " if self.articulo else ""
+        return f"{art}({self.codigo}) - {self.descripcion} [{goce}]".strip()
 
     def save(self, *args, **kwargs):
         if not self.goce_haberes and self.forma_pago == "CON_GOCE":
@@ -406,6 +664,47 @@ class TipoLicencia(models.Model):
         else:
             self.goce_haberes = (self.forma_pago == "CON_GOCE")
         super().save(*args, **kwargs)
+
+
+class DiaNoLaborable(models.Model):
+    """
+    Feriados, asuetos y días no laborables para cómputo de asistencia
+    y control de partes diarios de Bedelía.
+    """
+
+    TIPO_CHOICES = [
+        ("FERIADO", "Feriado"),
+        ("ASUETO", "Asueto"),
+        ("NO_LABORABLE", "Día No Laborable"),
+    ]
+
+    fecha = models.DateField(unique=True, verbose_name="Fecha")
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default="FERIADO",
+        verbose_name="Tipo",
+    )
+    descripcion = models.CharField(max_length=150, verbose_name="Descripción")
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dias_no_laborables_creados",
+        verbose_name="Creado por",
+    )
+    creado_en = models.DateTimeField(
+        auto_now_add=True, verbose_name="Creado en"
+    )
+
+    class Meta:
+        verbose_name = "Día No Laborable"
+        verbose_name_plural = "Días No Laborables"
+        ordering = ["fecha"]
+
+    def __str__(self):
+        return f"{self.fecha} - {self.get_tipo_display()}: {self.descripcion}"
 
 
 class RegistroAsistencia(models.Model):
@@ -426,6 +725,14 @@ class RegistroAsistencia(models.Model):
         related_name="asistencias",
         verbose_name="Docente",
     )
+    cargo = models.ForeignKey(
+        CargoDocente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asistencias",
+        verbose_name="Cargo / Materia",
+    )
     fecha = models.DateField(verbose_name="Fecha")
     fecha_hasta = models.DateField(
         null=True,
@@ -437,6 +744,22 @@ class RegistroAsistencia(models.Model):
         choices=ESTADO_CHOICES,
         default="PRESENTE",
         verbose_name="Estado de Asistencia",
+    )
+    marca_diaria = models.CharField(
+        max_length=15,
+        blank=True,
+        default="P",
+        help_text="Marca en planilla: P, LIC., LT, INA, PERM, etc.",
+        verbose_name="Marca Diaria",
+    )
+    oficina = models.CharField(
+        max_length=20,
+        default="1452",
+        verbose_name="Oficina",
+    )
+    anio_planilla = models.PositiveIntegerField(
+        default=2026,
+        verbose_name="Año de Planilla",
     )
     justifica = models.BooleanField(
         default=True,
@@ -461,6 +784,22 @@ class RegistroAsistencia(models.Model):
     )
     creado_el = models.DateTimeField(
         auto_now_add=True, verbose_name="Registrado el"
+    )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asistencias_creadas",
+        verbose_name="Creado por",
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asistencias_modificadas",
+        verbose_name="Modificado por",
     )
 
     class Meta:
@@ -494,6 +833,20 @@ class RegistroAsistencia(models.Model):
                     )
                 }
             )
+        # RN-06: Las inasistencias solamente pueden ser por un día.
+        if self.fecha_hasta and self.fecha_hasta != self.fecha:
+            es_inasistencia = (
+                self.estado == "AUSENTE"
+                or self.marca_diaria == "INA"
+                or (
+                    self.tipo_licencia
+                    and self.tipo_licencia.categoria == "INASISTENCIA"
+                )
+            )
+            if es_inasistencia:
+                raise ValidationError(
+                    "RN-06: Las inasistencias solamente pueden ser por un día."
+                )
 
     def horas_afectadas(self):
         """
@@ -501,6 +854,8 @@ class RegistroAsistencia(models.Model):
         según la distribución de sus cargos activos para ese día de la semana.
         """
         weekday = self.fecha.weekday()
+        if self.cargo:
+            return self.cargo.get_horas_dia(weekday)
         return sum(
             cargo.get_horas_dia(weekday) for cargo in self.docente.cargos.all()
         )
