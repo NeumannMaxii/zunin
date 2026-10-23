@@ -1,12 +1,12 @@
 # Documentación Técnica: Modelo Entidad-Relación (DER)
 ## Sistema de Gestión de Asistencia y Licencias Docentes — IESETyFP
-### Adecuación Oficial: Documento de Requerimientos Intercátedra v1.0
+### Adecuación Oficial: Documento de Requerimientos y Especificación Funcional v2.0
 
 - **Institución:** Instituto de Educación Superior de Educación Técnica y Formación Profesional (IESETyFP)
 - **Área:** Bedelía / Secretaría Académica
 - **Módulo:** Asistencia, Carga Horaria, Régimen de Licencias y Formularios Oficiales de la Provincia del Chaco
-- **Formularios Oficiales Integrados:** Formulario N° 1 de Agente, Formulario DP-01 (Designaciones y Suplencias) y Formulario DL-01 (Licencias, Permisos e Inasistencias)
-- **Reglas de Negocio Oficiales:** RN-01 a RN-10 (Documento de Requerimientos v1.0)
+- **Formularios Oficiales Integrados:** Formulario N° 1 de Agente, Formulario DP-01 (Designaciones y Suplencias), Formularios IL-01 / IL-02 (PDF Maestro Hojas 1 a 6) y compatibilidad DL-01 / DL-02
+- **Reglas de Negocio Oficiales:** RN-01 a RN-11 (Especificación Funcional v2.0)
 - **Motor de Base de Datos:** MySQL 8.x (con compatibilidad SQLite para desarrollo local)
 - **ORM:** Django 5.x
 
@@ -14,7 +14,7 @@
 
 ## 1. Diagrama Entidad-Relación (Mermaid)
 
-El siguiente diagrama modela la estructura relacional completa, incorporando los catálogos administrables, auditoría de usuarios y las reglas de negocio RN-01 a RN-10:
+El siguiente diagrama modela la estructura relacional completa, incorporando los catálogos administrables, auditoría de usuarios, desglose mensual por materia y las reglas de negocio RN-01 a RN-11:
 
 ```mermaid
 erDiagram
@@ -25,8 +25,11 @@ erDiagram
     CARGO_CATALOGO |o--o{ CARGO_DOCENTE : "cargo_catalogo (RN-03)"
     TIPO_AUTORIZACION |o--o{ CARGO_DOCENTE : "tipo_autorizacion (RN-03)"
     DOCENTE ||--o{ REGISTRO_ASISTENCIA : "registra_asistencia"
-    CARGO_DOCENTE |o--o{ REGISTRO_ASISTENCIA : "cargo_afectado"
+    CARGO_DOCENTE |o--o{ REGISTRO_ASISTENCIA : "cargo_afectado (RF-07)"
     TIPO_LICENCIA |o--o{ REGISTRO_ASISTENCIA : "encuadre_licencia (RN-04, RN-05)"
+    DOCENTE ||--o{ RENGLON_PLANILLA_MENSUAL : "desglosado_en (RF-12, RN-10)"
+    CARGO_DOCENTE ||--o{ RENGLON_PLANILLA_MENSUAL : "cargo_afectado (RF-13)"
+    TIPO_LICENCIA |o--o{ RENGLON_PLANILLA_MENSUAL : "encuadre_normativo (RF-15)"
 
     DOCENTE {
         bigint id PK
@@ -135,7 +138,8 @@ erDiagram
         string situacion_revista_aplicable "Revistas elegibles (RN-05)"
         string tipo_novedad_excel "Tipo según catálogo original"
         string cantidad_duracion "Cantidad / Duración admitida"
-        string cuadro_mensual "DL-01 o DL-02 (RN-04, RN-05)"
+        string cuadro_mensual "IL-01, IL-02, DL-01, DL-02 (RN-04, RN-05)"
+        string hoja_pdf "Hojas 1-2 o 3-6 en PDF maestro"
         boolean activo "Disponibilidad del concepto"
         bigint creado_por_id FK "Usuario creador (RN-10)"
         bigint modificado_por_id FK "Usuario modificador (RN-10)"
@@ -153,20 +157,41 @@ erDiagram
     REGISTRO_ASISTENCIA {
         bigint id PK
         bigint docente_id FK "Docente evaluado"
-        bigint cargo_id FK "Cargo o materia afectada"
+        bigint cargo_id FK "Cargo opcional (NULL a nivel agente, RF-07)"
         date fecha "Fecha inicial del parte diario"
         date fecha_hasta "Fecha límite (RN-06: solo 1 día en inasistencias)"
         string estado "PRESENTE - AUSENTE - LICENCIA - JUSTIFICADO"
-        string marca_diaria "P - LIC - LT - INA - PERM"
+        string marca_diaria "P - I - LIC - LT - PR - INA - PERM (RF-08)"
         string oficina "Código de oficina: 1452 (RN-07)"
         int anio_planilla "Año de planilla: 2026 (RN-08)"
         boolean justifica "Indica si justifica haberes"
         bigint tipo_licencia_id FK "Tipo de licencia (opcional)"
-        string numero_disposicion "Disposición aprobatoria (DL-01)"
+        string numero_disposicion "Disposición aprobatoria correlativa (RF-16)"
         string observaciones "Detalle o justificación de bedelía"
         datetime creado_el "Registro timestamp"
         bigint creado_por_id FK "Usuario creador (RN-10)"
         bigint modificado_por_id FK "Usuario modificador (RN-10)"
+    }
+
+    RENGLON_PLANILLA_MENSUAL {
+        bigint id PK
+        bigint docente_id FK "Docente titular del renglón (RF-12)"
+        bigint cargo_id FK "Cargo o materia afectada (RF-13)"
+        bigint tipo_licencia_id FK "Tipo de licencia / encuadre (RF-15)"
+        string cuadro "IL-01 o IL-02 (RF-15)"
+        smallint mes "Mes de la novedad (1 a 12)"
+        int anio "Año de la planilla (2026, RN-08)"
+        string oficina "Oficina emisora: 1452 (RN-07)"
+        date desde "Fecha inicio del bloque continuo (RF-14)"
+        date hasta "Fecha fin del bloque continuo (RF-14)"
+        int horas_afectadas "Horas cátedra acumuladas (RF-13)"
+        string marca_origen "Marca de asistencia diaria (RF-08)"
+        string tipo_instrumento "DISPOSICION o RESOLUCION (RF-16)"
+        string numero_instrumento "N° correlativo anual 001/2026 (RF-16, RN-11)"
+        bigint creado_por_id FK "Usuario auditor (RF-20, RN-10)"
+        bigint modificado_por_id FK "Usuario auditor (RF-20, RN-10)"
+        datetime creado_en "Timestamp de generación"
+        datetime actualizado_en "Timestamp de actualización"
     }
 ```
 
@@ -300,7 +325,7 @@ Designación de un docente en un espacio curricular o función institucional (Fo
 ---
 
 ### 2.7. Tabla: `tipo_licencia`
-Catálogo normativo de licencias, permisos e inasistencias docentes (**RN-04**, **RN-05**).
+Catálogo normativo de licencias, permisos e inasistencias docentes (**RF-15**, **RN-04**, **RN-05**).
 
 | Campo | Tipo Django | Tipo MySQL | Restricciones | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
@@ -315,7 +340,8 @@ Catálogo normativo de licencias, permisos e inasistencias docentes (**RN-04**, 
 | `situacion_revista_aplicable`| `CharField(max_length=50)`| `VARCHAR(50)`| NOT NULL, DEFAULT 'TIT,INT,SUP'| Situaciones aplicables (**RN-05**). |
 | `tipo_novedad_excel` | `CharField(max_length=50)`| `VARCHAR(50)`| NULLABLE | Tipo según planilla histórica. |
 | `cantidad_duracion` | `CharField(max_length=100)`| `VARCHAR(100)`| NULLABLE | Duración permitida (ej: 'Hasta 30 días'). |
-| `cuadro_mensual` | `CharField(max_length=10)`| `VARCHAR(10)` | NOT NULL, DEFAULT 'DL-02' | `DL-01` (Salud) o `DL-02` (Otros) (**RN-04**, **RN-05**). |
+| `cuadro_mensual` | `CharField(max_length=10)`| `VARCHAR(10)` | NOT NULL, DEFAULT 'IL-02' | `IL-01`, `IL-02`, `DL-01`, `DL-02` (**RN-04**, **RN-05**). |
+| `hoja_pdf` | `CharField(max_length=20)`| `VARCHAR(20)` | NOT NULL, DEFAULT '1-2' | Rango de hojas en PDF Maestro (`1-2` o `3-6`). |
 | `activo` | `BooleanField(default=True)` | `TINYINT(1)` | NOT NULL, DEFAULT 1 | Estado de vigencia del artículo legal. |
 | `creado_por_id` | `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario creador (**RN-10**). |
 | `modificado_por_id`| `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario modificador (**RN-10**). |
@@ -337,26 +363,52 @@ Feriados, asuetos institucionales y días no laborables para control de asistenc
 ---
 
 ### 2.9. Tabla: `registro_asistencia`
-Control diario de asistencia y novedades docentes de Bedelía (Formularios DL-01/DL-02, **RN-06**, **RN-07**, **RN-08**).
+Control diario de asistencia y novedades docentes a nivel agente/jornada (**RF-07 a RF-11**, **RN-06 a RN-08**).
 
 | Campo | Tipo Django | Tipo MySQL | Restricciones | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `BigAutoField` | `BIGINT AUTO_INCREMENT` | **PK**, NOT NULL | Clave primaria. |
 | `docente_id` | `ForeignKey(Docente)` | `BIGINT` | **FK**, NOT NULL, `ON DELETE CASCADE` | Agente evaluado. |
-| `cargo_id` | `ForeignKey(CargoDocente)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Cargo/espacio afectado en el día. |
+| `cargo_id` | `ForeignKey(CargoDocente)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Opcional: la carga es a nivel agente/jornada (**RF-07**). |
 | `fecha` | `DateField()` | `DATE` | NOT NULL, INDEX | Fecha del parte diario. |
 | `fecha_hasta` | `DateField()` | `DATE` | NULLABLE | Fecha límite (estrictamente igual a `fecha` si es inasistencia, **RN-06**). |
 | `estado` | `CharField(max_length=15)` | `VARCHAR(15)` | NOT NULL | `PRESENTE`, `AUSENTE`, `LICENCIA`, `JUSTIFICADO`. |
-| `marca_diaria` | `CharField(max_length=15)` | `VARCHAR(15)` | NOT NULL, DEFAULT 'P' | Símbolo en planilla: `P`, `LIC`, `LT`, `INA`, `PERM`. |
+| `marca_diaria` | `CharField(max_length=15)` | `VARCHAR(15)` | NOT NULL, DEFAULT 'P' | Marcas oficiales: `P`, `I`, `LIC`, `LT`, `PR`, `INA`, `PERM` (**RF-08**). |
 | `oficina` | `CharField(max_length=20)` | `VARCHAR(20)` | NOT NULL, DEFAULT '1452' | Oficina emisora de Bedelía (**RN-07**). |
 | `anio_planilla` | `PositiveIntegerField()` | `INT UNSIGNED` | NOT NULL, DEFAULT 2026 | Año de la planilla (**RN-08**). |
 | `justifica` | `BooleanField(default=True)` | `TINYINT(1)` | NOT NULL, DEFAULT 1 | Justificación para cómputo de haberes. |
 | `tipo_licencia_id` | `ForeignKey(TipoLicencia)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Tipo de licencia asignada. |
-| `numero_disposicion` | `CharField(max_length=50)` | `VARCHAR(50)` | NULLABLE | Disposición aprobatoria rectoral. |
+| `numero_disposicion` | `CharField(max_length=50)` | `VARCHAR(50)` | NULLABLE | N° correlativo de Disposición rectoral (**RF-16, RN-11**). |
 | `observaciones` | `TextField()` | `TEXT` | NULLABLE | Detalle o justificación de bedelía. |
 | `creado_el` | `DateTimeField(auto_now_add=True)`| `DATETIME(6)` | NOT NULL | Timestamp de creación. |
 | `creado_por_id` | `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario auditor (**RN-10**). |
 | `modificado_por_id`| `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario editor (**RN-10**). |
+
+---
+
+### 2.10. Tabla: `renglon_planilla_mensual`
+Desglose mensualizado por materia, horas cátedra y asignación de instrumentos legales (**RF-12 a RF-16**, **RN-10**, **RN-11**).
+
+| Campo | Tipo Django | Tipo MySQL | Restricciones | Descripción |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `BigAutoField` | `BIGINT AUTO_INCREMENT` | **PK**, NOT NULL | Clave primaria autoincremental. |
+| `docente_id` | `ForeignKey(Docente)` | `BIGINT` | **FK**, NOT NULL, `ON DELETE CASCADE` | Agente titular del renglón (**RF-12**). |
+| `cargo_id` | `ForeignKey(CargoDocente)` | `BIGINT` | **FK**, NOT NULL, `ON DELETE CASCADE` | Materia o función afectada (**RF-13**). |
+| `tipo_licencia_id` | `ForeignKey(TipoLicencia)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Encuadre normativo de la licencia/permiso (**RF-15**). |
+| `cuadro` | `CharField(max_length=10)` | `VARCHAR(10)` | NOT NULL | `IL-01` (Salud) o `IL-02` (Especiales/Inasistencias) (**RF-15**). |
+| `mes` | `PositiveSmallIntegerField()` | `TINYINT UNSIGNED` | NOT NULL | Mes calendario evaluado (1 a 12). |
+| `anio` | `PositiveIntegerField()` | `INT UNSIGNED` | NOT NULL, DEFAULT 2026 | Período anual oficial (**RN-08**). |
+| `oficina` | `CharField(max_length=20)` | `VARCHAR(20)` | NOT NULL, DEFAULT '1452' | Dependencia emisora (**RN-07**). |
+| `desde` | `DateField()` | `DATE` | NOT NULL | Fecha inicial del bloque continuo (**RF-12**). |
+| `hasta` | `DateField()` | `DATE` | NOT NULL | Fecha final del bloque continuo (**RF-12**). |
+| `horas_afectadas` | `PositiveIntegerField()` | `INT UNSIGNED` | NOT NULL | Sumatoria de horas cátedra programadas (**RF-13**). |
+| `marca_origen` | `CharField(max_length=15)` | `VARCHAR(15)` | NOT NULL, DEFAULT 'I' | Marca original de asistencia diaria (**RF-08**). |
+| `tipo_instrumento` | `CharField(max_length=20)` | `VARCHAR(20)` | NOT NULL, DEFAULT 'DISPOSICION' | `DISPOSICION` o `RESOLUCION` (**RF-16**). |
+| `numero_instrumento` | `CharField(max_length=50)` | `VARCHAR(50)` | NULLABLE | N° correlativo anual único por docente/bloque: `001/2026` (**RF-16, RN-11**). |
+| `creado_por_id` | `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario auditor de generación (**RF-20, RN-10**). |
+| `modificado_por_id`| `ForeignKey(User)` | `BIGINT` | **FK**, NULLABLE, `ON DELETE SET_NULL` | Usuario auditor de modificación (**RF-20, RN-10**). |
+| `creado_en` | `DateTimeField(auto_now_add=True)`| `DATETIME(6)` | NOT NULL | Timestamp de creación (alias `creado_el`). |
+| `actualizado_en` | `DateTimeField(auto_now=True)`| `DATETIME(6)` | NOT NULL | Timestamp de última actualización (alias `modificado_el`). |
 
 ---
 
@@ -367,9 +419,22 @@ Control diario de asistencia y novedades docentes de Bedelía (Formularios DL-01
 - `INTERINO` / `INT`: Cobertura en cargo vacante transitorio.
 - `SUPLENTE` / `SUP`: Reemplazo de un docente. En altas nuevas formales (`SUPLENTE`) exige `docente_reemplazado`; en importación histórica (`SUP`) se relaja para compatibilidad de carga masiva.
 
-### Cuadro Mensual de Licencias (`TipoLicencia.cuadro_mensual`)
-- `DL-01`: Formulario DL-01 - Licencias por Enfermedad (corto y largo tratamiento).
-- `DL-02`: Formulario DL-02 - Inasistencias, Permisos y Otras Licencias institucionales/personales.
+### Cuadro Mensual de Licencias (`TipoLicencia.cuadro_mensual`, `RenglonPlanillaMensual.cuadro`)
+- `IL-01`: Licencias por Enfermedad (Hojas 1 y 2 del PDF Maestro).
+- `IL-02`: Inasistencias, Permisos y Licencias Especiales (Hojas 3 a 6 del PDF Maestro).
+- `DL-01` / `DL-02`: Valores soportados para retrocompatibilidad v1.0.
+
+### Marcas de Asistencia Diaria (`RegistroAsistencia.marca_diaria`)
+- `P`: Permiso institucional o personal justificado (**RF-08**).
+- `I`: Inasistencia injustificada diaria (**RF-08**).
+- `LIC`: Licencia médica o reglamentaria (**RF-08**).
+- `LT`: Licencia médica de Largo Tratamiento (**RF-08**).
+- `PR`: Presente en la jornada lectiva (**RF-08**).
+- `INA` / `PERM`: Marcas preservadas para retrocompatibilidad v1.0.
+
+### Tipo de Instrumento Legal (`RenglonPlanillaMensual.tipo_instrumento`)
+- `DISPOSICION`: Disposición interna de Bedelía / Rectorado (**RF-16**).
+- `RESOLUCION`: Resolución ministerial o del consejo institucional (**RF-16**).
 
 ### Tipo de Día No Laborable (`DiaNoLaborable.tipo`)
 - `FERIADO`: Feriado nacional, provincial o religioso.
@@ -388,24 +453,52 @@ Control diario de asistencia y novedades docentes de Bedelía (Formularios DL-01
 
 ---
 
-## 4. Matriz de Trazabilidad y Reglas de Negocio Oficiales (RN-01 a RN-10)
+## 4. Matriz de Trazabilidad y Reglas de Negocio Oficiales (RN-01 a RN-11)
 
 | Regla | Denominación Oficial | Implementación en Modelo / Sistema | Validación / Test |
 | :--- | :--- | :--- | :--- |
 | **RN-01** | **Unicidad del Agente Docente por DNI** | Campo `Docente.dni` con restricción `unique=True` e índice relacional. Garantiza que toda designación o suplencia remita al mismo registro unificado de persona. | `test_rn01_y_rn02_multiples_designaciones_mismo_dni` |
 | **RN-02** | **Multiplicidad de Designaciones y Situación de Revista** | Relación `Docente.cargos` (`related_name='cargos'`). Admite situaciones de revista tradicionales (`TITULAR`, `INTERINO`, `SUPLENTE`) y abreviadas oficiales (`TIT`, `INT`, `SUP`). Se relaja la exigencia de `docente_reemplazado` para registros importados (`SUP`). | `test_rn01_y_rn02_multiples_designaciones_mismo_dni`, `test_cargo_suplente_requiere_docente_reemplazado` |
 | **RN-03** | **Catálogos Administrables e Instrumentos de Autorización** | Incorporación de modelos `Carrera`, `CargoCatalogo`, `TipoAutorizacion` como FKs opcionales en `CargoDocente`. Incorporación de `numero_autorizacion`, `anio_autorizacion`, `organismo_emisor` y días en formato texto (`dia_lunes` a `dia_viernes`). | `test_catalogos_administrables_y_autorizacion_cargo` |
-| **RN-04** | **Cuadro Mensual DL-01 (Licencias por Enfermedad)** | Campo `TipoLicencia.cuadro_mensual = 'DL-01'` para segregar novedades médicas y afecciones de corto/largo tratamiento en los reportes mensuales de salud. | `test_rn04_y_rn05_clasificacion_tipo_licencia_cuadros` |
-| **RN-05** | **Cuadro Mensual DL-02 (Inasistencias, Permisos y Otras Licencias)** | Campo `TipoLicencia.cuadro_mensual = 'DL-02'` para permisos, razones personales, exámenes e inasistencias. Admite `articulo` y `descripcion` en blanco y define situaciones de revista elegibles (`situacion_revista_aplicable`). | `test_rn04_y_rn05_clasificacion_tipo_licencia_cuadros` |
-| **RN-06** | **Inasistencias Estrictamente Diarias** | En `RegistroAsistencia.clean()`, si `estado == 'AUSENTE'`, `marca_diaria == 'INA'` o la categoría de `tipo_licencia` es `'INASISTENCIA'`, se prohíbe registrar rangos de fechas (`fecha_hasta != fecha`), lanzando `ValidationError("RN-06: Las inasistencias solamente pueden ser por un día.")`. | `test_rn06_validacion_inasistencia_un_solo_dia` |
-| **RN-07** | **Identificación de Oficina de Bedelía (1452)** | Campo `RegistroAsistencia.oficina` con valor predeterminado `'1452'` correspondiente a la codificación oficial de la dependencia en la administración provincial. | `test_rn07_y_rn08_valores_por_defecto_oficina_y_anio_planilla` |
-| **RN-08** | **Año de Planilla Oficial (2026)** | Campo `RegistroAsistencia.anio_planilla` con valor predeterminado `2026`, identificando el ciclo lectivo y período fiscal de la planilla. | `test_rn07_y_rn08_valores_por_defecto_oficina_y_anio_planilla` |
+| **RN-04** | **Cuadros Mensuales IL-01 / DL-01 (Licencias por Enfermedad)** | Soporte en `TipoLicencia.cuadro_mensual = 'IL-01'` (Hojas 1-2) manteniendo soporte `'DL-01'` para afecciones médicas de corto/largo tratamiento. Inferencia automática vía `autocompletar_por_articulo()`. | `test_rn04_y_rn05_clasificacion_tipo_licencia_cuadros` |
+| **RN-05** | **Cuadros Mensuales IL-02 / DL-02 (Permisos y Licencias Especiales)** | Soporte en `TipoLicencia.cuadro_mensual = 'IL-02'` (Hojas 3-6) manteniendo soporte `'DL-02'` para permisos, razones personales, exámenes e inasistencias. Admite `articulo` y `descripcion` en blanco y define situaciones de revista elegibles. | `test_rn04_y_rn05_clasificacion_tipo_licencia_cuadros` |
+| **RN-06** | **Inasistencias Estrictamente Diarias** | En `RegistroAsistencia.clean()`, si `estado == 'AUSENTE'`, `marca_diaria in ['I', 'INA']` o la categoría de `tipo_licencia` es `'INASISTENCIA'`, se prohíbe registrar rangos de fechas (`fecha_hasta != fecha`), lanzando `ValidationError("RN-06: Las inasistencias solamente pueden ser por un día.")`. | `test_rn06_validacion_inasistencia_un_solo_dia` |
+| **RN-07** | **Identificación de Oficina de Bedelía (1452)** | Campos `RegistroAsistencia.oficina` y `RenglonPlanillaMensual.oficina` con valor predeterminado `'1452'` correspondiente a la codificación oficial de la dependencia. | `test_rn07_y_rn08_valores_por_defecto_oficina_y_anio_planilla` |
+| **RN-08** | **Año de Planilla Oficial (2026)** | Campos `RegistroAsistencia.anio_planilla` y `RenglonPlanillaMensual.anio` con valor predeterminado `2026`, identificando el ciclo lectivo oficial. | `test_rn07_y_rn08_valores_por_defecto_oficina_y_anio_planilla` |
 | **RN-09** | **Vigencia Temporal Flexible de Designaciones** | Campos `desde_texto` (default `'SIN INICIO'`) y `hasta_texto` (default `'SIN TERMINO'`). Método `es_designacion_vigente(fecha_referencia)` que evalúa `activo=True` y resuelve vigencia tanto para cadenas abiertas (`'SIN TERMINO'`) como fechas parseadas (`YYYY-MM-DD` y `DD/MM/YYYY`). | `test_rn09_guardado_desde_hasta_texto_y_es_designacion_vigente` |
-| **RN-10** | **Días No Laborables Institucionales y Auditoría / Trazabilidad Total** | Modelo `DiaNoLaborable` para feriados, asuetos y jornadas no laborales con fecha única. Campos de trazabilidad `creado_por` y `modificado_por` vinculados a `settings.AUTH_USER_MODEL` en `Docente`, `CargoDocente`, `TipoLicencia`, `RegistroAsistencia` y `DiaNoLaborable`. | `test_rn10_dia_no_laborable_y_trazabilidad_usuarios` |
+| **RN-10** | **Días No Laborables Institucionales y Auditoría / Trazabilidad Total** | Modelo `DiaNoLaborable` con fecha única. Campos de auditoría `creado_por` y `modificado_por` vinculados a `settings.AUTH_USER_MODEL` en todos los modelos del sistema (`Docente`, `CargoDocente`, `TipoLicencia`, `RegistroAsistencia`, `RenglonPlanillaMensual`, `DiaNoLaborable`). | `test_rn10_dia_no_laborable_y_trazabilidad_usuarios` |
+| **RN-11** | **Asignación Correlativa de Disposición Rectoral por Docente y Bloque** | En `RenglonPlanillaMensual.generar_planilla_mes(mes, anio)`, se ordenan los docentes alfabéticamente por apellido y nombre, se agrupan sus registros diarios continuos en bloques y se asigna un único N° de Disposición correlativo por docente/bloque (`001/2026`, `002/2026`), desglosando un renglón por cada materia afectada con sus horas cátedra correspondientes (**RF-12 a RF-16, RN-10 y RN-11**). | `test_generar_planilla_mes_rf12_a_rf16_rn10_rn11`, `test_explosion_periodo_licencia_rf12_rf13_rf14_rn10` |
 
 ---
 
-## 5. Implementación de Referencia en Django ORM
+## 5. Matriz de Requerimientos Funcionales Consolidados (RF-01 a RF-20)
+
+| Requerimiento | Denominación y Alcance | Entidades y Métodos Involucrados | Implementación y Tests |
+| :--- | :--- | :--- | :--- |
+| **RF-01** | **Filiación de Docente y Legajo Digital Único** | `Docente` (DNI único, datos Form. 1 Chaco). | `test_docente_campos_oficiales_formulario_1` |
+| **RF-02** | **Espacios Curriculares y Distribución Académica** | `EspacioCurricular` (código, comision, turno, carrera). | `test_espacio_curricular_campos_oficiales` |
+| **RF-03** | **Cargos Docentes y Designaciones Normativas** | `CargoDocente` (carrera_ref, cargo_catalogo, tipo_autorizacion). | `test_catalogos_administrables_y_autorizacion_cargo` |
+| **RF-04** | **Gestión de Suplencias (Form. DP-01)** | `CargoDocente.docente_reemplazado` (validación en `clean()`). | `test_cargo_suplente_requiere_docente_reemplazado` |
+| **RF-05** | **Catálogos Institucionales Administrables** | `Carrera`, `CargoCatalogo`, `TipoAutorizacion`. | `test_catalogos_administrables_y_autorizacion_cargo` |
+| **RF-06** | **Días No Laborables, Feriados y Asuetos** | `DiaNoLaborable` (fecha única, auditoría). | `test_rn10_dia_no_laborable_y_trazabilidad_usuarios` |
+| **RF-07** | **Carga Diaria de Novedades por Agente/Jornada** | `RegistroAsistencia` (cargo opcional / null=True). | `test_registro_asistencia_rf07_cargo_opcional_y_rf08_marcas` |
+| **RF-08** | **Catálogo Oficial de Marcas Diarias** | `MARCA_DIARIA_CHOICES` (`'P'`, `'I'`, `'LIC'`, `'LT'`, `'PR'`). | `test_registro_asistencia_rf07_cargo_opcional_y_rf08_marcas` |
+| **RF-09** | **Justificación con Formulario Oficial en Papel** | `RegistroAsistencia.justificar_con_formulario()`. | `test_justificar_con_formulario_rf09_rf11_exitoso` |
+| **RF-10** | **Cómputo Diario de Horas Afectadas** | `RegistroAsistencia.horas_afectadas()`. | `test_registro_asistencia_presente_exitoso` |
+| **RF-11** | **Carga Diferida y Validación de Documentación** | `RegistroAsistencia.justificar_con_formulario()` + `clean()`. | `test_justificar_con_formulario_validaciones_y_errores` |
+| **RF-12** | **Desglose Mensual Obligatorio por Materia/Cargo** | `RenglonPlanillaMensual.cargo` (FK obligatoria a `CargoDocente`). | `test_generar_planilla_mes_rf12_a_rf16_rn10_rn11` |
+| **RF-13** | **Cálculo Automatizado de Horas por Día/Período** | `CargoDocente.obtener_horas_en_fecha()` y sumatoria acumulada. | `test_cargo_docente_obtener_horas_en_fecha_rf13` |
+| **RF-14** | **Agrupamiento Temporal Continuo en Bloques** | `RenglonPlanillaMensual.desde` y `hasta` continuos. | `test_explosion_periodo_licencia_rf12_rf13_rf14_rn10` |
+| **RF-15** | **Autocompletado y Derivación a Cuadros IL-01 / IL-02** | `TipoLicencia.autocompletar_por_articulo()`. | `test_autocompletar_por_articulo_helper_y_classmethod` |
+| **RF-16** | **Asignación Correlativa de Disposiciones Internas** | `RenglonPlanillaMensual.numero_instrumento` (`"001/2026"`). | `test_generar_planilla_mes_rf12_a_rf16_rn10_rn11` |
+| **RF-17** | **Estructura para Exportación de Cuadros IL-01 / IL-02** | `RenglonPlanillaMensual` estructurado por oficina, mes y cuadro. | `test_renglon_planilla_mensual_representacion_y_campos` |
+| **RF-18** | **Monitor de Inasistencias y Alertas Preventivas** | `Docente.obtener_resumen_inasistencias()` (alerta 70% y 100%). | `test_resumen_inasistencias_rf18_acumulado_y_niveles_alerta` |
+| **RF-19** | **Panel Administrativo Especializado para Bedelía** | ModelAdmins registrados en `admin.py`. | `admin.site.is_registered(RenglonPlanillaMensual)` |
+| **RF-20** | **Trazabilidad, Auditoría y Marcas Temporales** | `creado_por`, `modificado_por`, `creado_en`, `actualizado_en`. | `test_rn10_dia_no_laborable_y_trazabilidad_usuarios` |
+
+---
+
+## 6. Implementación de Referencia en Django ORM
 
 ```python
 import datetime
@@ -443,36 +536,49 @@ class Docente(models.Model):
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="docentes_creados")
     modificado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="docentes_modificados")
 
+    def obtener_resumen_inasistencias(self, anio=None, limite_reglamentario=10):
+        # RF-18: Acumulado anual de 'I' y 'P' con alerta NORMAL, PRECAUCION, CRITICO
+        ...
+
+
+class EspacioCurricular(models.Model):
+    codigo = models.CharField(max_length=30, unique=True, verbose_name="Código de Espacio")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre de la Asignatura")
+    carrera = models.CharField(max_length=150, verbose_name="Carrera")
+    anio = models.PositiveSmallIntegerField(verbose_name="Año de la Carrera")
+
 
 class CargoDocente(models.Model):
     docente = models.ForeignKey(Docente, on_delete=models.PROTECT, related_name="cargos")
     carrera_ref = models.ForeignKey(Carrera, on_delete=models.SET_NULL, null=True, blank=True, related_name="cargos")
     cargo_catalogo = models.ForeignKey(CargoCatalogo, on_delete=models.SET_NULL, null=True, blank=True, related_name="cargos")
     tipo_autorizacion = models.ForeignKey(TipoAutorizacion, on_delete=models.SET_NULL, null=True, blank=True, related_name="cargos")
-    materia = models.ForeignKey("EspacioCurricular", on_delete=models.PROTECT, null=True, blank=True, related_name="cargos")
+    materia = models.ForeignKey(EspacioCurricular, on_delete=models.PROTECT, null=True, blank=True, related_name="cargos")
     situacion_revista = models.CharField(max_length=15, default="INTERINO")
     docente_reemplazado = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, blank=True, related_name="suplencias_recibidas")
     numero_autorizacion = models.CharField(max_length=50, blank=True, null=True)
     anio_autorizacion = models.PositiveIntegerField(blank=True, null=True)
     organismo_emisor = models.CharField(max_length=100, blank=True, null=True)
+    horas_lunes = models.PositiveSmallIntegerField(default=0)
+    horas_martes = models.PositiveSmallIntegerField(default=0)
+    horas_miercoles = models.PositiveSmallIntegerField(default=0)
+    horas_jueves = models.PositiveSmallIntegerField(default=0)
+    horas_viernes = models.PositiveSmallIntegerField(default=0)
     desde_texto = models.CharField(max_length=50, blank=True, default="SIN INICIO")
     hasta_texto = models.CharField(max_length=50, blank=True, default="SIN TERMINO")
     activo = models.BooleanField(default=True)
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="cargos_creados")
     modificado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="cargos_modificados")
 
-    def clean(self):
-        super().clean()
-        if self.situacion_revista == "SUPLENTE" and not self.docente_reemplazado:
-            raise ValidationError({"docente_reemplazado": "Debe especificar el docente reemplazado para una suplencia según Formulario DP-01"})
+    def obtener_horas_en_fecha(self, fecha_obj):
+        # RF-13: Retorna horas del día (horas_lunes..horas_viernes o dia_lunes..dia_viernes / 'X')
+        ...
 
     def es_designacion_vigente(self, fecha_referencia=None):
         if not self.activo:
             return False
         if fecha_referencia is None:
             fecha_referencia = timezone.now().date()
-        elif isinstance(fecha_referencia, datetime.datetime):
-            fecha_referencia = fecha_referencia.date()
         texto = (self.hasta_texto or "").strip().upper()
         if "SIN TERMINO" in texto or "SIN TÉRMINO" in texto or not texto:
             return True
@@ -483,6 +589,21 @@ class CargoDocente(models.Model):
             except ValueError:
                 continue
         return False
+
+
+class TipoLicencia(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    articulo = models.CharField(max_length=50, blank=True, default="")
+    descripcion = models.CharField(max_length=255, blank=True, default="")
+    cuadro_mensual = models.CharField(max_length=10, default="IL-02")
+    hoja_pdf = models.CharField(max_length=20, blank=True, default="1-2")
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="tipos_licencia_creados")
+    modificado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="tipos_licencia_modificados")
+
+    @classmethod
+    def autocompletar_por_articulo(cls, articulo_str):
+        # Infiere código, descripción y cuadro IL-01 / IL-02 (RF-15, RN-04, RN-05)
+        ...
 
 
 class DiaNoLaborable(models.Model):
@@ -503,7 +624,8 @@ class RegistroAsistencia(models.Model):
     oficina = models.CharField(max_length=20, default="1452")
     anio_planilla = models.PositiveIntegerField(default=2026)
     justifica = models.BooleanField(default=True)
-    tipo_licencia = models.ForeignKey("TipoLicencia", on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_asistencia")
+    tipo_licencia = models.ForeignKey(TipoLicencia, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_asistencia")
+    numero_disposicion = models.CharField(max_length=50, blank=True, null=True)
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="asistencias_creadas")
     modificado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="asistencias_modificadas")
 
@@ -512,9 +634,38 @@ class RegistroAsistencia(models.Model):
         if self.fecha_hasta and self.fecha_hasta != self.fecha:
             es_inasistencia = (
                 self.estado == "AUSENTE"
-                or self.marca_diaria == "INA"
+                or self.marca_diaria in ["I", "INA"]
                 or (self.tipo_licencia and self.tipo_licencia.categoria == "INASISTENCIA")
             )
             if es_inasistencia:
                 raise ValidationError("RN-06: Las inasistencias solamente pueden ser por un día.")
+
+    def justificar_con_formulario(self, nueva_marca, tipo_licencia=None, usuario=None):
+        # Transiciona de 'I' a 'LIC' o 'P' al recibir formulario oficial (RF-09, RF-11)
+        ...
+
+
+class RenglonPlanillaMensual(models.Model):
+    docente = models.ForeignKey(Docente, on_delete=models.CASCADE, related_name="renglones_mensuales")
+    cargo = models.ForeignKey(CargoDocente, on_delete=models.CASCADE, related_name="renglones_mensuales")
+    tipo_licencia = models.ForeignKey(TipoLicencia, on_delete=models.SET_NULL, null=True, blank=True, related_name="renglones_mensuales")
+    cuadro = models.CharField(max_length=10, default="IL-02")
+    mes = models.PositiveSmallIntegerField()
+    anio = models.PositiveIntegerField(default=2026)
+    oficina = models.CharField(max_length=20, default="1452")
+    desde = models.DateField()
+    hasta = models.DateField()
+    horas_afectadas = models.PositiveIntegerField(default=0)
+    marca_origen = models.CharField(max_length=15, default="I")
+    tipo_instrumento = models.CharField(max_length=20, default="DISPOSICION")
+    numero_instrumento = models.CharField(max_length=50, blank=True, null=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="renglones_creados")
+    modificado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="renglones_modificados")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def generar_planilla_mes(cls, mes, anio, usuario=None):
+        # Desglose mensual por materia y correlativo de Disposición (RF-12 a RF-16, RN-11)
+        ...
 ```
