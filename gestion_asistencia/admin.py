@@ -9,6 +9,7 @@ from .models import (
     TipoLicencia,
     DiaNoLaborable,
     RegistroAsistencia,
+    RenglonPlanillaMensual,
 )
 
 # Personalización del Panel de Administración IESETyFP
@@ -133,6 +134,7 @@ class TipoLicenciaAdmin(admin.ModelAdmin):
         "articulo",
         "descripcion",
         "cuadro_mensual",
+        "hoja_pdf",
         "categoria",
         "forma_pago",
         "goce_haberes",
@@ -187,3 +189,36 @@ class RegistroAsistenciaAdmin(admin.ModelAdmin):
         "oficina",
     )
     date_hierarchy = "fecha"
+
+
+@admin.register(RenglonPlanillaMensual)
+class RenglonPlanillaMensualAdmin(admin.ModelAdmin):
+    list_display = (
+        "numero_instrumento",
+        "cuadro",
+        "mes",
+        "anio",
+        "docente",
+        "cargo",
+        "tipo_licencia",
+        "desde",
+        "hasta",
+        "horas_afectadas",
+        "tipo_instrumento",
+        "oficina",
+    )
+    list_filter = (
+        "cuadro",
+        "anio",
+        "mes",
+        "tipo_instrumento",
+        "oficina",
+    )
+    search_fields = (
+        "numero_instrumento",
+        "docente__apellido",
+        "docente__nombre",
+        "docente__dni",
+        "cargo__materia__nombre",
+    )
+    ordering = ("-anio", "-mes", "numero_instrumento")
