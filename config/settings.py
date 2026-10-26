@@ -43,6 +43,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Aplicaciones del Sistema IESETyFP
     "gestion_asistencia.apps.GestionAsistenciaConfig",
+    "apps.core",
+    "apps.personal",
+    "apps.asistencia",
+    "apps.licencias",
 ]
 
 MIDDLEWARE = [

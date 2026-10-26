@@ -5,20 +5,21 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from gestion_asistencia.apps import GestionAsistenciaConfig
-from gestion_asistencia.models import (
-    Docente,
-    EspacioCurricular,
-    Carrera,
-    CargoCatalogo,
-    TipoAutorizacion,
-    CargoDocente,
-    TipoLicencia,
-    DiaNoLaborable,
-    RegistroAsistencia,
+from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
+from apps.licencias.models import (
     RenglonPlanillaMensual,
+    TipoLicencia,
     autocompletar_por_articulo,
 )
+from apps.personal.models import (
+    CargoCatalogo,
+    CargoDocente,
+    Carrera,
+    Docente,
+    EspacioCurricular,
+    TipoAutorizacion,
+)
+from gestion_asistencia.apps import GestionAsistenciaConfig
 
 
 class GestionAsistenciaAppTests(TestCase):
