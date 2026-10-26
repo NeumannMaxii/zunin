@@ -1,15 +1,13 @@
 from django.contrib import admin
-from .models import (
+from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
+from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
+from apps.personal.models import (
+    CargoCatalogo,
+    CargoDocente,
+    Carrera,
     Docente,
     EspacioCurricular,
-    Carrera,
-    CargoCatalogo,
     TipoAutorizacion,
-    CargoDocente,
-    TipoLicencia,
-    DiaNoLaborable,
-    RegistroAsistencia,
-    RenglonPlanillaMensual,
 )
 
 # Personalización del Panel de Administración IESETyFP
