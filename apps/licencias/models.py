@@ -310,13 +310,13 @@ class RenglonPlanillaMensual(AuditoriaModel):
 
     docente = models.ForeignKey(
         "personal.Docente",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="renglones_mensuales",
         verbose_name="Docente",
     )
     cargo = models.ForeignKey(
         "personal.CargoDocente",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="renglones_mensuales",
         help_text="RF-12: Desglose obligatorio por materia/cargo",
         verbose_name="Cargo / Materia",
@@ -387,6 +387,9 @@ class RenglonPlanillaMensual(AuditoriaModel):
         verbose_name_plural = "Renglones de Planilla Mensual"
         db_table = "gestion_asistencia_renglonplanillamensual"
         ordering = ["anio", "mes", "numero_instrumento", "docente__apellido"]
+        indexes = [
+            models.Index(fields=["anio", "mes"]),
+        ]
 
     def __str__(self):
         return (
