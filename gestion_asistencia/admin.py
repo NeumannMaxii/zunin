@@ -72,6 +72,9 @@ class DocenteAdmin(admin.ModelAdmin):
     )
     ordering = ("apellido", "nombre")
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(EspacioCurricular)
 class EspacioCurricularAdmin(admin.ModelAdmin):
@@ -188,6 +191,9 @@ class RegistroAsistenciaAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "fecha"
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(RenglonPlanillaMensual)
 class RenglonPlanillaMensualAdmin(admin.ModelAdmin):
@@ -220,3 +226,6 @@ class RenglonPlanillaMensualAdmin(admin.ModelAdmin):
         "cargo__materia__nombre",
     )
     ordering = ("-anio", "-mes", "numero_instrumento")
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -562,10 +562,28 @@ class CargoDocente(models.Model):
                 }
             )
 
+    def save(self, *args, **kwargs):
+        """
+        Normaliza automáticamente el campo situacion_revista a códigos
+        estándar de tres letras: TITULAR -> TIT, INTERINO -> INT, SUPLENTE -> SUP.
+        """
+        normalizaciones = {
+            "TITULAR": "TIT",
+            "INTERINO": "INT",
+            "SUPLENTE": "SUP",
+        }
+        if self.situacion_revista:
+            revista_upper = str(self.situacion_revista).strip().upper()
+            if revista_upper in normalizaciones:
+                self.situacion_revista = normalizaciones[revista_upper]
+        super().save(*args, **kwargs)
+
     def es_designacion_vigente(self, fecha_referencia=None):
         """
-        Retorna True si activo=True y hasta_texto contiene 'SIN TERMINO'
-        o si al parsear hasta_texto como fecha es >= fecha_referencia.
+        Retorna True si activo=True y la designación se encuentra vigente.
+        Prioriza la validación de fecha_baja: si existe y es menor a
+        fecha_referencia, retorna False. Si fecha_baja es nula o una fecha futura,
+        utiliza hasta_texto como validación secundaria (fallback).
         """
         if not self.activo:
             return False
@@ -573,6 +591,9 @@ class CargoDocente(models.Model):
             fecha_referencia = timezone.now().date()
         elif isinstance(fecha_referencia, datetime.datetime):
             fecha_referencia = fecha_referencia.date()
+
+        if self.fecha_baja is not None and self.fecha_baja < fecha_referencia:
+            return False
 
         texto = (self.hasta_texto or "").strip().upper()
         if "SIN TERMINO" in texto or "SIN TÉRMINO" in texto or not texto:

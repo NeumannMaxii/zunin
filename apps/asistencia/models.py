@@ -76,7 +76,7 @@ class RegistroAsistencia(AuditoriaModel):
 
     docente = models.ForeignKey(
         "personal.Docente",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="asistencias",
         verbose_name="Docente",
     )
@@ -88,7 +88,7 @@ class RegistroAsistencia(AuditoriaModel):
         related_name="asistencias",
         verbose_name="Cargo / Materia",
     )
-    fecha = models.DateField(verbose_name="Fecha")
+    fecha = models.DateField(db_index=True, verbose_name="Fecha")
     fecha_hasta = models.DateField(
         null=True,
         blank=True,
