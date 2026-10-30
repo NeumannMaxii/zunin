@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Justificaciones por Lote - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Justificaciones por Lote</h1>
+            <p class="text-sm text-slate-500">Transición masiva con formulario oficial en papel (Ticket 7 y 3.8).</p>
+        </div>
+        <div>
+            <a href="{% url 'asistencia:asistencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-xs flex items-center space-x-2">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>
+                <strong>Operación Transaccional:</strong> La justificación del lote completo es atómica. Si algún registro no cumple las condiciones de justificación, la operación se revierte por completo.
+            </span>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <p class="text-sm text-slate-600">
+                Seleccione las inasistencias a justificar e ingrese la marca de formulario oficial (LIC o P).
+            </p>
+            <div class="pt-4 flex justify-end space-x-3">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">Cancelar</a>
+                <button type="submit" class="px-4 py-2 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs">Aplicar Justificaciones</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

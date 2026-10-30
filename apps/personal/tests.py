@@ -212,3 +212,127 @@ class PersonalFormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("horas_lunes", form.errors)
 
+
+class ImportadorCSVSincronizacionDualTests(TestCase):
+    """
+    Criterio de Aceptación Ticket 3.8:
+    Test Importador: Verificar que una fecha real ingresada en el CSV popule
+    simultáneamente fecha_baja y hasta_texto.
+    """
+
+    def test_importador_csv_fecha_real_popula_fecha_baja_y_hasta_texto(self):
+        """
+        Verifica que al parsear un CSV con fecha válida (ej: '31/12/2026'),
+        se asigne datetime.date a fecha_baja Y TAMBIÉN el string a hasta_texto.
+        """
+        from apps.personal.importar_csv import importar_legajos_csv
+
+        csv_data = (
+            "DNI;APELLIDO;NOMBRE;DESDE;HASTA;SITUACION;MATERIA\n"
+            "20333444;Alvarez;Carlos;15/03/2026;31/12/2026;INTERINO;Matemática I\n"
+        )
+
+        stats = importar_legajos_csv(csv_data)
+        self.assertEqual(stats["docentes_creados"], 1)
+        self.assertEqual(stats["cargos_creados"], 1)
+
+        docente = Docente.objects.get(dni="20333444")
+        self.assertEqual(docente.apellido, "Alvarez")
+        self.assertEqual(docente.nombre, "Carlos")
+
+        cargo = CargoDocente.objects.get(docente=docente)
+
+        # Sincronización dual en HASTA
+        self.assertEqual(cargo.fecha_baja, datetime.date(2026, 12, 31))
+        self.assertEqual(cargo.hasta_texto, "31/12/2026")
+
+        # Sincronización dual en DESDE
+        self.assertEqual(cargo.fecha_alta, datetime.date(2026, 3, 15))
+        self.assertEqual(cargo.desde_texto, "15/03/2026")
+
+    def test_importador_csv_sin_termino_o_vacio_asigna_fecha_baja_none(self):
+        """
+        Verifica que si HASTA contiene 'SIN TERMINO', 'SIN TÉRMINO' o está vacío:
+        asignar fecha_baja = None y hasta_texto = 'SIN TÉRMINO'.
+        """
+        from apps.personal.importar_csv import (
+            importar_legajos_csv,
+            parsear_fecha_hasta,
+        )
+
+        # Prueba directa del parser
+        f_baja, h_txt = parsear_fecha_hasta("SIN TERMINO")
+        self.assertIsNone(f_baja)
+        self.assertEqual(h_txt, "SIN TÉRMINO")
+
+        f_baja, h_txt = parsear_fecha_hasta("SIN TÉRMINO")
+        self.assertIsNone(f_baja)
+        self.assertEqual(h_txt, "SIN TÉRMINO")
+
+        f_baja, h_txt = parsear_fecha_hasta("")
+        self.assertIsNone(f_baja)
+        self.assertEqual(h_txt, "SIN TÉRMINO")
+
+        f_baja, h_txt = parsear_fecha_hasta(None)
+        self.assertIsNone(f_baja)
+        self.assertEqual(h_txt, "SIN TÉRMINO")
+
+        # Prueba vía importación CSV
+        csv_data = (
+            "DNI;APELLIDO;NOMBRE;DESDE;HASTA\n"
+            "40111222;Benitez;Laura;01/04/2026;SIN TERMINO\n"
+            "40111333;Canteros;Marcos;01/04/2026;SIN TÉRMINO\n"
+            "40111444;Duarte;Elena;01/04/2026;\n"
+        )
+        importar_legajos_csv(csv_data)
+
+        c1 = CargoDocente.objects.get(docente__dni="40111222")
+        self.assertIsNone(c1.fecha_baja)
+        self.assertEqual(c1.hasta_texto, "SIN TÉRMINO")
+
+        c2 = CargoDocente.objects.get(docente__dni="40111333")
+        self.assertIsNone(c2.fecha_baja)
+        self.assertEqual(c2.hasta_texto, "SIN TÉRMINO")
+
+        c3 = CargoDocente.objects.get(docente__dni="40111444")
+        self.assertIsNone(c3.fecha_baja)
+        self.assertEqual(c3.hasta_texto, "SIN TÉRMINO")
+
+
+class DocenteListViewPaginacionTests(TestCase):
+    """
+    Verifica que DocenteListView configure obligatoriamente paginate_by = 25
+    y funcione la paginación con más de 25 registros.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(username="operador", password="pass123")
+        self.client.login(username="operador", password="pass123")
+
+    def test_docente_listview_paginate_by_25(self):
+        from apps.personal.views import DocenteListView
+        self.assertEqual(DocenteListView.paginate_by, 25)
+
+    def test_docente_listview_paginacion_30_elementos(self):
+        from django.urls import reverse
+        for i in range(30):
+            Docente.objects.create(
+                dni=f"90000{i:03d}",
+                apellido=f"DocenteApellido{i:03d}",
+                nombre=f"DocenteNombre{i:03d}",
+            )
+
+        response = self.client.get(reverse("personal:docente_list"))
+        self.assertEqual(response.status_code, 200)
+
+        page_obj = response.context["page_obj"]
+        self.assertEqual(page_obj.paginator.num_pages, 2)
+        self.assertEqual(len(page_obj.object_list), 25)
+        self.assertEqual(page_obj.paginator.count, 30)
+
+        # Página 2
+        url_p2 = reverse("personal:docente_list") + "?page=2"
+        response_p2 = self.client.get(url_p2)
+        self.assertEqual(len(response_p2.context["page_obj"].object_list), 5)

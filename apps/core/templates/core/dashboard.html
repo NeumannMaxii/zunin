@@ -27,61 +27,61 @@
     <!-- Módulos del Sistema -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Personal Docente -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+        <a href="{% url 'personal:docente_list' %}" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-sky-300 hover:shadow-md transition-all flex flex-col justify-between group">
             <div class="space-y-3">
-                <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-lg">
+                <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-lg group-hover:bg-sky-100 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                 </div>
-                <h2 class="text-lg font-semibold text-slate-900">Personal &amp; Cargos</h2>
+                <h2 class="text-lg font-semibold text-slate-900 group-hover:text-sky-700 transition-colors">Personal &amp; Cargos</h2>
                 <p class="text-xs text-slate-500">
                     Administración de agentes, asignación de materias, distribución de horas y situaciones de revista.
                 </p>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
                 <span class="text-slate-400">apps.personal</span>
-                <span class="font-semibold text-institucional-600">Activo &rarr;</span>
+                <span class="font-semibold text-institucional-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
-        </div>
+        </a>
 
         <!-- Asistencia Diaria -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+        <a href="{% url 'asistencia:asistencia_list' %}" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all flex flex-col justify-between group">
             <div class="space-y-3">
-                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg group-hover:bg-emerald-100 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                     </svg>
                 </div>
-                <h2 class="text-lg font-semibold text-slate-900">Asistencia Diaria</h2>
+                <h2 class="text-lg font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">Asistencia Diaria</h2>
                 <p class="text-xs text-slate-500">
                     Control de partes diarios, registro de marcas (P, I, LIC, PR), inasistencias y días no laborables.
                 </p>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
                 <span class="text-slate-400">apps.asistencia</span>
-                <span class="font-semibold text-emerald-600">Activo &rarr;</span>
+                <span class="font-semibold text-emerald-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
-        </div>
+        </a>
 
         <!-- Licencias y Planillas Mensuales -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+        <a href="{% url 'licencias:tipolicencia_list' %}" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-amber-300 hover:shadow-md transition-all flex flex-col justify-between group">
             <div class="space-y-3">
-                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg group-hover:bg-amber-100 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                 </div>
-                <h2 class="text-lg font-semibold text-slate-900">Licencias &amp; Planillas</h2>
+                <h2 class="text-lg font-semibold text-slate-900 group-hover:text-amber-700 transition-colors">Licencias &amp; Planillas</h2>
                 <p class="text-xs text-slate-500">
                     Motor de consolidación mensual, clasificación por cuadros IL-01/IL-02 y correlatividad RN-11.
                 </p>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
                 <span class="text-slate-400">apps.licencias</span>
-                <span class="font-semibold text-amber-600">Activo &rarr;</span>
+                <span class="font-semibold text-amber-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 {% endblock %}
