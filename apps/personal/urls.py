@@ -10,4 +10,5 @@ app_name = "personal"
 urlpatterns = [
     path("docentes/", views.DocenteListView.as_view(), name="docente_list"),
     path("cargos/", views.CargoDocenteListView.as_view(), name="cargodocente_list"),
+    path("importar-csv/", views.ImportarCSVView.as_view(), name="importar_csv"),
 ]

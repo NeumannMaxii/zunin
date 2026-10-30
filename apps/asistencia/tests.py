@@ -378,3 +378,74 @@ class AtomicidadAsistenciaTests(TestCase):
     def test_asistencia_listview_paginate_by_25(self):
         """Verifica que RegistroAsistenciaListView tenga paginate_by = 25."""
         self.assertEqual(RegistroAsistenciaListView.paginate_by, 25)
+
+
+class AsistenciaPermisosVisualesTests(TestCase):
+    """
+    Pruebas para el control de permisos visuales en el listado de asistencia:
+    Ocultamiento de botones de Carga Masiva y Justificaciones por Lote
+    para usuarios del grupo Consulta_Directiva.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        User = get_user_model()
+        self.user_consulta = User.objects.create_user(
+            username="consulta_user", password="password123"
+        )
+        group_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+        self.user_consulta.groups.add(group_consulta)
+
+        self.user_bedelia = User.objects.create_user(
+            username="bedelia_user", password="password123"
+        )
+        group_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.user_bedelia.groups.add(group_bedelia)
+
+        self.user_admin = User.objects.create_superuser(
+            username="admin_asist",
+            password="password123",
+            email="admin@test.com",
+        )
+
+    def test_botones_carga_masiva_ocultos_para_consulta_directiva(self):
+        """
+        Valida que un usuario de Consulta_Directiva no vea los botones
+        de '+ Carga Masiva' ni 'Justificaciones por Lote'.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="consulta_user", password="password123")
+        response = self.client.get(reverse("asistencia:asistencia_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "+ Carga Masiva")
+        self.assertNotContains(response, "Justificaciones por Lote")
+        self.assertNotContains(response, reverse("asistencia:carga_masiva"))
+        self.assertNotContains(
+            response, reverse("asistencia:justificaciones_lote")
+        )
+
+    def test_botones_carga_masiva_visibles_para_bedelia_y_admin(self):
+        """
+        Valida que usuarios con privilegios operativos (Bedelía) o de administración
+        sí visualicen los botones de acción en el listado.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="bedelia_user", password="password123")
+        resp_bedelia = self.client.get(reverse("asistencia:asistencia_list"))
+        self.assertEqual(resp_bedelia.status_code, 200)
+        self.assertContains(resp_bedelia, "+ Carga Masiva")
+        self.assertContains(resp_bedelia, "Justificaciones por Lote")
+
+        self.client.login(username="admin_asist", password="password123")
+        resp_admin = self.client.get(reverse("asistencia:asistencia_list"))
+        self.assertEqual(resp_admin.status_code, 200)
+        self.assertContains(resp_admin, "+ Carga Masiva")
+        self.assertContains(resp_admin, "Justificaciones por Lote")

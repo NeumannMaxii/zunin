@@ -336,3 +336,142 @@ class DocenteListViewPaginacionTests(TestCase):
         url_p2 = reverse("personal:docente_list") + "?page=2"
         response_p2 = self.client.get(url_p2)
         self.assertEqual(len(response_p2.context["page_obj"].object_list), 5)
+
+
+class ImportarCSVWebTests(TestCase):
+    """
+    Pruebas para la vista y permisos de importación masiva de CSV en Personal:
+    - Acceso permitido únicamente a superusuarios y Admin_Institucional.
+    - Rechazo con HTTP 403 Forbidden para Bedelia_Operadoras y Consulta_Directiva.
+    - Procesamiento exitoso de archivo CSV válido.
+    - Visibilidad condicional del botón 'Importar CSV' en docente_list.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        User = get_user_model()
+        self.user_admin = User.objects.create_user(
+            username="admin_inst_user", password="password123"
+        )
+        group_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.user_admin.groups.add(group_admin)
+
+        self.superuser = User.objects.create_superuser(
+            username="super_personal",
+            password="password123",
+            email="super@iesetyfp.edu.ar",
+        )
+
+        self.user_bedelia = User.objects.create_user(
+            username="bedelia_user", password="password123"
+        )
+        group_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.user_bedelia.groups.add(group_bedelia)
+
+        self.user_consulta = User.objects.create_user(
+            username="consulta_user", password="password123"
+        )
+        group_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+        self.user_consulta.groups.add(group_consulta)
+
+    def test_acceso_formulario_permitido_admin_institucional_y_superuser(self):
+        """Valida que Admin_Institucional y superusuario accedan con HTTP 200."""
+        from django.urls import reverse
+
+        self.client.login(username="admin_inst_user", password="password123")
+        response = self.client.get(reverse("personal:importar_csv"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Importar Personal y Cargos")
+        self.assertContains(response, 'type="file"')
+
+        self.client.login(username="super_personal", password="password123")
+        response_super = self.client.get(reverse("personal:importar_csv"))
+        self.assertEqual(response_super.status_code, 200)
+
+    def test_acceso_denegado_403_bedelia_y_consulta(self):
+        """
+        Valida que Bedelia_Operadoras y Consulta_Directiva reciban HTTP 403 Forbidden.
+        """
+        from django.urls import reverse
+
+        # Bedelía recibe 403 en GET y POST
+        self.client.login(username="bedelia_user", password="password123")
+        resp_bedelia_get = self.client.get(reverse("personal:importar_csv"))
+        self.assertEqual(resp_bedelia_get.status_code, 403)
+        resp_bedelia_post = self.client.post(reverse("personal:importar_csv"))
+        self.assertEqual(resp_bedelia_post.status_code, 403)
+
+        # Consulta Directiva recibe 403 en GET y POST
+        self.client.login(username="consulta_user", password="password123")
+        resp_cons_get = self.client.get(reverse("personal:importar_csv"))
+        self.assertEqual(resp_cons_get.status_code, 403)
+        resp_cons_post = self.client.post(reverse("personal:importar_csv"))
+        self.assertEqual(resp_cons_post.status_code, 403)
+
+    def test_procesar_archivo_csv_valido_exitosamente(self):
+        """
+        Valida que subir un archivo CSV válido procese los docentes y cargos,
+        aplique mapeo 'TITULAR' -> 'TIT', y redirija a personal:docente_list.
+        """
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.urls import reverse
+
+        contenido_csv = (
+            "DNI;APELLIDO;NOMBRE;SITUACION_REVISTA;MATERIA;HORAS_LUNES;DESDE;HASTA\n"
+            "45111222;Sosa;Esteban;TITULAR;Algoritmos;4;01/03/2026;31/12/2026\n"
+        )
+        csv_file = SimpleUploadedFile(
+            "docentes_test.csv",
+            contenido_csv.encode("utf-8-sig"),
+            content_type="text/csv",
+        )
+
+        self.client.login(username="admin_inst_user", password="password123")
+        response = self.client.post(
+            reverse("personal:importar_csv"),
+            {"archivo": csv_file},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, reverse("personal:docente_list"))
+
+        # Verificar creación del Docente
+        docente = Docente.objects.get(dni="45111222")
+        self.assertEqual(docente.apellido, "Sosa")
+        self.assertEqual(docente.nombre, "Esteban")
+
+        # Verificar creación y mapeo del CargoDocente
+        cargo = CargoDocente.objects.get(docente=docente)
+        self.assertEqual(cargo.situacion_revista, "TIT")
+        self.assertEqual(cargo.horas_lunes, 4)
+
+    def test_visibilidad_boton_importar_csv_en_docente_list(self):
+        """
+        Valida que el botón 'Importar CSV' solo sea visible en la lista
+        para administradores y superusuarios.
+        """
+        from django.urls import reverse
+
+        # Admin ve el botón
+        self.client.login(username="admin_inst_user", password="password123")
+        resp_admin = self.client.get(reverse("personal:docente_list"))
+        self.assertEqual(resp_admin.status_code, 200)
+        self.assertContains(resp_admin, "Importar CSV")
+        self.assertContains(resp_admin, reverse("personal:importar_csv"))
+
+        # Bedelía y Consulta no lo ven
+        self.client.login(username="bedelia_user", password="password123")
+        resp_bedelia = self.client.get(reverse("personal:docente_list"))
+        self.assertNotContains(resp_bedelia, reverse("personal:importar_csv"))
+
+        self.client.login(username="consulta_user", password="password123")
+        resp_consulta = self.client.get(reverse("personal:docente_list"))
+        self.assertNotContains(resp_consulta, reverse("personal:importar_csv"))

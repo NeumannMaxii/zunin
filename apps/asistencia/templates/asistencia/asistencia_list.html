@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load auth_tags %}
 
 {% block title %}Registros de Asistencia - IESETyFP Zunin{% endblock %}
 
@@ -9,6 +10,7 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registros de Asistencia</h1>
             <p class="text-sm text-slate-500">Partes diarios de novedades, marcas y estados de asistencia.</p>
         </div>
+        {% if user|puede_gestionar_asistencia %}
         <div class="flex items-center space-x-3">
             <a href="{% url 'asistencia:carga_masiva' %}" class="inline-flex items-center px-3.5 py-2 border border-emerald-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
                 + Carga Masiva
@@ -17,6 +19,7 @@
                 Justificaciones por Lote
             </a>
         </div>
+        {% endif %}
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
