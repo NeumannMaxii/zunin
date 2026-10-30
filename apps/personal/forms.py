@@ -5,7 +5,7 @@ Maneja datos filiatorios del cuerpo docente y la asignación de cargos/horas cá
 
 from datetime import date
 from django import forms
-from apps.core.forms import TailwindModelForm
+from apps.core.forms import TailwindForm, TailwindModelForm
 from apps.personal.models import CargoDocente, Docente
 
 
@@ -211,3 +211,42 @@ class CargoDocenteForm(TailwindModelForm):
                 )
 
         return cleaned_data
+
+
+class ImportarCSVForm(TailwindForm):
+    """
+    Formulario para la carga masiva e importación de Docentes y Cargos vía CSV.
+    """
+
+    archivo = forms.FileField(
+        label="Archivo CSV de Personal y Cargos",
+        help_text=(
+            "Seleccione un archivo con formato .csv (delimitador ';' o coma, "
+            "codificación UTF-8)."
+        ),
+        widget=forms.FileInput(
+            attrs={
+                "accept": ".csv,text/csv",
+                "class": (
+                    "block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 "
+                    "file:px-4 file:rounded-lg file:border-0 file:text-sm "
+                    "file:font-semibold file:bg-institucional-50 "
+                    "file:text-institucional-700 hover:file:bg-institucional-100 "
+                    "cursor-pointer border border-slate-300 rounded-lg p-2 "
+                    "focus:outline-none"
+                ),
+            }
+        ),
+    )
+
+    def clean_archivo(self):
+        archivo = self.cleaned_data.get("archivo")
+        if not archivo:
+            raise forms.ValidationError(
+                "Debe seleccionar un archivo para importar."
+            )
+        if not archivo.name.lower().endswith(".csv"):
+            raise forms.ValidationError(
+                "El archivo seleccionado debe tener extensión .csv."
+            )
+        return archivo

@@ -45,24 +45,35 @@ class DashboardCoreTests(TestCase):
         self.assertContains(response, "Dashboard Institucional")
         self.assertContains(response, "docente_dashboard")
         self.assertContains(response, "Proyecto Zunin")
-        self.assertNotContains(response, 'href="/admin/"')
+        self.assertNotContains(response, "/admin/")
 
-    def test_enlace_admin_solo_visible_para_staff(self):
+    def test_enlace_admin_eliminado_para_todos_los_usuarios(self):
         """
-        Valida que el botón de Django Admin solo se renderice para usuarios is_staff.
+        Valida que el acceso a /admin/ esté totalmente eliminado de la interfaz
+        y no figure en el contenido HTML para ningún rol (común, staff o superusuario).
         """
-        # Usuario común (no staff) no ve el enlace a /admin/
+        # 1. Usuario común
         self.client.login(username="docente_dashboard", password="password123")
         resp_comun = self.client.get(reverse("core:dashboard_home"))
-        self.assertNotContains(resp_comun, 'href="/admin/"')
+        self.assertNotContains(resp_comun, "/admin/")
 
-        # Usuario staff ve el enlace a /admin/
+        # 2. Usuario staff
         User = get_user_model()
         User.objects.create_user(
-            username="admin_user",
+            username="staff_user",
             password="password123",
             is_staff=True,
         )
-        self.client.login(username="admin_user", password="password123")
+        self.client.login(username="staff_user", password="password123")
         resp_staff = self.client.get(reverse("core:dashboard_home"))
-        self.assertContains(resp_staff, 'href="/admin/"')
+        self.assertNotContains(resp_staff, "/admin/")
+
+        # 3. Superusuario
+        User.objects.create_superuser(
+            username="superuser_test",
+            password="password123",
+            email="super@test.com",
+        )
+        self.client.login(username="superuser_test", password="password123")
+        resp_super = self.client.get(reverse("core:dashboard_home"))
+        self.assertNotContains(resp_super, "/admin/")
