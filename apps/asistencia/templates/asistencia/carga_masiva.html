@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Carga Diaria Masiva - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Carga Diaria Masiva</h1>
+            <p class="text-sm text-slate-500">Registro masivo con garantía transaccional atómica (Ticket 5 y 3.8).</p>
+        </div>
+        <div>
+            <a href="{% url 'asistencia:asistencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div class="p-4 rounded-xl bg-sky-50 border border-sky-100 text-sky-800 text-xs flex items-center space-x-2">
+            <svg class="w-5 h-5 text-sky-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+                <strong>Garantía de Integridad:</strong> Si alguna de las filas del lote contiene errores de validación, se realiza un <em>rollback completo</em> para asegurar que no se guarden registros incompletos.
+            </span>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <p class="text-sm text-slate-600">
+                Seleccione la fecha de la jornada y cargue el lote de asistencias a procesar.
+            </p>
+            <div class="pt-4 flex justify-end space-x-3">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">Cancelar</a>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-sm font-semibold rounded-lg text-white hover:bg-emerald-700 shadow-xs">Guardar Lote de Asistencias</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% if is_paginated %}
+<nav class="bg-white px-4 py-3 flex items-center justify-between border-t border-slate-200 sm:px-6 mt-4 rounded-xl shadow-xs" aria-label="Paginación de resultados">
+    <!-- Vista móvil: Botones simples Anterior / Siguiente -->
+    <div class="flex-1 flex justify-between sm:hidden">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Anterior
+            </a>
+        {% else %}
+            <span class="relative inline-flex items-center px-4 py-2 border border-slate-200 text-sm font-medium rounded-lg text-slate-300 bg-slate-50 cursor-not-allowed">
+                Anterior
+            </span>
+        {% endif %}
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Siguiente
+            </a>
+        {% else %}
+            <span class="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-200 text-sm font-medium rounded-lg text-slate-300 bg-slate-50 cursor-not-allowed">
+                Siguiente
+            </span>
+        {% endif %}
+    </div>
+
+    <!-- Vista de escritorio: Resumen y selector numérico de páginas -->
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <p class="text-sm text-slate-700">
+                Mostrando <span class="font-medium text-slate-900">{{ page_obj.start_index }}</span> a <span class="font-medium text-slate-900">{{ page_obj.end_index }}</span> de <span class="font-medium text-slate-900">{{ paginator.count }}</span>
+            </p>
+        </div>
+        <div>
+            <div class="relative z-0 inline-flex rounded-lg shadow-xs -space-x-px" aria-label="Páginas">
+                <!-- Botón Anterior -->
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="relative inline-flex items-center px-3 py-2 rounded-l-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                        <span class="sr-only">Anterior</span>
+                        &larr; Anterior
+                    </a>
+                {% else %}
+                    <span class="relative inline-flex items-center px-3 py-2 rounded-l-lg border border-slate-200 bg-slate-50 text-sm font-medium text-slate-300 cursor-not-allowed">
+                        &larr; Anterior
+                    </span>
+                {% endif %}
+
+                <!-- Números de Página -->
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <span aria-current="page" class="z-10 bg-institucional-600 border-institucional-600 text-white relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                            {{ num }}
+                        </span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="bg-white border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors">
+                            {{ num }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Botón Siguiente -->
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="relative inline-flex items-center px-3 py-2 rounded-r-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                        <span class="sr-only">Siguiente</span>
+                        Siguiente &rarr;
+                    </a>
+                {% else %}
+                    <span class="relative inline-flex items-center px-3 py-2 rounded-r-lg border border-slate-200 bg-slate-50 text-sm font-medium text-slate-300 cursor-not-allowed">
+                        Siguiente &rarr;
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+{% endif %}

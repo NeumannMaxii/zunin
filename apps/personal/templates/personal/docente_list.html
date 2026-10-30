@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Personal Docente - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Personal Docente</h1>
+            <p class="text-sm text-slate-500">Pómina de agentes y legajos registrados en la institución.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'personal:cargodocente_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Ver Cargos &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabla de Docentes -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3">DNI</th>
+                        <th class="px-6 py-3">Apellido y Nombre</th>
+                        <th class="px-6 py-3">Sexo</th>
+                        <th class="px-6 py-3">Contacto</th>
+                        <th class="px-6 py-3">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 text-sm">
+                    {% for docente in docentes %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ docente.dni }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">{{ docente.apellido }}, {{ docente.nombre }}</td>
+                        <td class="px-6 py-4 text-slate-600">{{ docente.get_sexo_display }}</td>
+                        <td class="px-6 py-4 text-slate-500">{{ docente.contacto|default:"-" }}</td>
+                        <td class="px-6 py-4">
+                            {% if docente.activo %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">
+                            No se encontraron docentes registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Paginador Reutilizable -->
+        {% include "core/includes/paginator.html" %}
+    </div>
+</div>
+{% endblock %}

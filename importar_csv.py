@@ -21,4 +21,3 @@ if __name__ == "__main__":
         sys.exit(1)
 
     call_command("importar_csv", *sys.argv[1:])
-

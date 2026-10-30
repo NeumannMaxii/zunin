@@ -17,4 +17,3 @@ if __name__ == "__main__":
     from django.core.management import call_command
 
     call_command("poblar_datos", *sys.argv[1:])
-
