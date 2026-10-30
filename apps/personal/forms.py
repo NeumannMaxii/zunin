@@ -5,7 +5,6 @@ Maneja datos filiatorios del cuerpo docente y la asignación de cargos/horas cá
 
 from datetime import date
 from django import forms
-from django.core.exceptions import ValidationError
 from apps.core.forms import TailwindModelForm
 from apps.personal.models import CargoDocente, Docente
 
@@ -54,14 +53,18 @@ class DocenteForm(TailwindModelForm):
         if not dni:
             raise forms.ValidationError("El DNI es un campo obligatorio.")
         if not dni.replace(".", "").isdigit():
-            raise forms.ValidationError("El DNI debe contener únicamente dígitos numéricos.")
+            raise forms.ValidationError(
+                "El DNI debe contener únicamente dígitos numéricos."
+            )
 
         dni_clean = dni.replace(".", "")
         qs = Docente.objects.filter(dni=dni_clean)
         if self.instance and self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise forms.ValidationError("Ya existe un docente registrado con este número de DNI.")
+            raise forms.ValidationError(
+                "Ya existe un docente registrado con este número de DNI."
+            )
         return dni_clean
 
     def clean_apellido(self):
@@ -85,15 +88,26 @@ class DocenteForm(TailwindModelForm):
     def clean_fecha_nacimiento(self):
         fecha = self.cleaned_data.get("fecha_nacimiento")
         if fecha and fecha > date.today():
-            raise forms.ValidationError("La fecha de nacimiento no puede ser posterior a la fecha actual.")
+            raise forms.ValidationError(
+                "La fecha de nacimiento no puede ser posterior a la "
+                "fecha actual."
+            )
         return fecha
 
 
 class CargoDocenteForm(TailwindModelForm):
     """
-    Formulario para la designación de cargos y distribución de horas cátedra semanales.
+    Formulario para la designación de cargos y distribución de horas semanales.
     Garantiza el cumplimiento del Formulario DP-01 para suplencias (RF-04).
     """
+
+    DIAS_CAMPOS = [
+        "horas_lunes",
+        "horas_martes",
+        "horas_miercoles",
+        "horas_jueves",
+        "horas_viernes",
+    ]
 
     class Meta:
         model = CargoDocente
@@ -128,10 +142,17 @@ class CargoDocenteForm(TailwindModelForm):
             "fecha_alta": forms.DateInput(attrs={"type": "date"}),
             "fecha_baja": forms.DateInput(attrs={"type": "date"}),
             "observaciones": forms.Textarea(
-                attrs={"rows": 3, "placeholder": "Observaciones o detalles de designación..."}
+                attrs={
+                    "rows": 3,
+                    "placeholder": "Observaciones o detalles de designación...",
+                }
             ),
-            "codigo_cargo": forms.TextInput(attrs={"placeholder": "Ej: CARGO-BED-01"}),
-            "numero_autorizacion": forms.TextInput(attrs={"placeholder": "Ej: 145/26"}),
+            "codigo_cargo": forms.TextInput(
+                attrs={"placeholder": "Ej: CARGO-BED-01"}
+            ),
+            "numero_autorizacion": forms.TextInput(
+                attrs={"placeholder": "Ej: 145/26"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -143,13 +164,13 @@ class CargoDocenteForm(TailwindModelForm):
         self.fields["docente_reemplazado"].required = False
 
         # Las horas de cada día son opcionales y por defecto 0
-        for dia in ["horas_lunes", "horas_martes", "horas_miercoles", "horas_jueves", "horas_viernes"]:
+        for dia in self.DIAS_CAMPOS:
             self.fields[dia].required = False
             self.fields[dia].initial = 0
 
     def clean(self):
         cleaned_data = super().clean()
-        for dia in ["horas_lunes", "horas_martes", "horas_miercoles", "horas_jueves", "horas_viernes"]:
+        for dia in self.DIAS_CAMPOS:
             if cleaned_data.get(dia) is None:
                 cleaned_data[dia] = 0
         situacion = cleaned_data.get("situacion_revista")
@@ -161,14 +182,16 @@ class CargoDocenteForm(TailwindModelForm):
         if situacion in ["SUPLENTE", "SUP"] and not docente_reemplazado:
             self.add_error(
                 "docente_reemplazado",
-                "Debe especificar el docente reemplazado para una suplencia según Formulario DP-01.",
+                "Debe especificar el docente reemplazado para una suplencia "
+                "según Formulario DP-01.",
             )
 
         # Validación cronológica de altas y bajas
         if fecha_alta and fecha_baja and fecha_baja < fecha_alta:
             self.add_error(
                 "fecha_baja",
-                "La fecha de baja no puede ser anterior a la fecha de alta de la designación.",
+                "La fecha de baja no puede ser anterior a la fecha de alta "
+                "de la designación.",
             )
 
         # Validación de horas cátedra no negativas
@@ -182,6 +205,9 @@ class CargoDocenteForm(TailwindModelForm):
         for field_name, label in dias_horas:
             horas = cleaned_data.get(field_name)
             if horas is not None and horas < 0:
-                self.add_error(field_name, f"Las horas cátedra del {label} no pueden ser negativas.")
+                self.add_error(
+                    field_name,
+                    f"Las horas cátedra del {label} no pueden ser negativas.",
+                )
 
         return cleaned_data

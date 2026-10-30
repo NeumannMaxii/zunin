@@ -14,4 +14,3 @@ urlpatterns = [
     path("licencias/", include("apps.licencias.urls")),
     path("", include("apps.core.urls")),
 ]
-

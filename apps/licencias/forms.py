@@ -1,6 +1,6 @@
 """
-Formularios para el módulo de Licencias y Justificación Diferida de Inasistencias.
-Implementa el buscador de licencias estatutarias y el flujo de justificación en papel (RF-09, RF-11).
+Formularios para el módulo de Licencias y Justificación Diferida.
+Implementa el buscador de licencias y el flujo en papel (RF-09, RF-11).
 """
 
 from django import forms
@@ -44,7 +44,7 @@ class TipoLicenciaSearchForm(TailwindForm):
     )
 
     def filtrar(self, queryset=None):
-        """Aplica los criterios de búsqueda al queryset suministrado o a TipoLicencia.objects.all()."""
+        """Aplica los criterios de búsqueda al queryset suministrado."""
         if queryset is None:
             queryset = TipoLicencia.objects.all()
 
@@ -83,7 +83,7 @@ class TipoLicenciaSearchForm(TailwindForm):
 
 class JustificacionDiferidaForm(TailwindForm):
     """
-    Formulario operativo para la recepción y carga de formularios oficiales en papel (RF-09, RF-11).
+    Formulario operativo para carga de formularios en papel (RF-09, RF-11).
     Permite transicionar un registro de inasistencia ('I') a 'LIC', 'P' o 'LT'.
     """
 
@@ -96,7 +96,7 @@ class JustificacionDiferidaForm(TailwindForm):
     registro = forms.ModelChoiceField(
         queryset=RegistroAsistencia.objects.all(),
         label="Registro de Asistencia / Inasistencia",
-        help_text="Seleccione el registro de inasistencia pendiente de justificación.",
+        help_text="Seleccione el registro pendiente de justificación.",
     )
     nueva_marca = forms.ChoiceField(
         choices=NUEVA_MARCA_CHOICES,
@@ -113,7 +113,9 @@ class JustificacionDiferidaForm(TailwindForm):
         max_length=50,
         required=False,
         label="Número de Disposición / Instrumento",
-        widget=forms.TextInput(attrs={"placeholder": "Ej: Disp. Interna 042/2026"}),
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej: Disp. Interna 042/2026"}
+        ),
     )
     observaciones = forms.CharField(
         required=False,
@@ -121,7 +123,10 @@ class JustificacionDiferidaForm(TailwindForm):
         widget=forms.Textarea(
             attrs={
                 "rows": 3,
-                "placeholder": "Detalle de presentación de certificado médico o formulario oficial...",
+                "placeholder": (
+                    "Detalle de presentación de certificado médico o "
+                    "formulario oficial..."
+                ),
             }
         ),
     )
@@ -130,7 +135,9 @@ class JustificacionDiferidaForm(TailwindForm):
         super().__init__(*args, **kwargs)
         if registro is not None:
             self.fields["registro"].initial = registro
-            self.fields["registro"].queryset = RegistroAsistencia.objects.filter(pk=registro.pk)
+            self.fields["registro"].queryset = (
+                RegistroAsistencia.objects.filter(pk=registro.pk)
+            )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -139,22 +146,28 @@ class JustificacionDiferidaForm(TailwindForm):
         tipo_licencia = cleaned_data.get("tipo_licencia")
 
         if registro:
-            if registro.marca_diaria not in ["I", "INA"] and registro.estado != "AUSENTE":
+            no_ausente = (
+                registro.marca_diaria not in ["I", "INA"]
+                and registro.estado != "AUSENTE"
+            )
+            if no_ausente:
                 self.add_error(
                     "registro",
-                    "Solo se pueden justificar registros en estado de inasistencia ('I').",
+                    "Solo se pueden justificar registros en estado de "
+                    "inasistencia ('I').",
                 )
 
         if nueva_marca in ["LIC", "LT"] and not tipo_licencia:
             self.add_error(
                 "tipo_licencia",
-                "Debe especificar un Tipo de Licencia para justificar con Licencia (LIC/LT).",
+                "Debe especificar un Tipo de Licencia para justificar "
+                "con Licencia (LIC/LT).",
             )
 
         return cleaned_data
 
     def save(self, usuario=None):
-        """Aplica la justificación delegando a la lógica del modelo subyacente y guarda los metadatos."""
+        """Aplica la justificación delegando a la lógica del modelo."""
         if not self.is_valid():
             raise ValueError("No se puede guardar un formulario con errores.")
 

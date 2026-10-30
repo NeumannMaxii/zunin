@@ -1,5 +1,5 @@
 """
-Pruebas automatizadas para los formularios del módulo de Licencias (apps.licencias.forms).
+Pruebas automatizadas para los formularios del módulo de Licencias.
 """
 
 import datetime
@@ -74,7 +74,7 @@ class LicenciasFormsTests(TestCase):
     # --- Pruebas JustificacionDiferidaForm ---
 
     def test_justificacion_diferida_form_valida_licencia(self):
-        """RF-09, RF-11: Justificación exitosa de inasistencia ('I') con licencia médica."""
+        """RF-09, RF-11: Justificación de inasistencia ('I') con licencia."""
         inasistencia = RegistroAsistencia.objects.create(
             docente=self.docente,
             fecha=datetime.date(2026, 4, 15),
@@ -102,7 +102,7 @@ class LicenciasFormsTests(TestCase):
         self.assertIn("Certificado médico", registro_actualizado.observaciones)
 
     def test_justificacion_diferida_form_valida_permiso(self):
-        """Justificación exitosa como Permiso ('P') sin necesidad de tipo de licencia."""
+        """Justificación exitosa como Permiso ('P') sin tipo de licencia."""
         inasistencia = RegistroAsistencia.objects.create(
             docente=self.docente,
             fecha=datetime.date(2026, 4, 16),
@@ -140,7 +140,10 @@ class LicenciasFormsTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn("tipo_licencia", form.errors)
-        self.assertIn("Debe especificar un Tipo de Licencia", form.errors["tipo_licencia"][0])
+        self.assertIn(
+            "Debe especificar un Tipo de Licencia",
+            form.errors["tipo_licencia"][0],
+        )
 
     def test_justificacion_diferida_registro_no_inasistencia_rechazado(self):
         """Rechaza intentar justificar un registro que ya figura como PRESENTE."""
@@ -158,4 +161,7 @@ class LicenciasFormsTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn("registro", form.errors)
-        self.assertIn("Solo se pueden justificar registros en estado de inasistencia", form.errors["registro"][0])
+        self.assertIn(
+            "Solo se pueden justificar registros en estado de inasistencia",
+            form.errors["registro"][0],
+        )

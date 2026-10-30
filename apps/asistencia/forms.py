@@ -4,7 +4,6 @@ Aplica diseño Tailwind CSS y validaciones con delegación a las reglas de model
 """
 
 from django import forms
-from django.core.exceptions import ValidationError
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.core.forms import TailwindModelForm
 from apps.personal.models import CargoDocente
@@ -28,7 +27,9 @@ class DiaNoLaborableForm(TailwindModelForm):
     def clean_descripcion(self):
         descripcion = self.cleaned_data.get("descripcion", "").strip()
         if not descripcion:
-            raise forms.ValidationError("La descripción del día no laborable no puede estar vacía.")
+            raise forms.ValidationError(
+                "La descripción del día no laborable no puede estar vacía."
+            )
         return descripcion
 
     def clean_fecha(self):
@@ -72,7 +73,9 @@ class RegistroAsistenciaForm(TailwindModelForm):
             "observaciones": forms.Textarea(
                 attrs={
                     "rows": 3,
-                    "placeholder": "Observaciones, motivo o justificación de la novedad...",
+                    "placeholder": (
+                        "Observaciones, motivo o justificación de la novedad..."
+                    ),
                 }
             ),
             "numero_disposicion": forms.TextInput(
@@ -130,7 +133,8 @@ class RegistroAsistenciaForm(TailwindModelForm):
             if fecha_hasta < fecha:
                 self.add_error(
                     "fecha_hasta",
-                    "La fecha de finalización no puede ser anterior a la fecha inicial.",
+                    "La fecha de finalización no puede ser anterior a "
+                    "la fecha inicial.",
                 )
             elif fecha_hasta != fecha:
                 es_inasistencia = (
@@ -155,7 +159,8 @@ class RegistroAsistenciaForm(TailwindModelForm):
             if qs.exists():
                 self.add_error(
                     "fecha",
-                    f"Ya existe un registro de asistencia para el docente {docente} en la fecha {fecha}.",
+                    f"Ya existe un registro de asistencia para el docente "
+                    f"{docente} en la fecha {fecha}.",
                 )
 
         return cleaned_data

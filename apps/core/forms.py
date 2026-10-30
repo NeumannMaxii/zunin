@@ -9,36 +9,43 @@ from django.forms.utils import ErrorList
 
 class TailwindErrorList(ErrorList):
     """
-    Renderizador de listas de errores con tipografía y colores de alerta legibles en Tailwind.
+    Renderizador de listas de errores con tipografía y colores de alerta
+    legibles en Tailwind.
     """
 
     def __init__(self, initlist=None, error_class=None, **kwargs):
         error_class = (
             error_class
-            or "text-xs text-rose-600 mt-1 font-medium list-disc list-inside space-y-0.5"
+            or (
+                "text-xs text-rose-600 mt-1 font-medium list-disc "
+                "list-inside space-y-0.5"
+            )
         )
         super().__init__(initlist, error_class=error_class, **kwargs)
 
 
 class TailwindFormMixin:
     """
-    Mixin para inyectar automáticamente clases de Tailwind CSS en widgets de formularios.
-    Soporta text inputs, selects, textareas, checkboxes y selectores de fecha nativos (type="date").
+    Mixin para inyectar automáticamente clases de Tailwind CSS en widgets.
+    Soporta text inputs, selects, textareas, checkboxes y datepickers nativos.
     """
 
     BASE_INPUT_CLASSES = (
-        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 "
-        "placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 "
+        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg "
+        "text-slate-900 placeholder-slate-400 text-sm focus:outline-none "
+        "focus:ring-2 focus:ring-institucional-600 "
         "focus:border-institucional-600 transition-colors"
     )
     BASE_SELECT_CLASSES = (
-        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 "
-        "text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 "
-        "focus:border-institucional-600 transition-colors"
+        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg "
+        "text-slate-900 text-sm focus:outline-none focus:ring-2 "
+        "focus:ring-institucional-600 focus:border-institucional-600 "
+        "transition-colors"
     )
     BASE_TEXTAREA_CLASSES = (
-        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 "
-        "placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 "
+        "block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg "
+        "text-slate-900 placeholder-slate-400 text-sm focus:outline-none "
+        "focus:ring-2 focus:ring-institucional-600 "
         "focus:border-institucional-600 transition-colors"
     )
     BASE_CHECKBOX_CLASSES = (
@@ -86,7 +93,7 @@ class TailwindFormMixin:
                 widget.attrs["class"] = f"{current_class} {target_base}".strip()
 
     def full_clean(self):
-        """Sobrescribe full_clean para resaltar visualmente con borde rojo los campos con error."""
+        """Sobrescribe full_clean para resaltar los campos con error."""
         super().full_clean()
         if self._errors:
             for field_name in self._errors:
@@ -94,14 +101,15 @@ class TailwindFormMixin:
                     widget = self.fields[field_name].widget
                     classes = widget.attrs.get("class", "")
                     if self.ERROR_WIDGET_CLASSES not in classes:
-                        widget.attrs["class"] = f"{classes} {self.ERROR_WIDGET_CLASSES}".strip()
+                        err_cls = f"{classes} {self.ERROR_WIDGET_CLASSES}"
+                        widget.attrs["class"] = err_cls.strip()
 
 
 class TailwindModelForm(TailwindFormMixin, forms.ModelForm):
-    """Clase base de conveniencia para ModelForms estilizados con Tailwind CSS."""
+    """Clase base de conveniencia para ModelForms estilizados con Tailwind."""
     pass
 
 
 class TailwindForm(TailwindFormMixin, forms.Form):
-    """Clase base de conveniencia para Forms regulares estilizados con Tailwind CSS."""
+    """Clase base de conveniencia para Forms regulares con Tailwind."""
     pass
