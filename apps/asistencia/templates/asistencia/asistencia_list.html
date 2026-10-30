@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Registros de Asistencia - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registros de Asistencia</h1>
+            <p class="text-sm text-slate-500">Partes diarios de novedades, marcas y estados de asistencia.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'asistencia:carga_masiva' %}" class="inline-flex items-center px-3.5 py-2 border border-emerald-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+                + Carga Masiva
+            </a>
+            <a href="{% url 'asistencia:justificaciones_lote' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Justificaciones por Lote
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3">Fecha</th>
+                        <th class="px-6 py-3">Docente</th>
+                        <th class="px-6 py-3">Cargo / Materia</th>
+                        <th class="px-6 py-3">Marca</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3">Justifica</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 text-sm">
+                    {% for a in asistencias %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ a.fecha|date:"d/m/Y" }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">{{ a.docente.apellido }}, {{ a.docente.nombre }}</td>
+                        <td class="px-6 py-4 text-slate-600 text-xs">{{ a.cargo|default:"Jornada Completa" }}</td>
+                        <td class="px-6 py-4 font-bold font-mono text-institucional-700">{{ a.marca_diaria }}</td>
+                        <td class="px-6 py-4">
+                            {% if a.estado == 'PRESENTE' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span>
+                            {% elif a.estado == 'LICENCIA' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Licencia</span>
+                            {% elif a.estado == 'JUSTIFICADO' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Justificado</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Ausente</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if a.justifica %}
+                                <span class="text-emerald-600 font-semibold text-xs">&check; Sí</span>
+                            {% else %}
+                                <span class="text-rose-600 font-semibold text-xs">&cross; No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">No se encontraron registros de asistencia.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "core/includes/paginator.html" %}
+    </div>
+</div>
+{% endblock %}

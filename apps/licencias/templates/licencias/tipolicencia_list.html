@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Licencias - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Catálogo de Licencias</h1>
+            <p class="text-sm text-slate-500">Régimen legal, artículos estatutarios y liquidación de haberes.</p>
+        </div>
+        <div>
+            <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Planillas Mensuales &rarr;
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3">Código</th>
+                        <th class="px-6 py-3">Artículo Legal</th>
+                        <th class="px-6 py-3">Descripción</th>
+                        <th class="px-6 py-3">Categoría</th>
+                        <th class="px-6 py-3">Haberes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 text-sm">
+                    {% for lic in tipo_licencias %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="px-6 py-4 font-mono font-bold text-institucional-700">{{ lic.codigo }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">{{ lic.articulo|default:"-" }}</td>
+                        <td class="px-6 py-4 text-slate-700">{{ lic.descripcion }}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                {{ lic.get_categoria_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 text-xs">{{ lic.get_forma_pago_display }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">No se encontraron tipos de licencias.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "core/includes/paginator.html" %}
+    </div>
+</div>
+{% endblock %}

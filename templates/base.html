@@ -89,6 +89,15 @@
                         <a href="{% url 'core:dashboard_home' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-institucional-700 bg-institucional-50">
                             Dashboard
                         </a>
+                        <a href="{% url 'personal:docente_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                            Personal
+                        </a>
+                        <a href="{% url 'asistencia:asistencia_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                            Asistencia
+                        </a>
+                        <a href="{% url 'licencias:tipolicencia_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                            Licencias
+                        </a>
                     </div>
                 </div>
 
@@ -120,6 +129,19 @@
             </div>
         </div>
     </nav>
+
+    <!-- Messages Notification Area -->
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {% for message in messages %}
+        <div class="p-4 mb-3 rounded-xl border text-sm flex items-center justify-between {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">
+            <div class="flex items-center space-x-2">
+                <span>{{ message }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Main Content Area -->
     <main class="flex-grow">
