@@ -45,3 +45,24 @@ class DashboardCoreTests(TestCase):
         self.assertContains(response, "Dashboard Institucional")
         self.assertContains(response, "docente_dashboard")
         self.assertContains(response, "Proyecto Zunin")
+        self.assertNotContains(response, 'href="/admin/"')
+
+    def test_enlace_admin_solo_visible_para_staff(self):
+        """
+        Valida que el botón de Django Admin solo se renderice para usuarios is_staff.
+        """
+        # Usuario común (no staff) no ve el enlace a /admin/
+        self.client.login(username="docente_dashboard", password="password123")
+        resp_comun = self.client.get(reverse("core:dashboard_home"))
+        self.assertNotContains(resp_comun, 'href="/admin/"')
+
+        # Usuario staff ve el enlace a /admin/
+        User = get_user_model()
+        User.objects.create_user(
+            username="admin_user",
+            password="password123",
+            is_staff=True,
+        )
+        self.client.login(username="admin_user", password="password123")
+        resp_staff = self.client.get(reverse("core:dashboard_home"))
+        self.assertContains(resp_staff, 'href="/admin/"')
