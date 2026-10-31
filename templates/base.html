@@ -113,6 +113,14 @@
 
                 <!-- Right Side Actions & User Menu -->
                 <div class="flex items-center space-x-3">
+                    <!-- Botón de Instalación PWA (se muestra cuando el navegador detecta que es instalable) -->
+                    <button id="pwa-install-btn" type="button" class="hidden inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white bg-institucional-700 hover:bg-institucional-800 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-institucional-600 cursor-pointer">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Instalar App</span>
+                    </button>
+
                     {% if user.is_authenticated %}
                     <div class="hidden sm:flex items-center space-x-2 border-l border-slate-200 pl-3">
                         <span class="text-xs font-medium text-slate-600">
@@ -164,8 +172,40 @@
         </div>
     </footer>
 
-    <!-- PWA Service Worker Registration -->
+    <!-- PWA Service Worker Registration & Installation Prompt -->
     <script>
+        let deferredPrompt = null;
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Evitar que el navegador muestre su mini banner predeterminado
+            e.preventDefault();
+            deferredPrompt = e;
+            // Mostrar botón en la barra de navegación
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+            }
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`[PWA] Respuesta del usuario a la instalación: ${outcome}`);
+                    deferredPrompt = null;
+                    installBtn.classList.add('hidden');
+                }
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('[PWA] La aplicación fue instalada con éxito.');
+            if (installBtn) {
+                installBtn.classList.add('hidden');
+            }
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/serviceworker.js')
