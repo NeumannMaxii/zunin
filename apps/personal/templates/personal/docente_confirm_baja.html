@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar Baja de Docente - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <!-- Encabezado con Icono de Alerta -->
+        <div class="flex items-center space-x-3 text-rose-600">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">¿Confirmar baja lógica del docente?</h1>
+                <p class="text-xs text-slate-500">Operación restringida a Administradores Institucionales.</p>
+            </div>
+        </div>
+
+        <!-- Ficha Resumen del Docente -->
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-slate-500">Docente:</span>
+                <span class="font-semibold text-slate-900">{{ docente.apellido }}, {{ docente.nombre }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">DNI:</span>
+                <span class="font-mono font-medium text-slate-900">{{ docente.dni }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Contacto:</span>
+                <span class="text-slate-700">{{ docente.contacto|default:"-" }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Estado actual:</span>
+                {% if docente.activo %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Aviso Institucional de Integridad -->
+        <p class="text-xs text-amber-800 bg-amber-50 p-3.5 rounded-xl border border-amber-200 leading-relaxed">
+            <strong>Baja Lógica:</strong> Al confirmar, el estado del docente pasará a <em>Inactivo</em>. No se eliminarán sus registros históricos de asistencia ni designaciones previas. Un administrador institucional podrá reactivar el legajo posteriormente si fuera requerido.
+        </p>
+
+        <!-- Formulario POST de Confirmación -->
+        <form method="post" action="{% url 'personal:docente_baja' docente.pk %}" class="pt-2 flex flex-col sm:flex-row justify-end items-center gap-3">
+            {% csrf_token %}
+            <a href="{% url 'personal:docente_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                Cancelar
+            </a>
+            <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-rose-600 text-sm font-semibold rounded-lg text-white hover:bg-rose-700 shadow-xs transition-colors cursor-pointer">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Confirmar Baja Lógica
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

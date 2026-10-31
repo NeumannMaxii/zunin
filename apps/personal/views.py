@@ -1,14 +1,22 @@
 """
 Vistas para la aplicación Personal (Docentes y Cargos).
-Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25).
+Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25)
+y Ticket 6: Pantalla 1 — CRUD Personal y endpoint de baja lógica con seguridad.
 """
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-from django.views.generic import ListView
+from django.views import View
+from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import FormView
-from apps.personal.forms import ImportarCSVForm
+from apps.core.audit import AuditoriaFormMixin, audit_save
+from apps.personal.forms import (
+    DocenteBedeliaForm,
+    DocenteForm,
+    ImportarCSVForm,
+)
 from apps.personal.importer import importar_legajos_csv
 from apps.personal.models import CargoDocente, Docente
 
@@ -24,6 +32,180 @@ class DocenteListView(LoginRequiredMixin, ListView):
     context_object_name = "docentes"
     paginate_by = 25
     ordering = ["apellido", "nombre"]
+
+
+class DocenteCreateView(
+    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, CreateView
+):
+    """
+    Vista para el alta de un nuevo legajo docente (Ticket 6).
+    Accesible para Administradores y Bedelía Operadora.
+    """
+
+    model = Docente
+    template_name = "personal/docente_form.html"
+    success_url = reverse_lazy("personal:docente_list")
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("personal.add_docente")
+        )
+
+    def es_bedelia_operadora(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.groups.filter(name="Bedelia_Operadoras").exists()
+            and not (
+                user.is_superuser
+                or user.groups.filter(name="Admin_Institucional").exists()
+            )
+        )
+
+    def get_form_class(self):
+        if self.es_bedelia_operadora():
+            return DocenteBedeliaForm
+        return DocenteForm
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if self.es_bedelia_operadora() and "activo" in form.fields:
+            del form.fields["activo"]
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Registrar Nuevo Personal Docente"
+        context["accion"] = "Registrar Docente"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Docente {self.object.apellido}, {self.object.nombre} "
+            "registrado con éxito.",
+        )
+        return response
+
+
+class DocenteUpdateView(
+    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, UpdateView
+):
+    """
+    Vista de edición para actualizar datos filiatorios y legajo (Ticket 6).
+    Si el usuario pertenece al grupo Bedelia_Operadoras, el campo 'activo'
+    se oculta del formulario y se bloquea para evitar modificaciones no autorizadas.
+    """
+
+    model = Docente
+    template_name = "personal/docente_form.html"
+    success_url = reverse_lazy("personal:docente_list")
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("personal.change_docente")
+        )
+
+    def es_bedelia_operadora(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.groups.filter(name="Bedelia_Operadoras").exists()
+            and not (
+                user.is_superuser
+                or user.groups.filter(name="Admin_Institucional").exists()
+            )
+        )
+
+    def get_form_class(self):
+        if self.es_bedelia_operadora():
+            return DocenteBedeliaForm
+        return DocenteForm
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if self.es_bedelia_operadora() and "activo" in form.fields:
+            del form.fields["activo"]
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = (
+            f"Editar Personal: {self.object.apellido}, {self.object.nombre}"
+        )
+        context["accion"] = "Guardar Cambios"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Docente {self.object.apellido}, {self.object.nombre} "
+            "actualizado con éxito.",
+        )
+        return response
+
+
+class DocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Endpoint de baja lógica para Docentes (Ticket 6).
+    Ruta protegida: POST /personal/<pk>/baja/.
+    Permisos estrictos: Solo superusuarios o miembros de Admin_Institucional.
+    Si accede Bedelia_Operadoras o Consulta_Directiva, retorna HTTP 403 Forbidden.
+    Acción: Cambia el estado del Docente a activo = False y persiste.
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(name="Admin_Institucional").exists()
+        )
+
+    def get(self, request, pk, *args, **kwargs):
+        docente = get_object_or_404(Docente, pk=pk)
+        return render(
+            request,
+            "personal/docente_confirm_baja.html",
+            {
+                "docente": docente,
+                "titulo": f"Confirmar Baja: {docente.apellido}, {docente.nombre}",
+            },
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        docente = get_object_or_404(Docente, pk=pk)
+        docente.activo = False
+        audit_save(docente, user=request.user, created=False)
+        messages.success(
+            request,
+            f"El docente {docente.apellido}, {docente.nombre} fue dado "
+            "de baja exitosamente.",
+        )
+        return redirect("personal:docente_list")
 
 
 class CargoDocenteListView(LoginRequiredMixin, ListView):

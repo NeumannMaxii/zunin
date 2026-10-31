@@ -12,8 +12,14 @@
             <p class="text-sm text-slate-500">Pómina de agentes y legajos registrados en la institución.</p>
         </div>
         <div class="flex items-center space-x-3">
+            <a href="{% url 'personal:docente_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo Docente
+            </a>
             {% if user|es_administrador %}
-            <a href="{% url 'personal:importar_csv' %}" class="inline-flex items-center px-4 py-2 border border-institucional-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+            <a href="{% url 'personal:importar_csv' %}" class="inline-flex items-center px-4 py-2 border border-institucional-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-700 hover:bg-institucional-800 transition-colors">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
@@ -37,6 +43,7 @@
                         <th class="px-6 py-3">Sexo</th>
                         <th class="px-6 py-3">Contacto</th>
                         <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -53,10 +60,25 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
                             {% endif %}
                         </td>
+                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                            <a href="{% url 'personal:docente_update' docente.pk %}" class="inline-flex items-center text-xs font-medium text-institucional-600 hover:text-institucional-800 transition-colors">
+                                Editar
+                            </a>
+                            {% if user|es_administrador %}
+                                {% if docente.activo %}
+                                <form method="post" action="{% url 'personal:docente_baja' docente.pk %}" class="inline" onsubmit="return confirm('¿Confirmar baja lógica de {{ docente.apellido }}, {{ docente.nombre }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="inline-flex items-center text-xs font-medium text-rose-600 hover:text-rose-800 transition-colors cursor-pointer ml-2">
+                                        Dar de Baja
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">
                             No se encontraron docentes registrados.
                         </td>
                     </tr>
