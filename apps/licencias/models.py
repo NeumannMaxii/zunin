@@ -378,6 +378,14 @@ class RenglonPlanillaMensual(AuditoriaModel):
         ),
         verbose_name="Número de Instrumento",
     )
+    desactualizada = models.BooleanField(
+        default=False,
+        verbose_name="Planilla Desactualizada",
+        help_text=(
+            "RN-03: Se marca en True cuando ingresan justificaciones o "
+            "novedades posteriores a la emisión inicial de la planilla."
+        ),
+    )
 
     class Meta:
         verbose_name = "Renglón de Planilla Mensual"
@@ -393,6 +401,13 @@ class RenglonPlanillaMensual(AuditoriaModel):
             f"[{self.cuadro}] {self.docente.nombre_completo} - "
             f"{self.cargo} ({self.horas_afectadas} hs) - {self.numero_instrumento}"
         )
+
+    @property
+    def total_dias(self):
+        """Calcula los días calendario abarcados por el renglón."""
+        if self.desde and self.hasta:
+            return (self.hasta - self.desde).days + 1
+        return 1
 
     @classmethod
     def generar_planilla_mes(cls, mes, anio, usuario=None):

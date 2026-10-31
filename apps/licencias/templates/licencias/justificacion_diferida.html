@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header y Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <a href="{% url 'licencias:planilla_list' %}" class="hover:text-slate-800 transition-colors">Licencias</a>
+                <span>/</span>
+                <span class="text-slate-700 font-medium">Justificación Diferida</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ titulo }}</h1>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-institucional-50 text-institucional-700 border border-institucional-200">
+                    RN-03
+                </span>
+            </div>
+            <p class="text-sm text-slate-500">Carga diferida de certificados y formularios oficiales en papel (RF-09, RF-11, RN-03).</p>
+        </div>
+        <div>
+            <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver a Planillas
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjeta del Formulario -->
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <!-- Sección 1: Agente y Período -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>1. Docente y Período Afectado</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Docente -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.docente.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Docente <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.docente }}
+                        {% if form.docente.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.docente.help_text }}</p>
+                        {% endif %}
+                        {% if form.docente.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.docente.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Fecha Desde -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.fecha_desde.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Fecha Desde <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.fecha_desde }}
+                        {% if form.fecha_desde.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.fecha_desde.help_text }}</p>
+                        {% endif %}
+                        {% if form.fecha_desde.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_desde.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Fecha Hasta -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.fecha_hasta.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Fecha Hasta <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.fecha_hasta }}
+                        {% if form.fecha_hasta.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.fecha_hasta.help_text }}</p>
+                        {% endif %}
+                        {% if form.fecha_hasta.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_hasta.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Cargo (Opcional) -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.cargo.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Cargo / Materia Específica (Opcional)
+                        </label>
+                        {{ form.cargo }}
+                        {% if form.cargo.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.cargo.help_text }}</p>
+                        {% endif %}
+                        {% if form.cargo.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cargo.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Nota de Omisión Automática -->
+                <div class="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start space-x-3 text-xs text-slate-600">
+                    <svg class="w-5 h-5 text-institucional-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <strong class="font-medium text-slate-800">Cómputo inteligente de días hábiles:</strong>
+                        El sistema omitirá automáticamente los fines de semana (sábados y domingos) y los días no laborables o feriados registrados en el calendario escolar.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 2: Justificación y Documentación -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>2. Instrumento y Justificación</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Nueva Marca Oficial -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.nueva_marca.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Nueva Marca Oficial <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.nueva_marca }}
+                        {% if form.nueva_marca.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.nueva_marca.help_text }}</p>
+                        {% endif %}
+                        {% if form.nueva_marca.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.nueva_marca.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tipo de Licencia -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Tipo de Licencia Estatutaria
+                        </label>
+                        {{ form.tipo_licencia }}
+                        {% if form.tipo_licencia.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.tipo_licencia.help_text }}</p>
+                        {% endif %}
+                        {% if form.tipo_licencia.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_licencia.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Número de Disposición -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Número de Disposición / Instrumento
+                        </label>
+                        {{ form.numero_disposicion }}
+                        {% if form.numero_disposicion.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.numero_disposicion.help_text }}</p>
+                        {% endif %}
+                        {% if form.numero_disposicion.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_disposicion.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Observaciones de Justificación
+                        </label>
+                        {{ form.observaciones }}
+                        {% if form.observaciones.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.observaciones.help_text }}</p>
+                        {% endif %}
+                        {% if form.observaciones.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.observaciones.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aviso de Integridad Histórica RN-03 -->
+            <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start space-x-3 text-xs text-amber-900 leading-relaxed">
+                <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <strong class="font-semibold text-amber-950">Cumplimiento de Integridad Histórica (RN-03):</strong>
+                    Si el período justificado coincide con meses que ya tienen planillas mensuales consolidadas, los renglones existentes NO serán eliminados ni perderán sus números de Disposición asignados. La planilla se actualizará preservando la trazabilidad institucional.
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end items-center gap-3">
+                <a href="{% url 'licencias:planilla_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs transition-colors cursor-pointer">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {{ accion|default:"Procesar Justificación" }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

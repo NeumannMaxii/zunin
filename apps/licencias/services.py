@@ -6,7 +6,9 @@ Implementa el motor de generación mensual consolidada (RN-11).
 import datetime
 import unicodedata
 from django.apps import apps
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from apps.core.audit import audit_save
 
 
 def generar_planilla_mes(mes, anio, usuario=None):
@@ -297,3 +299,144 @@ def generar_planilla_mes(mes, anio, usuario=None):
                     renglones_resultado.append(renglon)
 
         return renglones_resultado
+
+
+def procesar_justificacion_rango(
+    docente,
+    fecha_desde,
+    fecha_hasta,
+    nueva_marca,
+    tipo_licencia=None,
+    numero_disposicion=None,
+    observaciones=None,
+    cargo=None,
+    usuario=None,
+):
+    """
+    Procesa la justificación diferida de inasistencias en un rango de fechas
+    (Ticket 7 - RN-03).
+
+    Reglas de negocio:
+    1. Valida cronología del rango (fecha_hasta >= fecha_desde).
+    2. Salta automáticamente fines de semana (sábados y domingos).
+    3. Salta automáticamente feriados y días no laborables (DiaNoLaborable).
+    4. Ejecución atómica total bajo `with transaction.atomic():`. Ante cualquier
+       error o fallo se revierte el lote completo (0 registros persistidos).
+    5. Integridad histórica (RN-03): si el mes ya cuenta con planilla mensual
+       generada, NO se borran los renglones existentes. Se marcan como
+       desactualizados y se fuerza la regeneración segura con los nuevos datos,
+       preservando los números de instrumento asignados originalmente.
+    """
+    if not docente:
+        raise ValidationError("Debe especificar el docente a justificar.")
+
+    if not fecha_desde or not fecha_hasta:
+        raise ValidationError(
+            "Debe especificar tanto la fecha de inicio como la fecha de fin."
+        )
+
+    if fecha_hasta < fecha_desde:
+        raise ValidationError(
+            "La fecha de fin no puede ser anterior a la fecha de inicio."
+        )
+
+    if nueva_marca not in ["LIC", "LIC.", "LT", "P", "PERM"]:
+        raise ValidationError(
+            f"Marca no válida para justificación diferida: {nueva_marca}."
+        )
+
+    if nueva_marca in ["LIC", "LIC.", "LT"] and not tipo_licencia:
+        raise ValidationError(
+            "Debe especificar un Tipo de Licencia para justificar con Licencia."
+        )
+
+    DiaNoLaborable = apps.get_model("asistencia", "DiaNoLaborable")
+    RegistroAsistencia = apps.get_model("asistencia", "RegistroAsistencia")
+    RenglonPlanillaMensual = apps.get_model(
+        "licencias", "RenglonPlanillaMensual"
+    )
+
+    # Precarga de feriados y asuetos en el rango
+    feriados_fechas = set(
+        DiaNoLaborable.objects.filter(
+            fecha__range=[fecha_desde, fecha_hasta]
+        ).values_list("fecha", flat=True)
+    )
+
+    # Identificar días hábiles a justificar (omitiendo fines de semana y feriados)
+    dias_a_justificar = []
+    dia_cursor = fecha_desde
+    while dia_cursor <= fecha_hasta:
+        # Saltear fines de semana (5 = Sábado, 6 = Domingo) y feriados
+        if dia_cursor.weekday() < 5 and dia_cursor not in feriados_fechas:
+            dias_a_justificar.append(dia_cursor)
+        dia_cursor += datetime.timedelta(days=1)
+
+    with transaction.atomic():
+        registros_guardados = []
+        meses_afectados = set()
+
+        for dia in dias_a_justificar:
+            meses_afectados.add((dia.month, dia.year))
+
+            reg = RegistroAsistencia.objects.filter(
+                docente=docente, fecha=dia
+            ).first()
+
+            estado_destino = (
+                "LICENCIA"
+                if nueva_marca in ["LIC", "LIC.", "LT"]
+                else "JUSTIFICADO"
+            )
+
+            if reg is not None:
+                # Actualización de registro existente
+                reg.estado = estado_destino
+                reg.marca_diaria = nueva_marca
+                reg.tipo_licencia = tipo_licencia
+                reg.justifica = True
+                if cargo and not reg.cargo:
+                    reg.cargo = cargo
+                if numero_disposicion:
+                    reg.numero_disposicion = numero_disposicion
+                if observaciones:
+                    if reg.observaciones:
+                        reg.observaciones = (
+                            f"{reg.observaciones} | {observaciones}"
+                        )
+                    else:
+                        reg.observaciones = observaciones
+                audit_save(reg, user=usuario, created=False)
+                registros_guardados.append(reg)
+            else:
+                # Creación de nuevo registro justificado
+                nuevo_reg = RegistroAsistencia(
+                    docente=docente,
+                    cargo=cargo,
+                    fecha=dia,
+                    estado=estado_destino,
+                    marca_diaria=nueva_marca,
+                    tipo_licencia=tipo_licencia,
+                    justifica=True,
+                    numero_disposicion=numero_disposicion,
+                    observaciones=observaciones or "",
+                )
+                audit_save(nuevo_reg, user=usuario, created=True)
+                registros_guardados.append(nuevo_reg)
+
+        # Regla de Integridad Histórica RN-03:
+        # Si un mes ya tiene planilla mensual consolidada emitida,
+        # NO se deben borrar los renglones existentes. Se marcan como
+        # desactualizados y se regenera la planilla de forma segura.
+        for mes, anio in meses_afectados:
+            planillas_mes = RenglonPlanillaMensual.objects.filter(
+                mes=mes, anio=anio
+            )
+            if planillas_mes.exists():
+                planillas_mes.update(desactualizada=True)
+                generar_planilla_mes(mes=mes, anio=anio, usuario=usuario)
+
+        return registros_guardados
+
+
+procesar_justificacion_diferida = procesar_justificacion_rango
