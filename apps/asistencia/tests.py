@@ -8,10 +8,12 @@ Pruebas automatizadas para apps.asistencia:
 """
 
 import datetime
+from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 from apps.asistencia.forms import DiaNoLaborableForm, RegistroAsistenciaForm
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import (
@@ -449,3 +451,190 @@ class AsistenciaPermisosVisualesTests(TestCase):
         self.assertEqual(resp_admin.status_code, 200)
         self.assertContains(resp_admin, "+ Carga Masiva")
         self.assertContains(resp_admin, "Justificaciones por Lote")
+
+
+class DiaNoLaborableABMTests(TestCase):
+    """
+    Pruebas integrales para el ABM de Feriados y Días No Laborables (Ticket 4).
+    Valida:
+    - Vistas CBV: List, Create, Update, Delete.
+    - Integración con AuditoriaFormMixin (creado_por asignado automáticamente).
+    - Protección de rutas con LoginRequiredMixin.
+    - Redirecciones y mensajes de notificación django.contrib.messages.
+    - Paginación obligatoria (paginate_by = 25).
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="operador_bedelia",
+            password="password123",
+            email="operador@iesetyfp.edu.ar",
+        )
+        self.otro_user = User.objects.create_user(
+            username="otro_operador",
+            password="password123",
+            email="otro@iesetyfp.edu.ar",
+        )
+        self.feriado = DiaNoLaborable.objects.create(
+            fecha=datetime.date(2026, 12, 8),
+            tipo="FERIADO",
+            descripcion="Inmaculada Concepción de María",
+            creado_por=self.user,
+        )
+
+    def test_rutas_requieren_autenticacion(self):
+        """Verifica que usuarios anónimos sean redirigidos al login."""
+        urls = [
+            reverse("asistencia:feriado_list"),
+            reverse("asistencia:feriado_create"),
+            reverse("asistencia:feriado_update", args=[self.feriado.pk]),
+            reverse("asistencia:feriado_delete", args=[self.feriado.pk]),
+        ]
+        for url in urls:
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 302)
+            self.assertIn("/accounts/login/", resp.url)
+
+    def test_list_view_feriados(self):
+        """Valida que el listado responda 200 y contenga los feriados creados."""
+        self.client.login(username="operador_bedelia", password="password123")
+        resp = self.client.get(reverse("asistencia:feriado_list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, "asistencia/dianolaborable_list.html")
+        self.assertContains(resp, "Inmaculada Concepción de María")
+        self.assertContains(resp, "08/12/2026")
+        self.assertEqual(resp.context["view"].paginate_by, 25)
+
+    def test_create_view_feriado_con_auditoria(self):
+        """
+        Valida creación vía POST de DiaNoLaborable y que AuditoriaFormMixin
+        inyecte automáticamente a request.user como creado_por.
+        """
+        self.client.login(username="operador_bedelia", password="password123")
+        data = {
+            "fecha": "2026-07-09",
+            "tipo": "FERIADO",
+            "descripcion": "Día de la Independencia",
+        }
+        resp = self.client.post(
+            reverse("asistencia:feriado_create"),
+            data=data,
+            follow=True,
+        )
+        self.assertRedirects(resp, reverse("asistencia:feriado_list"))
+
+        nuevo = DiaNoLaborable.objects.get(fecha=datetime.date(2026, 7, 9))
+        self.assertEqual(nuevo.tipo, "FERIADO")
+        self.assertEqual(nuevo.descripcion, "Día de la Independencia")
+        self.assertEqual(nuevo.creado_por, self.user)
+
+        messages = list(resp.context["messages"])
+        self.assertTrue(
+            any(
+                "Día no laborable registrado con éxito." in m.message
+                for m in messages
+            )
+        )
+
+    def test_update_view_feriado_con_auditoria(self):
+        """
+        Valida que un usuario pueda editar el feriado y que creado_por
+        permanezca inalterado.
+        """
+        self.client.login(username="otro_operador", password="password123")
+        data = {
+            "fecha": "2026-12-08",
+            "tipo": "ASUETO",
+            "descripcion": "Feriado / Asueto Institucional Modificado",
+        }
+        resp = self.client.post(
+            reverse("asistencia:feriado_update", args=[self.feriado.pk]),
+            data=data,
+            follow=True,
+        )
+        self.assertRedirects(resp, reverse("asistencia:feriado_list"))
+
+        self.feriado.refresh_from_db()
+        self.assertEqual(self.feriado.tipo, "ASUETO")
+        self.assertEqual(
+            self.feriado.descripcion,
+            "Feriado / Asueto Institucional Modificado",
+        )
+        # El creador original no se sobrescribe
+        self.assertEqual(self.feriado.creado_por, self.user)
+
+        messages = list(resp.context["messages"])
+        self.assertTrue(
+            any(
+                "Día no laborable modificado con éxito." in m.message
+                for m in messages
+            )
+        )
+
+    def test_delete_view_feriado(self):
+        """Valida confirmación GET y eliminación física mediante POST."""
+        self.client.login(username="operador_bedelia", password="password123")
+        delete_url = reverse(
+            "asistencia:feriado_delete", args=[self.feriado.pk]
+        )
+
+        # GET renderiza plantilla de confirmación
+        resp_get = self.client.get(delete_url)
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertTemplateUsed(
+            resp_get, "asistencia/dianolaborable_confirm_delete.html"
+        )
+        self.assertContains(resp_get, "¿Confirmar eliminación?")
+
+        # POST elimina el registro y redirige
+        resp_post = self.client.post(delete_url, follow=True)
+        self.assertRedirects(resp_post, reverse("asistencia:feriado_list"))
+        self.assertFalse(
+            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
+        )
+
+        messages = list(resp_post.context["messages"])
+        self.assertTrue(
+            any("eliminado correctamente" in m.message for m in messages)
+        )
+
+    def test_create_view_error_validacion_fecha_duplicada(self):
+        """Valida que una fecha duplicada rechace el formulario y muestre error."""
+        self.client.login(username="operador_bedelia", password="password123")
+        data = {
+            "fecha": "2026-12-08",  # Misma fecha que self.feriado
+            "tipo": "FERIADO",
+            "descripcion": "Otro feriado duplicado",
+        }
+        resp = self.client.post(
+            reverse("asistencia:feriado_create"), data=data
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertFormError(
+            resp.context["form"],
+            "fecha",
+            "Ya existe un día no laborable registrado para esta fecha.",
+        )
+
+    def test_alias_urls_dianolaborable(self):
+        """
+        Verifica que los alias con prefijo dianolaborable_* resuelvan
+        correctamente.
+        """
+        self.assertEqual(
+            reverse("asistencia:dianolaborable_list"),
+            "/asistencia/dias-no-laborables/",
+        )
+        self.assertEqual(
+            reverse("asistencia:dianolaborable_create"),
+            "/asistencia/dias-no-laborables/crear/",
+        )
+        self.assertEqual(
+            reverse("asistencia:dianolaborable_update", args=[1]),
+            "/asistencia/dias-no-laborables/1/editar/",
+        )
+        self.assertEqual(
+            reverse("asistencia:dianolaborable_delete", args=[1]),
+            "/asistencia/dias-no-laborables/1/eliminar/",
+        )
