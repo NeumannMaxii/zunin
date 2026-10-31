@@ -44,6 +44,8 @@
     <meta name="apple-mobile-web-app-title" content="Zunin">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 
     <!-- Google Fonts: Inter -->
@@ -83,11 +85,8 @@
                 <!-- Brand & Main Links -->
                 <div class="flex items-center space-x-8">
                     <a href="{% url 'core:dashboard_home' %}" class="flex items-center space-x-3 group">
-                        <div class="w-10 h-10 rounded-xl bg-institucional-900 text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:bg-institucional-800 transition-colors">
-                            <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                            </svg>
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-xs overflow-hidden group-hover:border-institucional-300 transition-colors p-1">
+                            <img src="/static/icons/icon-192.png" alt="Logo Zunin" class="w-full h-full object-contain">
                         </div>
                         <div>
                             <span class="text-base font-bold text-slate-900 tracking-tight block">Proyecto Zunin</span>
