@@ -1,6 +1,6 @@
 """
 Formularios para el módulo de Licencias y Justificación Diferida.
-Implementa el buscador de licencias y el flujo en papel (RF-09, RF-11).
+Implementa el buscador de licencias y el flujo en papel (RF-09, RF-11, RF-15, Ticket 8).
 """
 
 from django import forms
@@ -13,7 +13,8 @@ from apps.personal.models import CargoDocente, Docente
 
 class TipoLicenciaSearchForm(TailwindForm):
     """
-    Formulario de búsqueda y filtrado de tipos de licencias estatutarias (RF-15).
+    Formulario de búsqueda y filtrado de licencias estatutarias (RF-15, Ticket 8).
+    Soporta filtros GET por cuadro (?cuadro=IL-01 o ?cuadro=IL-02) y búsqueda (?q=).
     """
 
     q = forms.CharField(
@@ -22,6 +23,10 @@ class TipoLicenciaSearchForm(TailwindForm):
         widget=forms.TextInput(
             attrs={"placeholder": "Buscar por código, artículo o descripción..."}
         ),
+    )
+    cuadro = forms.CharField(
+        required=False,
+        label="Cuadro",
     )
     categoria = forms.ChoiceField(
         required=False,
@@ -53,9 +58,11 @@ class TipoLicenciaSearchForm(TailwindForm):
             return queryset
 
         q_val = self.cleaned_data.get("q", "").strip()
+        cuadro_raw = self.cleaned_data.get("cuadro", "")
+        cuadro_val = cuadro_raw.strip().upper() if cuadro_raw else ""
+        cuadro_mensual = self.cleaned_data.get("cuadro_mensual")
         categoria = self.cleaned_data.get("categoria")
         forma_pago = self.cleaned_data.get("forma_pago")
-        cuadro_mensual = self.cleaned_data.get("cuadro_mensual")
         activo = self.cleaned_data.get("activo")
 
         if q_val:
@@ -65,14 +72,25 @@ class TipoLicenciaSearchForm(TailwindForm):
                 | Q(descripcion__icontains=q_val)
             )
 
+        # Filtro por cuadro (Ticket 8: ?cuadro=IL-01 o ?cuadro=IL-02)
+        cuadro_filtro = cuadro_val or cuadro_mensual
+        if cuadro_filtro:
+            if cuadro_filtro in ["IL-01", "DL-01"]:
+                queryset = queryset.filter(
+                    cuadro_mensual__in=["IL-01", "DL-01"]
+                )
+            elif cuadro_filtro in ["IL-02", "DL-02"]:
+                queryset = queryset.filter(
+                    cuadro_mensual__in=["IL-02", "DL-02"]
+                )
+            else:
+                queryset = queryset.filter(cuadro_mensual=cuadro_filtro)
+
         if categoria:
             queryset = queryset.filter(categoria=categoria)
 
         if forma_pago:
             queryset = queryset.filter(forma_pago=forma_pago)
-
-        if cuadro_mensual:
-            queryset = queryset.filter(cuadro_mensual=cuadro_mensual)
 
         if activo == "1":
             queryset = queryset.filter(activo=True)

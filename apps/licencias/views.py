@@ -1,21 +1,28 @@
 """
 Vistas para la aplicación Licencias y Planillas Mensuales.
-Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25)
-y Ticket 7: Justificación Diferida y regla RN-03.
+Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25),
+Ticket 7: Justificación Diferida y regla RN-03, y
+Ticket 8: Pantalla 2 — Catálogo Licencias con filtros por cuadro y búsqueda.
 """
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.views.generic import FormView, ListView
-from apps.licencias.forms import JustificacionDiferidaForm
+from apps.licencias.forms import (
+    JustificacionDiferidaForm,
+    TipoLicenciaSearchForm,
+)
 from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
 
 
 class TipoLicenciaListView(LoginRequiredMixin, ListView):
     """
-    Vista de listado para el catálogo de tipos de licencias.
+    Vista de listado para el catálogo de tipos de licencias (Pantalla 2 - Ticket 8).
+    Permite consultar rápidamente los códigos y artículos estatutarios con
+    filtros GET por cuadro (?cuadro=IL-01 o ?cuadro=IL-02) y barra de búsqueda (?q=).
     Paginación obligatoria de 25 registros por página (Ticket 3.8).
+    Solo lectura (la edición sigue centralizada en el Admin institucional).
     """
 
     model = TipoLicencia
@@ -23,6 +30,35 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
     context_object_name = "tipo_licencias"
     paginate_by = 25
     ordering = ["codigo"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        self.form = TipoLicenciaSearchForm(self.request.GET)
+        if self.form.is_valid():
+            queryset = self.form.filtrar(queryset)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cuadro_param = (
+            self.request.GET.get("cuadro")
+            or self.request.GET.get("cuadro_mensual")
+            or ""
+        )
+        cuadro_val = cuadro_param.strip().upper()
+        q_val = self.request.GET.get("q", "").strip()
+
+        context["form"] = getattr(
+            self, "form", TipoLicenciaSearchForm(self.request.GET)
+        )
+        context["q"] = q_val
+        context["cuadro"] = cuadro_val
+        context["total_encontrados"] = (
+            context["paginator"].count
+            if "paginator" in context
+            else context["tipo_licencias"].count()
+        )
+        return context
 
 
 class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
