@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#082f49" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Subtle inner circle for academic badge feel -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+
+  <!-- Graduation Cap / Institutional Symbol -->
+  <path d="M256 128 L400 200 L256 272 L112 200 Z" fill="#ffffff" />
+  <path d="M400 200 L400 255 C400 255 408 268 416 268 C424 268 432 255 432 255 L432 200 Z" fill="url(#goldGrad)" />
+  <path d="M168 238 L168 300 C168 335 207 364 256 364 C305 364 344 335 344 300 L344 238 L256 282 Z" fill="rgba(255,255,255,0.85)" />
+
+  <!-- Letter Z Stylized for Zunin -->
+  <path d="M200 395 L312 395 L228 440 L312 440" fill="none" stroke="url(#goldGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
