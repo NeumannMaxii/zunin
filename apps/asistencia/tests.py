@@ -638,3 +638,170 @@ class DiaNoLaborableABMTests(TestCase):
             reverse("asistencia:dianolaborable_delete", args=[1]),
             "/asistencia/dias-no-laborables/1/eliminar/",
         )
+
+
+class Ticket5AsistenciaDiariaTests(TestCase):
+    """
+    Pruebas automatizadas para Ticket 5 (Pantalla 3 - Asistencia Diaria RF-10):
+    - Criterio 1: Un docente inactivo no aparece en la grilla.
+    - Criterio 2: Cargar asistencia en un feriado guarda el registro
+      correctamente sin bloquear al usuario (no devolver error 400).
+    - Criterio 3: Feriados se advierten visualmente en rojo en la interfaz.
+    - Criterio 4: Creación y actualización de registros diarios mediante
+      audit_save().
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username="bedelia_ticket5",
+            password="password123",
+            email="bedelia5@test.com",
+        )
+        self.client.login(username="bedelia_ticket5", password="password123")
+
+        self.docente_activo = Docente.objects.create(
+            dni="30111222",
+            apellido="Bermúdez",
+            nombre="Carlos",
+            sexo="M",
+            activo=True,
+        )
+        self.docente_inactivo = Docente.objects.create(
+            dni="40999888",
+            apellido="González",
+            nombre="Mirta",
+            sexo="F",
+            activo=False,
+        )
+
+    def test_docente_inactivo_no_aparece_en_grilla(self):
+        """
+        Criterio de Aceptación:
+        Un docente inactivo (activo=False) no debe aparecer en la grilla.
+        """
+        response = self.client.get("/asistencia/carga-masiva/")
+        self.assertEqual(response.status_code, 200)
+
+        docentes_en_contexto = response.context["docentes"]
+        self.assertIn(self.docente_activo, docentes_en_contexto)
+        self.assertNotIn(self.docente_inactivo, docentes_en_contexto)
+
+        self.assertContains(response, self.docente_activo.apellido)
+        self.assertContains(response, self.docente_activo.dni)
+        self.assertNotContains(response, self.docente_inactivo.apellido)
+        self.assertNotContains(response, self.docente_inactivo.dni)
+
+    def test_feriado_se_advierte_visualmente_en_rojo(self):
+        """
+        Regla de Feriados:
+        En la interfaz, los feriados se pintan de rojo visualmente para advertir.
+        """
+        fecha_feriado = datetime.date(2026, 5, 25)
+        feriado = DiaNoLaborable.objects.create(
+            fecha=fecha_feriado,
+            tipo="FERIADO",
+            descripcion="Revolución de Mayo",
+        )
+
+        response = self.client.get(
+            f"/asistencia/carga-masiva/?fecha={fecha_feriado.isoformat()}"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["es_feriado"])
+        self.assertEqual(response.context["feriado"], feriado)
+
+        # Validación de indicadores visuales en rojo
+        self.assertContains(response, "border-red")
+        self.assertContains(response, "bg-red")
+        self.assertContains(response, "Revolución de Mayo")
+        self.assertContains(response, "Día No Laborable / Feriado")
+
+    def test_cargar_asistencia_en_feriado_guarda_sin_bloquear(self):
+        """
+        Criterio de Aceptación:
+        Cargar asistencia en un feriado guarda el registro correctamente
+        sin bloquear al usuario (no devolver error 400).
+        """
+        fecha_feriado = datetime.date(2026, 7, 9)
+        DiaNoLaborable.objects.create(
+            fecha=fecha_feriado,
+            tipo="FERIADO",
+            descripcion="Día de la Independencia",
+        )
+
+        post_data = {
+            "fecha": fecha_feriado.isoformat(),
+            "docente_ids": [self.docente_activo.id],
+            f"estado_{self.docente_activo.id}": "PRESENTE",
+            f"marca_diaria_{self.docente_activo.id}": "PR",
+            f"observaciones_{self.docente_activo.id}": "Actividad en feriado",
+        }
+
+        response = self.client.post("/asistencia/carga-masiva/", post_data)
+        # No debe devolver error 400
+        self.assertNotEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 302)
+
+        # Verificación de persistencia en la base de datos
+        registro = RegistroAsistencia.objects.filter(
+            docente=self.docente_activo, fecha=fecha_feriado
+        ).first()
+        self.assertIsNotNone(registro)
+        self.assertEqual(registro.estado, "PRESENTE")
+        self.assertEqual(registro.marca_diaria, "PR")
+        self.assertEqual(registro.observaciones, "Actividad en feriado")
+        # Verificación de trazabilidad con audit_save()
+        self.assertEqual(registro.creado_por, self.user)
+
+    def test_post_crea_o_actualiza_con_audit_save(self):
+        """
+        POST: Crear o actualizar los registros diarios usando audit_save().
+        """
+        fecha_jornada = datetime.date(2026, 11, 10)
+
+        # 1. Crear registro inicial
+        post_data_crear = {
+            "fecha": fecha_jornada.isoformat(),
+            "docente_ids": [self.docente_activo.id],
+            f"estado_{self.docente_activo.id}": "PRESENTE",
+            f"marca_diaria_{self.docente_activo.id}": "PR",
+        }
+        res_crear = self.client.post(
+            "/asistencia/carga-masiva/", post_data_crear
+        )
+        self.assertEqual(res_crear.status_code, 302)
+
+        reg = RegistroAsistencia.objects.get(
+            docente=self.docente_activo, fecha=fecha_jornada
+        )
+        self.assertEqual(reg.estado, "PRESENTE")
+        self.assertEqual(reg.creado_por, self.user)
+
+        # 2. Actualizar registro existente sin error de duplicado
+        post_data_actualizar = {
+            "fecha": fecha_jornada.isoformat(),
+            "docente_ids": [self.docente_activo.id],
+            f"estado_{self.docente_activo.id}": "AUSENTE",
+            f"marca_diaria_{self.docente_activo.id}": "I",
+            f"observaciones_{self.docente_activo.id}": "Novedad rectificada",
+        }
+        res_act = self.client.post(
+            "/asistencia/carga-masiva/", post_data_actualizar
+        )
+        self.assertEqual(res_act.status_code, 302)
+
+        # Sigue existiendo un único registro actualizado
+        self.assertEqual(
+            RegistroAsistencia.objects.filter(
+                docente=self.docente_activo, fecha=fecha_jornada
+            ).count(),
+            1,
+        )
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+        self.assertEqual(reg.marca_diaria, "I")
+        self.assertEqual(reg.observaciones, "Novedad rectificada")
+        self.assertEqual(reg.modificado_por, self.user)

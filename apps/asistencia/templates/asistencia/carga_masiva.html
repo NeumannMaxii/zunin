@@ -1,41 +1,195 @@
 {% extends "base.html" %}
 
-{% block title %}Carga Diaria Masiva - IESETyFP Zunin{% endblock %}
+{% block title %}Asistencia Diaria - IESETyFP Zunin{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-    <div class="flex justify-between items-center">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Encabezado y Filtro de Fecha -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Carga Diaria Masiva</h1>
-            <p class="text-sm text-slate-500">Registro masivo con garantía transaccional atómica (Ticket 5 y 3.8).</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Asistencia Diaria (RF-10)</h1>
+            <p class="text-sm text-slate-500">Grilla operativa de control de novedades y asistencia docente para Bedelía.</p>
         </div>
-        <div>
+        <div class="flex items-center space-x-3">
             <a href="{% url 'asistencia:asistencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                &larr; Volver
+                &larr; Volver al Listado
             </a>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div class="p-4 rounded-xl bg-sky-50 border border-sky-100 text-sky-800 text-xs flex items-center space-x-2">
+    <!-- Selector de Fecha y Advertencia -->
+    <div class="bg-white rounded-2xl p-6 border {% if es_feriado %}border-red-300 bg-red-50/20 ring-1 ring-red-400{% else %}border-slate-200{% endif %} shadow-xs space-y-4">
+        <form method="get" class="flex flex-wrap items-center gap-4">
+            <label for="fecha" class="text-sm font-semibold text-slate-700">Jornada:</label>
+            <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" 
+                   class="px-3 py-2 border {% if es_feriado %}border-red-400 focus:ring-red-500 focus:border-red-500{% else %}border-slate-300 focus:ring-emerald-500 focus:border-emerald-500{% endif %} rounded-lg shadow-xs text-sm font-medium text-slate-900">
+            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors shadow-xs">
+                Cargar Fecha
+            </button>
+            {% if es_feriado %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white uppercase tracking-wider animate-pulse">
+                Día No Laborable / Feriado
+            </span>
+            {% endif %}
+        </form>
+
+        {% if es_feriado %}
+        <!-- Alerta visual de Feriado en ROJO -->
+        <div class="p-4 rounded-xl bg-red-100 border-2 border-red-500 text-red-950 flex items-start space-x-3 shadow-xs">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div class="space-y-1">
+                <h2 class="text-base font-extrabold text-red-900">
+                    FERIADO INSTITUCIONAL: {{ feriado.descripcion }} ({{ feriado.get_tipo_display }})
+                </h2>
+                <p class="text-xs sm:text-sm text-red-800 leading-relaxed">
+                    <strong>Atención Bedelía:</strong> La fecha seleccionada (<strong>{{ fecha|date:"d/m/Y" }}</strong>) está registrada como feriado o asueto. 
+                    La carga de novedades <strong>está totalmente permitida</strong> en caso de actividad académica especial y se guardará sin bloqueos. 
+                    El motor mensual de liquidación se encargará de omitir automáticamente esta jornada al computar las horas cátedra a liquidar.
+                </p>
+            </div>
+        </div>
+        {% else %}
+        <div class="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-sky-800 text-xs flex items-center space-x-2">
             <svg class="w-5 h-5 text-sky-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
-                <strong>Garantía de Integridad:</strong> Si alguna de las filas del lote contiene errores de validación, se realiza un <em>rollback completo</em> para asegurar que no se guarden registros incompletos.
+                Mostrando docentes con designaciones activas y vigentes para la fecha <strong>{{ fecha|date:"d/m/Y" }}</strong>. Las modificaciones quedan trazadas mediante el subsistema de auditoría polimórfico.
             </span>
         </div>
-
-        <form method="post" class="space-y-4">
-            {% csrf_token %}
-            <p class="text-sm text-slate-600">
-                Seleccione la fecha de la jornada y cargue el lote de asistencias a procesar.
-            </p>
-            <div class="pt-4 flex justify-end space-x-3">
-                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">Cancelar</a>
-                <button type="submit" class="px-4 py-2 bg-emerald-600 text-sm font-semibold rounded-lg text-white hover:bg-emerald-700 shadow-xs">Guardar Lote de Asistencias</button>
-            </div>
-        </form>
+        {% endif %}
     </div>
+
+    <!-- Grilla de Asistencia Diaria -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+
+        <div class="bg-white rounded-2xl border {% if es_feriado %}border-red-300 ring-1 ring-red-300{% else %}border-slate-200{% endif %} shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y {% if es_feriado %}divide-red-200{% else %}divide-slate-200{% endif %}">
+                    <thead class="{% if es_feriado %}bg-red-50 text-red-900{% else %}bg-slate-50 text-slate-700{% endif %} text-left text-xs font-semibold uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3.5">Docente</th>
+                            <th class="px-4 py-3.5">Cargos Vigentes</th>
+                            <th class="px-4 py-3.5">Estado</th>
+                            <th class="px-4 py-3.5">Marca Diaria</th>
+                            <th class="px-4 py-3.5">Tipo Licencia</th>
+                            <th class="px-4 py-3.5">Observaciones</th>
+                            <th class="px-4 py-3.5 text-center">Registro Previo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y {% if es_feriado %}divide-red-100{% else %}divide-slate-200{% endif %} text-sm">
+                        {% for doc in docentes %}
+                        <tr class="{% if es_feriado %}hover:bg-red-50/40{% else %}hover:bg-slate-50/75{% endif %} transition-colors">
+                            <input type="hidden" name="docente_ids" value="{{ doc.id }}">
+                            <!-- Docente -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="font-semibold text-slate-900">{{ doc.apellido }}, {{ doc.nombre }}</div>
+                                <div class="text-xs text-slate-500 font-mono">DNI: {{ doc.dni }}</div>
+                            </td>
+
+                            <!-- Cargos -->
+                            <td class="px-4 py-3 text-xs text-slate-600 max-w-xs">
+                                {% if doc.cargos.all %}
+                                    <ul class="list-disc list-inside space-y-0.5">
+                                        {% for c in doc.cargos.all %}
+                                        <li>
+                                            {{ c.materia.nombre|default:c.get_tipo_cargo_display }}
+                                            <span class="text-slate-400">({{ c.get_situacion_revista_display }})</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <span class="text-slate-400 italic">Personal sin cargo fijado</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Estado -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <select name="estado_{{ doc.id }}" 
+                                        class="text-xs font-semibold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
+                                    <option value="PRESENTE" {% if doc.registro_actual.estado == 'PRESENTE' or not doc.registro_actual %}selected{% endif %}>Presente</option>
+                                    <option value="AUSENTE" {% if doc.registro_actual.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
+                                    <option value="LICENCIA" {% if doc.registro_actual.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
+                                    <option value="JUSTIFICADO" {% if doc.registro_actual.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
+                                </select>
+                            </td>
+
+                            <!-- Marca Diaria -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <select name="marca_diaria_{{ doc.id }}" 
+                                        class="text-xs font-mono font-bold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
+                                    <option value="PR" {% if doc.registro_actual.marca_diaria == 'PR' or not doc.registro_actual %}selected{% endif %}>PR (Presente)</option>
+                                    <option value="P" {% if doc.registro_actual.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
+                                    <option value="I" {% if doc.registro_actual.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
+                                    <option value="LIC" {% if doc.registro_actual.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
+                                    <option value="LT" {% if doc.registro_actual.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
+                                </select>
+                            </td>
+
+                            <!-- Tipo Licencia -->
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <select name="tipo_licencia_{{ doc.id }}" 
+                                        class="text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
+                                    <option value="">-- Sin licencia --</option>
+                                    {% for tl in tipos_licencia %}
+                                    <option value="{{ tl.id }}" {% if doc.registro_actual.tipo_licencia_id == tl.id %}selected{% endif %}>
+                                        {{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <!-- Observaciones -->
+                            <td class="px-4 py-3">
+                                <input type="text" name="observaciones_{{ doc.id }}" 
+                                       value="{{ doc.registro_actual.observaciones|default:'' }}" 
+                                       placeholder="Opcional..." 
+                                       class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2">
+                            </td>
+
+                            <!-- Estado Previo -->
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                {% if doc.registro_actual %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                        &check; Registrado ({{ doc.registro_actual.marca_diaria }})
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                                        Pendiente
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">
+                                No se encontraron docentes activos y vigentes para la fecha seleccionada.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <span class="text-xs text-slate-500">
+                    Total de docentes en grilla: <strong>{{ docentes|length }}</strong>
+                </span>
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors">
+                        Guardar Asistencia Diaria
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
 {% endblock %}

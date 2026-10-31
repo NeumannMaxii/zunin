@@ -8,7 +8,16 @@ from . import views
 app_name = "asistencia"
 
 urlpatterns = [
-    path("", views.RegistroAsistenciaListView.as_view(), name="asistencia_list"),
+    path(
+        "",
+        views.RegistroAsistenciaListView.as_view(),
+        name="asistencia_list",
+    ),
+    path(
+        "diaria/",
+        views.AsistenciaDiariaView.as_view(),
+        name="asistencia_diaria",
+    ),
     path(
         "carga-masiva/",
         views.CargaDiariaMasivaView.as_view(),
