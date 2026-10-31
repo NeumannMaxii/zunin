@@ -115,3 +115,6 @@ class CargoDocenteAdmin(admin.ModelAdmin):
         "docente_reemplazado__apellido",
         "docente_reemplazado__nombre",
     )
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -78,19 +78,73 @@ class ModularAdminTests(TestCase):
 
     def test_candados_de_borrado_has_delete_permission_false(self):
         """
-        Verifica que DocenteAdmin, RegistroAsistenciaAdmin y
-        RenglonPlanillaMensualAdmin prohíban el borrado desde el admin.
+        Verifica que DocenteAdmin, CargoDocenteAdmin, RegistroAsistenciaAdmin y
+        RenglonPlanillaMensualAdmin prohíban el borrado desde el admin (Ticket 3.9.2).
         """
         request = self.factory.get("/admin/")
         request.user = self.user
 
         docente_admin = admin.site._registry[Docente]
+        cargo_admin = admin.site._registry[CargoDocente]
         asistencia_admin = admin.site._registry[RegistroAsistencia]
         renglon_admin = admin.site._registry[RenglonPlanillaMensual]
 
         self.assertFalse(docente_admin.has_delete_permission(request))
+        self.assertFalse(cargo_admin.has_delete_permission(request))
         self.assertFalse(asistencia_admin.has_delete_permission(request))
         self.assertFalse(renglon_admin.has_delete_permission(request))
+
+    def test_cargodocente_admin_bloqueo_completo_borrado_y_acciones_masivas(self):
+        """
+        Criterios de Aceptación Ticket 3.9.2:
+        1. has_delete_permission retorna False a nivel general y por objeto.
+        2. No permite acciones de borrado masivo (sin delete_selected).
+        3. El panel admin no muestra el botón de eliminar en formulario.
+        4. Acceder a vista de eliminación de CargoDocente retorna 403.
+        """
+        from django.urls import reverse
+
+        docente = Docente.objects.create(
+            dni="30555666",
+            apellido="Seguridad",
+            nombre="Admin",
+            sexo="M",
+        )
+        cargo = CargoDocente.objects.create(
+            docente=docente,
+            situacion_revista="TIT",
+            horas_lunes=4,
+        )
+
+        request = self.factory.get("/admin/")
+        request.user = self.user
+        cargo_admin = admin.site._registry[CargoDocente]
+
+        # 1. has_delete_permission
+        self.assertFalse(cargo_admin.has_delete_permission(request))
+        self.assertFalse(cargo_admin.has_delete_permission(request, obj=cargo))
+
+        # 2. get_actions no incluye delete_selected
+        acciones = cargo_admin.get_actions(request)
+        self.assertNotIn("delete_selected", acciones)
+
+        # 3. Vista de edición sin botón de eliminar
+        self.client.login(username="admin_test", password="testpassword123")
+        url_change = reverse(
+            "admin:personal_cargodocente_change", args=[cargo.pk]
+        )
+        url_delete = reverse(
+            "admin:personal_cargodocente_delete", args=[cargo.pk]
+        )
+        resp_change = self.client.get(url_change)
+        self.assertEqual(resp_change.status_code, 200)
+        self.assertFalse(resp_change.context["has_delete_permission"])
+        self.assertNotContains(resp_change, "deletelink-box")
+        self.assertNotContains(resp_change, url_delete)
+
+        # 4. Vista de eliminación bloqueada con 403 Forbidden
+        resp_delete = self.client.get(url_delete)
+        self.assertEqual(resp_delete.status_code, 403)
 
     def test_admin_index_responde_302_anonimo_y_200_staff(self):
         """El admin de Django redirige anónimos y responde 200 a staff."""

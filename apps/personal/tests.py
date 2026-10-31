@@ -475,3 +475,80 @@ class ImportarCSVWebTests(TestCase):
         self.client.login(username="consulta_user", password="password123")
         resp_consulta = self.client.get(reverse("personal:docente_list"))
         self.assertNotContains(resp_consulta, reverse("personal:importar_csv"))
+
+
+class CargoDocenteAdminSecurityTests(TestCase):
+    """
+    Validaciones de seguridad para Ticket 3.9.2:
+    Candado de eliminación física de cargos desde el panel admin de Django.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.test import RequestFactory
+
+        self.factory = RequestFactory()
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin_cargo_sec",
+            password="adminpassword123",
+            email="admin@iesetyfp.edu.ar",
+        )
+        self.docente = Docente.objects.create(
+            dni="29999888",
+            apellido="SeguridadDocente",
+            nombre="Juan",
+            sexo="M",
+        )
+        self.cargo = CargoDocente.objects.create(
+            docente=self.docente,
+            situacion_revista="TIT",
+            horas_lunes=3,
+        )
+
+    def test_cargodocente_admin_has_delete_permission_false(self):
+        """Verifica que has_delete_permission retorne False siempre."""
+        from django.contrib import admin
+
+        request = self.factory.get("/admin/")
+        request.user = self.admin_user
+        cargo_admin = admin.site._registry[CargoDocente]
+
+        self.assertFalse(cargo_admin.has_delete_permission(request))
+        self.assertFalse(
+            cargo_admin.has_delete_permission(request, obj=self.cargo)
+        )
+
+    def test_cargodocente_admin_sin_acciones_borrado_masivo(self):
+        """Verifica que 'delete_selected' no esté presente en acciones admin."""
+        from django.contrib import admin
+
+        request = self.factory.get("/admin/")
+        request.user = self.admin_user
+        cargo_admin = admin.site._registry[CargoDocente]
+
+        acciones = cargo_admin.get_actions(request)
+        self.assertNotIn("delete_selected", acciones)
+
+    def test_cargodocente_admin_vistas_bloquean_borrado(self):
+        """Verifica que el form no tenga botón de borrar y la vista delete dé 403."""
+        from django.urls import reverse
+
+        self.client.login(
+            username="admin_cargo_sec", password="adminpassword123"
+        )
+
+        url_change = reverse(
+            "admin:personal_cargodocente_change", args=[self.cargo.pk]
+        )
+        url_delete = reverse(
+            "admin:personal_cargodocente_delete", args=[self.cargo.pk]
+        )
+
+        resp_change = self.client.get(url_change)
+        self.assertEqual(resp_change.status_code, 200)
+        self.assertNotContains(resp_change, "deletelink-box")
+        self.assertNotContains(resp_change, url_delete)
+
+        resp_delete = self.client.get(url_delete)
+        self.assertEqual(resp_delete.status_code, 403)
