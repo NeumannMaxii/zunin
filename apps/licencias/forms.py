@@ -8,6 +8,7 @@ from django.db.models import Q
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.forms import TailwindForm
 from apps.licencias.models import TipoLicencia
+from apps.personal.models import CargoDocente, Docente
 
 
 class TipoLicenciaSearchForm(TailwindForm):
@@ -83,8 +84,9 @@ class TipoLicenciaSearchForm(TailwindForm):
 
 class JustificacionDiferidaForm(TailwindForm):
     """
-    Formulario operativo para carga de formularios en papel (RF-09, RF-11).
-    Permite transicionar un registro de inasistencia ('I') a 'LIC', 'P' o 'LT'.
+    Formulario operativo para carga de formularios en papel (RF-09, RF-11, Ticket 7).
+    Permite transicionar un registro de inasistencia ('I') a 'LIC', 'P' o 'LT',
+    o procesar un rango de fechas omitiendo fines de semana y feriados (RN-03).
     """
 
     NUEVA_MARCA_CHOICES = [
@@ -93,10 +95,35 @@ class JustificacionDiferidaForm(TailwindForm):
         ("LT", "Largo tratamiento (LT)"),
     ]
 
+    docente = forms.ModelChoiceField(
+        queryset=Docente.objects.filter(activo=True),
+        required=False,
+        label="Docente",
+        help_text="Seleccione el docente al que corresponde la justificación.",
+    )
+    fecha_desde = forms.DateField(
+        required=False,
+        label="Fecha Desde",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Fecha de inicio del período a justificar.",
+    )
+    fecha_hasta = forms.DateField(
+        required=False,
+        label="Fecha Hasta",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Fecha de finalización del período a justificar.",
+    )
+    cargo = forms.ModelChoiceField(
+        queryset=CargoDocente.objects.filter(activo=True),
+        required=False,
+        label="Cargo / Materia (Opcional)",
+        help_text="Especifique si la justificación aplica a un cargo particular.",
+    )
     registro = forms.ModelChoiceField(
         queryset=RegistroAsistencia.objects.all(),
+        required=False,
         label="Registro de Asistencia / Inasistencia",
-        help_text="Seleccione el registro pendiente de justificación.",
+        help_text="Seleccione el registro puntual (para justificación individual).",
     )
     nueva_marca = forms.ChoiceField(
         choices=NUEVA_MARCA_CHOICES,
@@ -142,8 +169,34 @@ class JustificacionDiferidaForm(TailwindForm):
     def clean(self):
         cleaned_data = super().clean()
         registro = cleaned_data.get("registro")
+        docente = cleaned_data.get("docente")
+        fecha_desde = cleaned_data.get("fecha_desde")
+        fecha_hasta = cleaned_data.get("fecha_hasta")
         nueva_marca = cleaned_data.get("nueva_marca")
         tipo_licencia = cleaned_data.get("tipo_licencia")
+
+        if not registro and not (docente and fecha_desde and fecha_hasta):
+            if not registro and not docente:
+                self.add_error(
+                    "docente",
+                    "Debe seleccionar un docente o un registro puntual.",
+                )
+            if not registro and not fecha_desde:
+                self.add_error(
+                    "fecha_desde",
+                    "Debe especificar la fecha de inicio del período.",
+                )
+            if not registro and not fecha_hasta:
+                self.add_error(
+                    "fecha_hasta",
+                    "Debe especificar la fecha de fin del período.",
+                )
+
+        if fecha_desde and fecha_hasta and fecha_hasta < fecha_desde:
+            self.add_error(
+                "fecha_hasta",
+                "La fecha de fin no puede ser anterior a la fecha de inicio.",
+            )
 
         if registro:
             no_ausente = (
@@ -167,31 +220,55 @@ class JustificacionDiferidaForm(TailwindForm):
         return cleaned_data
 
     def save(self, usuario=None):
-        """Aplica la justificación delegando a la lógica del modelo."""
+        """
+        Aplica la justificación delegando a la lógica individual del modelo
+        o al servicio de rango con omisión de feriados y regla RN-03.
+        """
         if not self.is_valid():
             raise ValueError("No se puede guardar un formulario con errores.")
 
-        registro = self.cleaned_data["registro"]
+        registro = self.cleaned_data.get("registro")
         nueva_marca = self.cleaned_data["nueva_marca"]
         tipo_licencia = self.cleaned_data.get("tipo_licencia")
         numero_disposicion = self.cleaned_data.get("numero_disposicion")
         observaciones = self.cleaned_data.get("observaciones")
 
-        # Delegar transición de estado
-        registro.justificar_con_formulario(
-            nueva_marca=nueva_marca,
-            tipo_licencia=tipo_licencia,
-            usuario=usuario,
-        )
+        if registro:
+            registro.justificar_con_formulario(
+                nueva_marca=nueva_marca,
+                tipo_licencia=tipo_licencia,
+                usuario=usuario,
+            )
+            if numero_disposicion:
+                registro.numero_disposicion = numero_disposicion
+            if observaciones:
+                if registro.observaciones:
+                    registro.observaciones = (
+                        f"{registro.observaciones} | {observaciones}"
+                    )
+                else:
+                    registro.observaciones = observaciones
+            registro.save()
+            return registro
+        else:
+            docente = self.cleaned_data["docente"]
+            fecha_desde = self.cleaned_data["fecha_desde"]
+            fecha_hasta = self.cleaned_data["fecha_hasta"]
+            cargo = self.cleaned_data.get("cargo")
 
-        if numero_disposicion:
-            registro.numero_disposicion = numero_disposicion
+            from .services import procesar_justificacion_rango
 
-        if observaciones:
-            if registro.observaciones:
-                registro.observaciones = f"{registro.observaciones} | {observaciones}"
-            else:
-                registro.observaciones = observaciones
+            return procesar_justificacion_rango(
+                docente=docente,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+                nueva_marca=nueva_marca,
+                tipo_licencia=tipo_licencia,
+                numero_disposicion=numero_disposicion,
+                observaciones=observaciones,
+                cargo=cargo,
+                usuario=usuario,
+            )
 
-        registro.save()
-        return registro
+
+JustificacionDiferidaRangoForm = JustificacionDiferidaForm
