@@ -7,7 +7,10 @@ Ticket 8: Pantalla 2 — Catálogo Licencias con filtros por cuadro y búsqueda.
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Q
+from django.http import JsonResponse
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import FormView, ListView
 from apps.licencias.forms import (
     JustificacionDiferidaForm,
@@ -123,3 +126,184 @@ class JustificacionDiferidaView(
                 f"Error al procesar la justificación diferida: {exc}",
             )
             return self.form_invalid(form)
+
+
+CATALOGO_ESTATUTARIO_BASE = {
+    "340": {
+        "codigo": "LIC-340",
+        "articulo": "340",
+        "descripcion": "Licencia por Enfermedad",
+        "cuadro": "IL-01",
+    },
+    "340-A": {
+        "codigo": "LIC-340A",
+        "articulo": "340-A",
+        "descripcion": "Enfermedad de Corto Tratamiento",
+        "cuadro": "IL-01",
+    },
+    "340A": {
+        "codigo": "LIC-340A",
+        "articulo": "340-A",
+        "descripcion": "Enfermedad de Corto Tratamiento",
+        "cuadro": "IL-01",
+    },
+    "340-B": {
+        "codigo": "LIC-340B",
+        "articulo": "340-B",
+        "descripcion": "Afección de Largo Tratamiento",
+        "cuadro": "IL-01",
+    },
+    "340B": {
+        "codigo": "LIC-340B",
+        "articulo": "340-B",
+        "descripcion": "Afección de Largo Tratamiento",
+        "cuadro": "IL-01",
+    },
+    "340-C": {
+        "codigo": "LIC-340C",
+        "articulo": "340-C",
+        "descripcion": "Accidente de Trabajo / Enfermedad Profesional",
+        "cuadro": "IL-01",
+    },
+    "340C": {
+        "codigo": "LIC-340C",
+        "articulo": "340-C",
+        "descripcion": "Accidente de Trabajo / Enfermedad Profesional",
+        "cuadro": "IL-01",
+    },
+    "340-D": {
+        "codigo": "LIC-340D",
+        "articulo": "340-D",
+        "descripcion": "Atención Familiar Enfermo",
+        "cuadro": "IL-01",
+    },
+    "340D": {
+        "codigo": "LIC-340D",
+        "articulo": "340-D",
+        "descripcion": "Atención Familiar Enfermo",
+        "cuadro": "IL-01",
+    },
+    "341": {
+        "codigo": "LIC-341",
+        "articulo": "341",
+        "descripcion": "Licencia por Maternidad",
+        "cuadro": "IL-02",
+    },
+    "342": {
+        "codigo": "LIC-342",
+        "articulo": "342",
+        "descripcion": "Nacimiento de Hijo / Adopción",
+        "cuadro": "IL-02",
+    },
+    "343": {
+        "codigo": "LIC-343",
+        "articulo": "343",
+        "descripcion": "Matrimonio",
+        "cuadro": "IL-02",
+    },
+    "344": {
+        "codigo": "LIC-344",
+        "articulo": "344",
+        "descripcion": "Duelo Familiar",
+        "cuadro": "IL-02",
+    },
+    "345": {
+        "codigo": "LIC-345",
+        "articulo": "345",
+        "descripcion": "Exámenes o Perfeccionamiento Docente",
+        "cuadro": "IL-02",
+    },
+    "346": {
+        "codigo": "LIC-346",
+        "articulo": "346",
+        "descripcion": "Razones Particulares",
+        "cuadro": "IL-02",
+    },
+    "347": {
+        "codigo": "LIC-347",
+        "articulo": "347",
+        "descripcion": "Permiso Especial",
+        "cuadro": "IL-02",
+    },
+}
+
+
+class AutocompletarLicenciaAPIView(View):
+    """
+    Endpoint API interno para autocompletar códigos de licencia (Ticket 10).
+    Ruta: GET /api/.../autocompletar/?articulo=<codigo>
+
+    Respuestas:
+    - 200 con array [...] si encuentra coincidencia.
+    - 200 con array vacío [] si no hay coincidencias.
+    - 400 Bad Request si falta el parámetro ?articulo=.
+    """
+
+    def get(self, request, *args, **kwargs):
+        articulo = request.GET.get("articulo")
+        if articulo is None:
+            return JsonResponse(
+                {"error": "El parámetro 'articulo' es obligatorio."},
+                status=400,
+            )
+
+        art_clean = articulo.strip()
+        if not art_clean:
+            return JsonResponse(
+                {"error": "El parámetro 'articulo' no puede estar vacío."},
+                status=400,
+            )
+
+        norm_val = (
+            art_clean.upper()
+            .replace("ARTÍCULO", "")
+            .replace("ARTICULO", "")
+            .replace("ART.", "")
+            .replace("ART", "")
+            .strip()
+        )
+
+        q_filter = (
+            Q(articulo__icontains=art_clean) | Q(codigo__icontains=art_clean)
+        )
+        if norm_val:
+            q_filter |= (
+                Q(articulo__icontains=norm_val) | Q(codigo__icontains=norm_val)
+            )
+
+        qs = TipoLicencia.objects.filter(q_filter).distinct().order_by("codigo")
+
+        if qs.exists():
+            resultados = [
+                {
+                    "id": lic.pk,
+                    "codigo": lic.codigo,
+                    "articulo": lic.articulo,
+                    "descripcion": lic.descripcion,
+                    "cuadro": (
+                        "IL-01"
+                        if getattr(lic, "cuadro_mensual", "")
+                        in ["IL-01", "DL-01"]
+                        else "IL-02"
+                    ),
+                    "cuadro_mensual": getattr(lic, "cuadro_mensual", "IL-02"),
+                    "categoria": lic.categoria,
+                    "forma_pago": lic.forma_pago,
+                    "goce_haberes": lic.goce_haberes,
+                }
+                for lic in qs
+            ]
+            return JsonResponse(resultados, safe=False, status=200)
+
+        # Fallback al catálogo estatutario si no hay registro específico en BD
+        if norm_val in CATALOGO_ESTATUTARIO_BASE:
+            return JsonResponse(
+                [CATALOGO_ESTATUTARIO_BASE[norm_val]],
+                safe=False,
+                status=200,
+            )
+
+        return JsonResponse([], safe=False, status=200)
+
+
+autocompletar_licencia_api = AutocompletarLicenciaAPIView.as_view()
