@@ -1,17 +1,23 @@
 """
 Vistas para la aplicación Licencias y Planillas Mensuales.
-Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25),
-Ticket 7: Justificación Diferida y regla RN-03, y
-Ticket 8: Pantalla 2 — Catálogo Licencias con filtros por cuadro y búsqueda.
+Implementa:
+- Ticket 3.8: Paginación obligatoria (paginate_by = 25).
+- Ticket 7: Justificación Diferida y regla RN-03.
+- Ticket 8: Pantalla 2 — Catálogo Licencias con filtros y búsqueda.
+- Ticket 9: Pantalla Mensual (Planillas), exportación CSV y cambio de artículo
+  preservando número de instrumento.
 """
 
+import csv
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Q
-from django.http import JsonResponse
-from django.urls import reverse_lazy
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import FormView, ListView
+from apps.core.audit import audit_save
 from apps.licencias.forms import (
     JustificacionDiferidaForm,
     TipoLicenciaSearchForm,
@@ -69,7 +75,9 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
 
 class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     """
-    Vista de listado para los renglones consolidados de planillas mensuales.
+    Vista de listado para los renglones consolidados de planillas mensuales (Ticket 9).
+    Permite visualizar los cuadros IL-01 e IL-02 con selector de edición de tipo de
+    licencia por renglón y exportación directa a CSV.
     Paginación obligatoria de 25 registros por página (Ticket 3.8).
     """
 
@@ -77,7 +85,210 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     template_name = "licencias/planilla_list.html"
     context_object_name = "renglones"
     paginate_by = 25
-    ordering = ["-anio", "-mes", "docente__apellido"]
+    ordering = [
+        "-anio",
+        "-mes",
+        "cuadro",
+        "numero_instrumento",
+        "docente__apellido",
+    ]
+
+    def get_queryset(self):
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related(
+                "docente",
+                "cargo__materia",
+                "cargo__cargo_catalogo",
+                "tipo_licencia",
+            )
+        )
+        cuadro = (self.request.GET.get("cuadro") or "").strip().upper()
+        if cuadro in ["IL-01", "IL-02"]:
+            queryset = queryset.filter(cuadro=cuadro)
+
+        mes = self.request.GET.get("mes")
+        if mes and str(mes).isdigit():
+            queryset = queryset.filter(mes=int(mes))
+
+        anio = self.request.GET.get("anio")
+        if anio and str(anio).isdigit():
+            queryset = queryset.filter(anio=int(anio))
+
+        return queryset
+
+    def get(self, request, *args, **kwargs):
+        if (
+            request.GET.get("export") == "csv"
+            or request.GET.get("format") == "csv"
+        ):
+            export_view = ExportarPlanillaCSVView.as_view()
+            return export_view(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        renglon_id = (
+            request.POST.get("renglon_id")
+            or request.POST.get("id")
+            or request.POST.get("pk")
+        )
+        if renglon_id:
+            view = CambiarLicenciaRenglonView.as_view()
+            return view(request, pk=renglon_id)
+        return redirect("licencias:planilla_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cuadro_actual = (self.request.GET.get("cuadro") or "").strip().upper()
+        context["cuadro_actual"] = cuadro_actual
+        context["mes_actual"] = self.request.GET.get("mes", "")
+        context["anio_actual"] = self.request.GET.get("anio", "")
+        context["tipos_licencia"] = TipoLicencia.objects.filter(
+            activo=True
+        ).order_by("cuadro_mensual", "codigo")
+        context["total_il01"] = RenglonPlanillaMensual.objects.filter(
+            cuadro="IL-01"
+        ).count()
+        context["total_il02"] = RenglonPlanillaMensual.objects.filter(
+            cuadro="IL-02"
+        ).count()
+        return context
+
+
+class ExportarPlanillaCSVView(LoginRequiredMixin, View):
+    """
+    Ticket 9: Exportación de Planilla Mensual Consolidada a CSV.
+    Columnas exactas requeridas:
+    Cuadro, N° Disposición, Docente, DNI, Desde, Hasta, Materias, Horas, Tipo Licencia
+    """
+
+    def get(self, request, *args, **kwargs):
+        queryset = RenglonPlanillaMensual.objects.select_related(
+            "docente",
+            "cargo__materia",
+            "cargo__cargo_catalogo",
+            "tipo_licencia",
+        ).order_by(
+            "-anio",
+            "-mes",
+            "cuadro",
+            "numero_instrumento",
+            "docente__apellido",
+        )
+
+        cuadro = (request.GET.get("cuadro") or "").strip().upper()
+        if cuadro in ["IL-01", "IL-02"]:
+            queryset = queryset.filter(cuadro=cuadro)
+
+        mes = request.GET.get("mes")
+        if mes and str(mes).isdigit():
+            queryset = queryset.filter(mes=int(mes))
+
+        anio = request.GET.get("anio")
+        if anio and str(anio).isdigit():
+            queryset = queryset.filter(anio=int(anio))
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        filename = (
+            f"planillas_{cuadro.lower() if cuadro else 'mensuales'}.csv"
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        headers = [
+            "Cuadro",
+            "N° Disposición",
+            "Docente",
+            "DNI",
+            "Desde",
+            "Hasta",
+            "Materias",
+            "Horas",
+            "Tipo Licencia",
+        ]
+        writer.writerow(headers)
+
+        for r in queryset:
+            materia_str = ""
+            if r.cargo:
+                if r.cargo.materia and r.cargo.materia.nombre:
+                    materia_str = r.cargo.materia.nombre
+                elif (
+                    r.cargo.cargo_catalogo
+                    and r.cargo.cargo_catalogo.descripcion
+                ):
+                    materia_str = r.cargo.cargo_catalogo.descripcion
+                else:
+                    materia_str = str(r.cargo)
+
+            tipo_lic_str = r.tipo_licencia.codigo if r.tipo_licencia else ""
+
+            fila = [
+                r.cuadro,
+                r.numero_instrumento or "",
+                r.docente.nombre_completo,
+                r.docente.dni,
+                r.desde.strftime("%d/%m/%Y") if r.desde else "",
+                r.hasta.strftime("%d/%m/%Y") if r.hasta else "",
+                materia_str,
+                r.horas_afectadas,
+                tipo_lic_str,
+            ]
+            writer.writerow(fila)
+
+        return response
+
+
+class CambiarLicenciaRenglonView(LoginRequiredMixin, View):
+    """
+    Ticket 9: Permite modificar el Tipo de Licencia / Artículo de un Renglón
+    de Planilla Mensual de manera segura.
+    Si se cambia un renglón de cuadro (ej. pasar de IL-01 a IL-02), se debe
+    mantener intacto su numero_instrumento (Disposición) original para no
+    romper la auditoría.
+    """
+
+    def post(self, request, pk):
+        renglon = get_object_or_404(RenglonPlanillaMensual, pk=pk)
+        nuevo_tipo_id = request.POST.get("tipo_licencia")
+        if nuevo_tipo_id:
+            if isinstance(nuevo_tipo_id, TipoLicencia):
+                nuevo_tipo = nuevo_tipo_id
+            elif str(nuevo_tipo_id).isdigit():
+                nuevo_tipo = TipoLicencia.objects.filter(
+                    pk=int(nuevo_tipo_id)
+                ).first()
+            else:
+                nuevo_tipo = TipoLicencia.objects.filter(
+                    codigo=nuevo_tipo_id
+                ).first()
+
+            if nuevo_tipo:
+                num_original = renglon.numero_instrumento
+                renglon.tipo_licencia = nuevo_tipo
+                if nuevo_tipo.cuadro_mensual in ["IL-01", "DL-01"]:
+                    renglon.cuadro = "IL-01"
+                else:
+                    renglon.cuadro = "IL-02"
+
+                # Preservar el número correlativo de instrumento original
+                renglon.numero_instrumento = num_original
+                audit_save(renglon, user=request.user, created=False)
+
+                messages.success(
+                    request,
+                    f"Renglón de {renglon.docente.nombre_completo} "
+                    f"actualizado a {nuevo_tipo.codigo} ({renglon.cuadro}). "
+                    f"Disposición {num_original} preservada.",
+                )
+
+        next_url = (
+            request.POST.get("next")
+            or request.META.get("HTTP_REFERER")
+            or reverse("licencias:planilla_list")
+        )
+        return redirect(next_url)
 
 
 class JustificacionDiferidaView(
