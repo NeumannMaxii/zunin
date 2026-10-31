@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Initialize django-environ
 env = environ.Env(
-    DEBUG=(bool, False),
+    DEBUG=(bool, True),
     SECRET_KEY=(str, "django-insecure-default-change-me-iesetyfp-bedelia"),
     ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost"]),
     DB_ENGINE=(str, "django.db.backends.mysql"),
