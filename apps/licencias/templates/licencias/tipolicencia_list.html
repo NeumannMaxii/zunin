@@ -4,52 +4,368 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Catálogo de Licencias</h1>
-            <p class="text-sm text-slate-500">Régimen legal, artículos estatutarios y liquidación de haberes.</p>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-institucional-50 text-institucional-700 border border-institucional-200">
+                    Pantalla 2 &bull; Bedelía
+                </span>
+                <span class="text-xs font-medium text-slate-400">Solo Lectura</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight mt-1">Catálogo de Licencias Estatutarias</h1>
+            <p class="text-sm text-slate-500">Consulta ágil y predictiva de códigos, artículos estatutarios y cuadros de liquidación (IL-01 / IL-02).</p>
         </div>
-        <div>
+        <div class="flex items-center gap-3">
             <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 Planillas Mensuales &rarr;
             </a>
         </div>
     </div>
 
+    <!-- Barra de Filtros y Búsqueda Predictiva -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+        <!-- Pestañas de Cuadro -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Filtrar por Cuadro:</span>
+
+                <!-- Todos -->
+                <a href="{% url 'licencias:tipolicencia_list' %}{% if q %}?q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if not cuadro %}bg-institucional-600 text-white shadow-xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900{% endif %}">
+                    Todos los cuadros
+                </a>
+
+                <!-- Cuadro IL-01 -->
+                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-01{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro == 'IL-01' %}bg-sky-600 text-white shadow-xs{% else %}bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200{% endif %}">
+                    <span class="w-2 h-2 rounded-full mr-1.5 {% if cuadro == 'IL-01' %}bg-white{% else %}bg-sky-500{% endif %}"></span>
+                    Cuadro IL-01 (Salud y Enfermedad)
+                </a>
+
+                <!-- Cuadro IL-02 -->
+                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-02{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro == 'IL-02' %}bg-amber-600 text-white shadow-xs{% else %}bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200{% endif %}">
+                    <span class="w-2 h-2 rounded-full mr-1.5 {% if cuadro == 'IL-02' %}bg-white{% else %}bg-amber-500{% endif %}"></span>
+                    Cuadro IL-02 (Especiales / Inasistencias)
+                </a>
+            </div>
+
+            <!-- Contador de Resultados Dinámico -->
+            <div class="text-xs text-slate-500">
+                Mostrando: <span id="contador-encontrados" class="font-bold text-slate-900">{{ total_encontrados }}</span> tipos
+            </div>
+        </div>
+
+        <!-- Formulario de Búsqueda Predictiva ?q= -->
+        <form method="get" action="{% url 'licencias:tipolicencia_list' %}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {% if cuadro %}
+            <input type="hidden" name="cuadro" value="{{ cuadro }}">
+            {% endif %}
+
+            <!-- Input con Sugerencias y Filtrado en Tiempo Real -->
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <input type="text"
+                       id="search-input"
+                       name="q"
+                       value="{{ q }}"
+                       list="sugerencias-licencias"
+                       autocomplete="off"
+                       placeholder="Escribí para buscar al instante (ej: 340, mat, due, enf, atencion)..."
+                       class="block w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:border-institucional-600 transition-colors">
+                
+                <!-- Botón rápido para limpiar texto del input -->
+                <button type="button"
+                        id="clear-search-btn"
+                        class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                        title="Borrar texto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Datalist para sugerencias predictivas del navegador -->
+            <datalist id="sugerencias-licencias">
+                {% for codigo, articulo, descripcion in sugerencias %}
+                    <option value="{{ codigo }}">{{ articulo|default:"" }} - {{ descripcion }}</option>
+                    <option value="{{ descripcion }}">{{ codigo }}</option>
+                    {% if articulo %}
+                    <option value="{{ articulo }}">{{ descripcion }}</option>
+                    {% endif %}
+                {% endfor %}
+            </datalist>
+
+            <div class="flex items-center gap-2">
+                <button type="submit" class="inline-flex items-center justify-center px-4 py-2.5 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Buscar
+                </button>
+
+                {% if q or cuadro %}
+                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center justify-center px-3.5 py-2.5 border border-slate-300 shadow-xs text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors" title="Restablecer todos los filtros">
+                    Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Filtros Activos Chips -->
+        {% if q or cuadro %}
+        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            <span class="text-slate-400">Filtros activos:</span>
+            {% if cuadro %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-medium">
+                Cuadro: {{ cuadro }}
+                <a href="{% url 'licencias:tipolicencia_list' %}{% if q %}?q={{ q }}{% endif %}" class="ml-1 text-slate-400 hover:text-slate-700" title="Quitar filtro de cuadro">&times;</a>
+            </span>
+            {% endif %}
+            {% if q %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-medium">
+                Texto: "{{ q }}"
+                <a href="{% url 'licencias:tipolicencia_list' %}{% if cuadro %}?cuadro={{ cuadro }}{% endif %}" class="ml-1 text-slate-400 hover:text-slate-700" title="Quitar filtro de texto">&times;</a>
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tabla de Licencias -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
                         <th class="px-6 py-3">Código</th>
-                        <th class="px-6 py-3">Artículo Legal</th>
+                        <th class="px-6 py-3">Artículo Estatuto</th>
                         <th class="px-6 py-3">Descripción</th>
+                        <th class="px-6 py-3">Cuadro Oficial</th>
                         <th class="px-6 py-3">Categoría</th>
                         <th class="px-6 py-3">Haberes</th>
+                        <th class="px-6 py-3">Tope Anual</th>
+                        <th class="px-6 py-3 text-center">Estado</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200 text-sm">
+                <tbody id="licencias-tbody" class="divide-y divide-slate-200 text-sm">
                     {% for lic in tipo_licencias %}
-                    <tr class="hover:bg-slate-50/75 transition-colors">
-                        <td class="px-6 py-4 font-mono font-bold text-institucional-700">{{ lic.codigo }}</td>
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ lic.articulo|default:"-" }}</td>
-                        <td class="px-6 py-4 text-slate-700">{{ lic.descripcion }}</td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                    <tr class="hover:bg-slate-50/75 transition-colors"
+                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }}">
+                        <td class="px-6 py-4 font-mono font-bold text-institucional-700 whitespace-nowrap">
+                            {{ lic.codigo }}
+                        </td>
+                        <td class="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">
+                            {{ lic.articulo|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 text-slate-700 max-w-xs sm:max-w-md">
+                            <div class="font-medium text-slate-900">{{ lic.descripcion }}</div>
+                            {% if lic.cantidad_duracion %}
+                            <div class="text-xs text-slate-500 mt-0.5">{{ lic.cantidad_duracion }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if lic.cuadro_mensual == 'IL-01' or lic.cuadro_mensual == 'DL-01' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                IL-01 (Salud)
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                IL-02 (Especial)
+                            </span>
+                            {% endif %}
+                            {% if lic.hoja_pdf %}
+                            <span class="block text-[11px] text-slate-400 mt-0.5">Hoja PDF: {{ lic.hoja_pdf }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
                                 {{ lic.get_categoria_display }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-slate-600 text-xs">{{ lic.get_forma_pago_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if lic.forma_pago == 'CON_GOCE' %}
+                            <span class="inline-flex items-center text-xs font-medium text-emerald-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                Con Goce
+                            </span>
+                            {% elif lic.forma_pago == 'SIN_GOCE' %}
+                            <span class="inline-flex items-center text-xs font-medium text-rose-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
+                                Sin Goce
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center text-xs font-medium text-amber-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                                {{ lic.get_forma_pago_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-600 text-xs">
+                            {% if lic.tope_anual %}
+                            <span class="font-medium text-slate-800">{{ lic.tope_anual }}</span> días/año
+                            {% else %}
+                            <span class="text-slate-400">Sin tope</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            {% if lic.activo %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Activo
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                                Inactivo
+                            </span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">No se encontraron tipos de licencias.</td>
+                        <td colspan="8" class="px-6 py-12 text-center">
+                            <div class="max-w-sm mx-auto space-y-3">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-900">No se encontraron licencias</h3>
+                                <p class="text-xs text-slate-500">
+                                    No hay resultados que coincidan con los criterios de búsqueda aplicados.
+                                </p>
+                                {% if q or cuadro %}
+                                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-xs text-xs font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                                    Ver catálogo completo
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
+
+                    <!-- Fila dinámica para filtrado predictivo en vivo cuando no hay coincidencias -->
+                    <tr id="empty-search-row" class="hidden">
+                        <td colspan="8" class="px-6 py-8 text-center">
+                            <div class="max-w-sm mx-auto space-y-2">
+                                <div class="w-10 h-10 mx-auto rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <p id="empty-search-text" class="text-sm font-medium text-slate-700">No se encontraron licencias coincidentes.</p>
+                                <p class="text-xs text-slate-400">Intenta buscar por parte del código, artículo o palabra clave.</p>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
         {% include "core/includes/paginator.html" %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('search-input');
+        const tableBody = document.getElementById('licencias-tbody');
+        const emptyRow = document.getElementById('empty-search-row');
+        const emptyText = document.getElementById('empty-search-text');
+        const counterBadge = document.getElementById('contador-encontrados');
+        const clearBtn = document.getElementById('clear-search-btn');
+
+        if (!searchInput || !tableBody) return;
+
+        // Función de normalización: minúsculas y remoción de tildes/diacríticos
+        function normalizeText(text) {
+            return (text || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        }
+
+        const rows = Array.from(tableBody.querySelectorAll('tr[data-search]'));
+        const totalRows = rows.length;
+
+        // Búsqueda predictiva e instantánea en tiempo real
+        function filterTable() {
+            const rawValue = searchInput.value;
+            const query = normalizeText(rawValue);
+            const tokens = query.split(/\s+/).filter(Boolean);
+
+            if (clearBtn) {
+                clearBtn.classList.toggle('hidden', rawValue.length === 0);
+            }
+
+            let visibleCount = 0;
+
+            rows.forEach(function (row) {
+                const rowText = normalizeText(row.getAttribute('data-search'));
+                // Comprueba que todos los términos/tokens parciales coincidan
+                const matches = tokens.every(function (token) {
+                    return rowText.indexOf(token) !== -1;
+                });
+
+                if (matches) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            // Actualiza contador de resultados
+            if (counterBadge) {
+                if (tokens.length > 0) {
+                    counterBadge.textContent = visibleCount + ' de ' + totalRows;
+                } else {
+                    counterBadge.textContent = totalRows;
+                }
+            }
+
+            // Muestra mensaje de vacío instantáneo si ningún registro coincide
+            if (emptyRow) {
+                if (visibleCount === 0 && tokens.length > 0) {
+                    emptyRow.classList.remove('hidden');
+                    if (emptyText) {
+                        emptyText.textContent = 'No se encontraron licencias que coincidan con "' + rawValue + '".';
+                    }
+                } else {
+                    emptyRow.classList.add('hidden');
+                }
+            }
+        }
+
+        // Ejecutar en cada pulsación de tecla para respuesta 0ms instantánea
+        searchInput.addEventListener('input', filterTable);
+
+        // Limpieza con tecla Escape o botón de borrar
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                filterTable();
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                filterTable();
+                searchInput.focus();
+            });
+        }
+
+        // Ejecución inicial si el campo vino poblado por URL GET
+        if (searchInput.value) {
+            filterTable();
+        }
+    });
+</script>
 {% endblock %}
