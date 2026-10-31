@@ -552,3 +552,278 @@ class CargoDocenteAdminSecurityTests(TestCase):
 
         resp_delete = self.client.get(url_delete)
         self.assertEqual(resp_delete.status_code, 403)
+
+
+class DocenteCRUDSeguridadTests(TestCase):
+    """
+    Pruebas para el Ticket 6: Pantalla 1 — CRUD Personal (SEGURIDAD).
+    1. Bedelia en el UpdateView no puede ver ni cambiar el estado 'activo'.
+    2. Administrador ('director') ejecuta exitosamente /baja/ (activo=False).
+    3. Bedelia ('zaquino') recibe 403 Forbidden al ejecutar el endpoint /baja/.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group, Permission
+
+        User = get_user_model()
+
+        # Grupos de seguridad
+        self.grupo_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.grupo_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.grupo_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+
+        # Asignar permisos básicos a Bedelia (add_docente, change_docente, view_docente)
+        perms_bedelia = Permission.objects.filter(
+            codename__in=[
+                "add_docente",
+                "change_docente",
+                "view_docente",
+            ]
+        )
+        self.grupo_bedelia.permissions.set(perms_bedelia)
+
+        # Asignar permisos de visualización a Consulta
+        perms_consulta = Permission.objects.filter(codename="view_docente")
+        self.grupo_consulta.permissions.set(perms_consulta)
+
+        # Usuario Administrador: director
+        self.director = User.objects.create_user(
+            username="director",
+            password="password123",
+            is_staff=True,
+        )
+        self.director.groups.add(self.grupo_admin)
+
+        # Usuario Bedelia: zaquino
+        self.zaquino = User.objects.create_user(
+            username="zaquino",
+            password="password123",
+            is_staff=True,
+        )
+        self.zaquino.groups.add(self.grupo_bedelia)
+
+        # Usuario Consulta: msosa
+        self.msosa = User.objects.create_user(
+            username="msosa",
+            password="password123",
+            is_staff=True,
+        )
+        self.msosa.groups.add(self.grupo_consulta)
+
+        # Docente de prueba
+        self.docente = Docente.objects.create(
+            dni="20111222",
+            apellido="GONZÁLEZ",
+            nombre="Laura Beatriz",
+            sexo="F",
+            contacto="laura@iesetyfp.edu.ar",
+            activo=True,
+        )
+
+    def test_bedelia_update_view_no_puede_ver_ni_cambiar_activo(self):
+        """
+        Validación 1 (Ticket 6):
+        Bedelia en el UpdateView no puede ver el campo 'activo' en el formulario
+        ni modificar su estado mediante peticiones POST.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="zaquino", password="password123")
+        url_update = reverse(
+            "personal:docente_update", kwargs={"pk": self.docente.pk}
+        )
+
+        # 1. GET: el campo 'activo' no debe estar presente en el form ni en el HTML
+        response = self.client.get(url_update)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("activo", response.context["form"].fields)
+        self.assertNotContains(response, 'name="activo"')
+
+        # 2. POST intentando desactivar al docente activo: debe ignorar 'activo'
+        post_data = {
+            "dni": self.docente.dni,
+            "tipo_documento": "DNI",
+            "apellido": "GONZÁLEZ",
+            "nombre": "Laura Editada",
+            "sexo": "F",
+            "contacto": "editada@iesetyfp.edu.ar",
+            "activo": False,
+        }
+        resp_post = self.client.post(url_update, post_data)
+        self.assertEqual(resp_post.status_code, 302)
+
+        self.docente.refresh_from_db()
+        self.assertEqual(self.docente.nombre, "Laura Editada")
+        self.assertTrue(
+            self.docente.activo,
+            "Bedelía no debe poder cambiar el estado activo a False.",
+        )
+
+        # 3. Caso inverso: si el docente está inactivo, Bedelía no puede activarlo
+        self.docente.activo = False
+        self.docente.save()
+
+        post_data_activar = {
+            "dni": self.docente.dni,
+            "tipo_documento": "DNI",
+            "apellido": "GONZÁLEZ",
+            "nombre": "Laura Modificada",
+            "sexo": "F",
+            "contacto": "editada@iesetyfp.edu.ar",
+            "activo": True,
+        }
+        resp_post2 = self.client.post(url_update, post_data_activar)
+        self.assertEqual(resp_post2.status_code, 302)
+
+        self.docente.refresh_from_db()
+        self.assertFalse(
+            self.docente.activo,
+            "Bedelía no debe poder cambiar el estado inactivo a True.",
+        )
+
+    def test_admin_director_ejecuta_exitosamente_baja(self):
+        """
+        Validación 2 (Ticket 6):
+        Un usuario Administrador ('director') ejecuta exitosamente /baja/
+        y el Docente pasa a activo=False con auditoría.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director", password="password123")
+        url_baja = reverse(
+            "personal:docente_baja", kwargs={"pk": self.docente.pk}
+        )
+
+        # GET a baja muestra la confirmación de baja
+        resp_get = self.client.get(url_baja)
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertContains(resp_get, "¿Confirmar baja lógica del docente?")
+
+        # POST a baja ejecuta la baja lógica
+        response = self.client.post(url_baja)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("personal:docente_list"))
+
+        self.docente.refresh_from_db()
+        self.assertFalse(self.docente.activo)
+        self.assertEqual(self.docente.modificado_por, self.director)
+
+    def test_bedelia_zaquino_recibe_403_al_intentar_baja(self):
+        """
+        Validación 3 (Ticket 6):
+        Un usuario de Bedelia ('zaquino') recibe 403 Forbidden al intentar
+        ejecutar el endpoint /baja/ tanto por GET como por POST.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="zaquino", password="password123")
+        url_baja = reverse(
+            "personal:docente_baja", kwargs={"pk": self.docente.pk}
+        )
+
+        # GET debe retornar 403
+        resp_get = self.client.get(url_baja)
+        self.assertEqual(resp_get.status_code, 403)
+
+        # POST debe retornar 403
+        resp_post = self.client.post(url_baja)
+        self.assertEqual(resp_post.status_code, 403)
+
+        # El docente debe continuar activo
+        self.docente.refresh_from_db()
+        self.assertTrue(self.docente.activo)
+
+    def test_consulta_recibe_403_al_intentar_baja(self):
+        """
+        Valida que un usuario de Consulta_Directiva reciba 403 Forbidden
+        al intentar dar de baja a un docente.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="msosa", password="password123")
+        url_baja = reverse(
+            "personal:docente_baja", kwargs={"pk": self.docente.pk}
+        )
+
+        resp_post = self.client.post(url_baja)
+        self.assertEqual(resp_post.status_code, 403)
+
+        self.docente.refresh_from_db()
+        self.assertTrue(self.docente.activo)
+
+    def test_admin_director_puede_modificar_activo_en_update_view(self):
+        """
+        Valida que un administrador institucional sí vea y pueda cambiar el
+        campo 'activo' desde el formulario de edición.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director", password="password123")
+        url_update = reverse(
+            "personal:docente_update", kwargs={"pk": self.docente.pk}
+        )
+
+        response = self.client.get(url_update)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("activo", response.context["form"].fields)
+        self.assertContains(response, 'name="activo"')
+
+        post_data = {
+            "dni": self.docente.dni,
+            "tipo_documento": "DNI",
+            "apellido": "GONZÁLEZ",
+            "nombre": "Laura Admin",
+            "sexo": "F",
+            "contacto": "admin_edit@iesetyfp.edu.ar",
+            "activo": False,
+        }
+        resp_post = self.client.post(url_update, post_data)
+        self.assertEqual(resp_post.status_code, 302)
+
+        self.docente.refresh_from_db()
+        self.assertFalse(self.docente.activo)
+
+    def test_docente_create_view_bedelia_alta_exitosa(self):
+        """
+        Valida que un usuario de Bedelía pueda crear un nuevo docente
+        y que quede activo por defecto.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="zaquino", password="password123")
+        url_create = reverse("personal:docente_create")
+
+        # GET: activo no está en el form de Bedelía
+        resp_get = self.client.get(url_create)
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertNotIn("activo", resp_get.context["form"].fields)
+
+        post_data = {
+            "dni": "39999888",
+            "tipo_documento": "DNI",
+            "apellido": "MOLINA",
+            "nombre": "Marcos",
+            "sexo": "M",
+            "nacionalidad": "Argentina",
+        }
+        resp_post = self.client.post(url_create, post_data)
+        self.assertEqual(resp_post.status_code, 302)
+
+        doc_creado = Docente.objects.get(dni="39999888")
+        self.assertTrue(doc_creado.activo)
+        self.assertEqual(doc_creado.creado_por, self.zaquino)
+
+    def test_docente_list_view_paginacion_obligatoria(self):
+        """
+        Valida que DocenteListView configure paginate_by = 25.
+        """
+        from apps.personal.views import DocenteListView
+
+        self.assertEqual(DocenteListView.paginate_by, 25)

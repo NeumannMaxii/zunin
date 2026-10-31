@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header y Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <a href="{% url 'personal:docente_list' %}" class="hover:text-slate-800 transition-colors">Personal</a>
+                <span>/</span>
+                <a href="{% url 'personal:docente_list' %}" class="hover:text-slate-800 transition-colors">Docentes</a>
+                <span>/</span>
+                <span class="text-slate-700 font-medium">{{ accion|default:"Formulario" }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ titulo }}</h1>
+            <p class="text-sm text-slate-500">Complete los datos filiatorios, de contacto y situación administrativa del docente.</p>
+        </div>
+        <div>
+            <a href="{% url 'personal:docente_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver al listado
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjeta del Formulario -->
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <!-- Sección 1: Identificación y Nombres -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>Identificación y Nombres</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- DNI -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.dni.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            DNI <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.dni }}
+                        {% if form.dni.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.dni.help_text }}</p>
+                        {% endif %}
+                        {% if form.dni.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.dni.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tipo Documento -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.tipo_documento.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Tipo de Documento
+                        </label>
+                        {{ form.tipo_documento }}
+                        {% if form.tipo_documento.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.tipo_documento.help_text }}</p>
+                        {% endif %}
+                        {% if form.tipo_documento.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_documento.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Apellido -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.apellido.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Apellido <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.apellido }}
+                        {% if form.apellido.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.apellido.help_text }}</p>
+                        {% endif %}
+                        {% if form.apellido.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.apellido.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Nombre -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.nombre.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Nombre <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.nombre }}
+                        {% if form.nombre.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.nombre.help_text }}</p>
+                        {% endif %}
+                        {% if form.nombre.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.nombre.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- CUIL / DGI -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.cuil_dgi.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            CUIL / N° Inscripción DGI
+                        </label>
+                        {{ form.cuil_dgi }}
+                        {% if form.cuil_dgi.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.cuil_dgi.help_text }}</p>
+                        {% endif %}
+                        {% if form.cuil_dgi.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cuil_dgi.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Inscripción DGR -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.inscripcion_dgr.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            N° Inscripción DGR
+                        </label>
+                        {{ form.inscripcion_dgr }}
+                        {% if form.inscripcion_dgr.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.inscripcion_dgr.help_text }}</p>
+                        {% endif %}
+                        {% if form.inscripcion_dgr.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.inscripcion_dgr.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 2: Datos Filiatorios -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>Datos Filiatorios</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Sexo -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.sexo.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Sexo <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.sexo }}
+                        {% if form.sexo.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.sexo.help_text }}</p>
+                        {% endif %}
+                        {% if form.sexo.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.sexo.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Fecha de Nacimiento -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.fecha_nacimiento.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Fecha de Nacimiento
+                        </label>
+                        {{ form.fecha_nacimiento }}
+                        {% if form.fecha_nacimiento.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.fecha_nacimiento.help_text }}</p>
+                        {% endif %}
+                        {% if form.fecha_nacimiento.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_nacimiento.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Estado Civil -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.estado_civil.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Estado Civil
+                        </label>
+                        {{ form.estado_civil }}
+                        {% if form.estado_civil.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.estado_civil.help_text }}</p>
+                        {% endif %}
+                        {% if form.estado_civil.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.estado_civil.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Nacionalidad -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.nacionalidad.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Nacionalidad
+                        </label>
+                        {{ form.nacionalidad }}
+                        {% if form.nacionalidad.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.nacionalidad.help_text }}</p>
+                        {% endif %}
+                        {% if form.nacionalidad.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.nacionalidad.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 3: Domicilio y Contacto -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>Domicilio y Contacto</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Domicilio Calle -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.domicilio_calle.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Calle y N° / Domicilio
+                        </label>
+                        {{ form.domicilio_calle }}
+                        {% if form.domicilio_calle.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.domicilio_calle.help_text }}</p>
+                        {% endif %}
+                        {% if form.domicilio_calle.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.domicilio_calle.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Barrio -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.barrio.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Barrio
+                        </label>
+                        {{ form.barrio }}
+                        {% if form.barrio.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.barrio.help_text }}</p>
+                        {% endif %}
+                        {% if form.barrio.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.barrio.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Localidad -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.localidad.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Localidad
+                        </label>
+                        {{ form.localidad }}
+                        {% if form.localidad.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.localidad.help_text }}</p>
+                        {% endif %}
+                        {% if form.localidad.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.localidad.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Código Postal -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.codigo_postal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Código Postal
+                        </label>
+                        {{ form.codigo_postal }}
+                        {% if form.codigo_postal.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.codigo_postal.help_text }}</p>
+                        {% endif %}
+                        {% if form.codigo_postal.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.codigo_postal.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Provincia -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.provincia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Provincia
+                        </label>
+                        {{ form.provincia }}
+                        {% if form.provincia.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.provincia.help_text }}</p>
+                        {% endif %}
+                        {% if form.provincia.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.provincia.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.contacto.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Contacto (Teléfono / Correo Electrónico)
+                        </label>
+                        {{ form.contacto }}
+                        {% if form.contacto.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.contacto.help_text }}</p>
+                        {% endif %}
+                        {% if form.contacto.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.contacto.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 4: Estado Institucional (Solo si el campo activo está presente en el formulario) -->
+            {% if "activo" in form.fields %}
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>Estado Institucional</span>
+                </h2>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start space-x-3">
+                    <div class="flex items-center h-5 mt-0.5">
+                        {{ form.activo }}
+                    </div>
+                    <div class="text-sm">
+                        <label for="{{ form.activo.id_for_label }}" class="font-semibold text-slate-800 cursor-pointer">
+                            Docente Activo
+                        </label>
+                        <p class="text-xs text-slate-500">
+                            Determina si el agente se encuentra en actividad institucional para asignación de cargos, partes diarios y liquidación.
+                        </p>
+                        {% if form.activo.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.activo.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Botones de Acción -->
+            <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end items-center gap-3">
+                <a href="{% url 'personal:docente_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs transition-colors cursor-pointer">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {{ accion|default:"Guardar" }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

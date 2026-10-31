@@ -95,6 +95,23 @@ class DocenteForm(TailwindModelForm):
         return fecha
 
 
+class DocenteBedeliaForm(DocenteForm):
+    """
+    Formulario para Bedelia_Operadoras donde el campo 'activo'
+    está excluido y bloqueado para impedir modificaciones (Ticket 6).
+    """
+
+    class Meta(DocenteForm.Meta):
+        fields = [f for f in DocenteForm.Meta.fields if f != "activo"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.instance and self.instance.pk:
+            # Bloquea y preserva el estado original del campo activo
+            self.instance.refresh_from_db(fields=["activo"])
+        return cleaned_data
+
+
 class CargoDocenteForm(TailwindModelForm):
     """
     Formulario para la designación de cargos y distribución de horas semanales.
