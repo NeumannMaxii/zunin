@@ -4,12 +4,21 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Encabezado y Acciones -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Planillas Mensuales Consolidadas</h1>
-            <p class="text-sm text-slate-500">Renglones de novedades mensuales consolidadas por cargo y período.</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Planillas Mensuales (Cuadros IL-01 e IL-02)</h1>
+            <p class="text-sm text-slate-500">Consolidación de novedades por cargo, período y número correlativo de instrumento.</p>
         </div>
-        <div class="flex items-center space-x-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Botón Exportar CSV (Ticket 9) -->
+            <a href="{% url 'licencias:exportar_planilla_csv' %}{% if cuadro_actual %}?cuadro={{ cuadro_actual }}{% endif %}" 
+               class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-semibold rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                <svg class="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
+            </a>
             <a href="{% url 'licencias:justificacion_diferida' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -22,39 +31,132 @@
         </div>
     </div>
 
+    <!-- Filtros de Cuadro (IL-01 e IL-02) -->
+    <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-2">Cuadros:</span>
+            <a href="{% url 'licencias:planilla_list' %}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if not cuadro_actual %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                Todos
+            </a>
+            <a href="{% url 'licencias:planilla_list' %}?cuadro=IL-01" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro_actual == 'IL-01' %}bg-sky-600 text-white shadow-2xs{% else %}bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200{% endif %}">
+                Cuadro IL-01 (Enfermedad)
+            </a>
+            <a href="{% url 'licencias:planilla_list' %}?cuadro=IL-02" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro_actual == 'IL-02' %}bg-indigo-600 text-white shadow-2xs{% else %}bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200{% endif %}">
+                Cuadro IL-02 (Otras Causales)
+            </a>
+        </div>
+        <div class="text-xs text-slate-500">
+            Total IL-01: <strong>{{ total_il01 }}</strong> | Total IL-02: <strong>{{ total_il02 }}</strong>
+        </div>
+    </div>
+
+    <!-- Tabla de Renglones de Planilla -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
-                        <th class="px-6 py-3">Período</th>
-                        <th class="px-6 py-3">Instrumento</th>
-                        <th class="px-6 py-3">Docente</th>
-                        <th class="px-6 py-3">Cargo / Materia</th>
-                        <th class="px-6 py-3">Tipo Licencia</th>
-                        <th class="px-6 py-3">Días</th>
+                        <th class="px-4 py-3.5">Cuadro</th>
+                        <th class="px-4 py-3.5">N° Disposición</th>
+                        <th class="px-4 py-3.5">Docente</th>
+                        <th class="px-4 py-3.5">DNI</th>
+                        <th class="px-4 py-3.5">Desde</th>
+                        <th class="px-4 py-3.5">Hasta</th>
+                        <th class="px-4 py-3.5">Materias</th>
+                        <th class="px-4 py-3.5 text-center">Horas</th>
+                        <th class="px-4 py-3.5">Tipo Licencia (Editar)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for r in renglones %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
-                        <td class="px-6 py-4 font-mono font-medium text-slate-900">
-                            {{ r.mes }}/{{ r.anio }}
+                        <!-- Cuadro -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if r.cuadro == 'IL-01' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                                    IL-01
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                                    IL-02
+                                </span>
+                            {% endif %}
                             {% if r.desactualizada %}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 ml-1">
-                                Rectificada
-                            </span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 ml-1">
+                                    Rectificada
+                                </span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 font-mono text-xs text-institucional-700 font-semibold">{{ r.numero_instrumento|default:"-" }}</td>
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ r.docente.apellido }}, {{ r.docente.nombre }}</td>
-                        <td class="px-6 py-4 text-slate-700">{{ r.cargo }}</td>
-                        <td class="px-6 py-4 text-slate-600">{{ r.tipo_licencia.codigo }}</td>
-                        <td class="px-6 py-4 font-semibold text-slate-900">{{ r.total_dias }} d</td>
+
+                        <!-- N° Disposición (Instrumento) -->
+                        <td class="px-4 py-4 font-mono font-bold text-xs text-institucional-700 whitespace-nowrap">
+                            {{ r.numero_instrumento|default:"-" }}
+                        </td>
+
+                        <!-- Docente -->
+                        <td class="px-4 py-4 font-medium text-slate-900 whitespace-nowrap">
+                            {{ r.docente.apellido }}, {{ r.docente.nombre }}
+                        </td>
+
+                        <!-- DNI -->
+                        <td class="px-4 py-4 font-mono text-xs text-slate-600 whitespace-nowrap">
+                            {{ r.docente.dni }}
+                        </td>
+
+                        <!-- Desde -->
+                        <td class="px-4 py-4 font-mono text-xs text-slate-600 whitespace-nowrap">
+                            {{ r.desde|date:"d/m/Y" }}
+                        </td>
+
+                        <!-- Hasta -->
+                        <td class="px-4 py-4 font-mono text-xs text-slate-600 whitespace-nowrap">
+                            {{ r.hasta|date:"d/m/Y" }}
+                        </td>
+
+                        <!-- Materias -->
+                        <td class="px-4 py-4 text-xs text-slate-700 max-w-xs truncate" title="{{ r.cargo }}">
+                            {% if r.cargo.materia %}
+                                {{ r.cargo.materia.nombre }}
+                            {% elif r.cargo.cargo_catalogo %}
+                                {{ r.cargo.cargo_catalogo.descripcion }}
+                            {% else %}
+                                {{ r.cargo }}
+                            {% endif %}
+                        </td>
+
+                        <!-- Horas -->
+                        <td class="px-4 py-4 font-semibold text-slate-900 text-center whitespace-nowrap">
+                            {{ r.horas_afectadas }} hs
+                        </td>
+
+                        <!-- Selector de Tipo Licencia por Renglón (Ticket 9) -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <form method="post" action="{% url 'licencias:renglon_cambiar_licencia' r.id %}" class="flex items-center space-x-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <select name="tipo_licencia" 
+                                        class="text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[210px]">
+                                    {% for tl in tipos_licencia %}
+                                    <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}>
+                                        [{{ tl.cuadro_mensual }}] {{ tl.codigo }} - {{ tl.descripcion|truncatechars:22 }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" title="Guardar cambio de artículo" 
+                                        class="px-2.5 py-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-700 font-semibold text-xs rounded-lg border border-slate-300 hover:border-emerald-600 shadow-2xs transition-colors">
+                                    Guardar
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">No se encontraron renglones de planilla mensual.</td>
+                        <td colspan="9" class="px-6 py-12 text-center text-slate-400">
+                            No se encontraron renglones de planilla mensual{% if cuadro_actual %} para el cuadro {{ cuadro_actual }}{% endif %}.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
