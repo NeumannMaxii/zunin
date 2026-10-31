@@ -48,4 +48,15 @@ urlpatterns = [
         views.JustificacionDiferidaView.as_view(),
         name="justificar_alias",
     ),
+    # API Autocompletado de Licencias (Ticket 10)
+    path(
+        "api/autocompletar/",
+        views.AutocompletarLicenciaAPIView.as_view(),
+        name="api_autocompletar",
+    ),
+    path(
+        "autocompletar/",
+        views.AutocompletarLicenciaAPIView.as_view(),
+        name="autocompletar",
+    ),
 ]
