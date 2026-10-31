@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Día No Laborable - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div class="flex items-center space-x-3 text-rose-600">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">¿Confirmar eliminación?</h1>
+                <p class="text-xs text-slate-500">Esta acción removerá el día no laborable del calendario escolar.</p>
+            </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-slate-500">Fecha:</span>
+                <span class="font-mono font-semibold text-slate-900">{{ feriado.fecha|date:"d/m/Y" }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Tipo:</span>
+                <span class="font-medium text-slate-900">{{ feriado.get_tipo_display }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Descripción:</span>
+                <span class="font-medium text-slate-900">{{ feriado.descripcion }}</span>
+            </div>
+        </div>
+
+        <p class="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <strong>Atención:</strong> Las inasistencias o partes diarios que coincidan con esta fecha ya no estarán amparados por un feriado o asueto institucional.
+        </p>
+
+        <form method="post" class="pt-2 flex flex-col sm:flex-row justify-end items-center gap-3">
+            {% csrf_token %}
+            <a href="{% url 'asistencia:feriado_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                Cancelar
+            </a>
+            <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-rose-600 text-sm font-semibold rounded-lg text-white hover:bg-rose-700 shadow-xs transition-colors cursor-pointer">
+                Sí, eliminar definitivamente
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
