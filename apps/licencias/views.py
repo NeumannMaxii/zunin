@@ -58,6 +58,9 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
             if "paginator" in context
             else context["tipo_licencias"].count()
         )
+        context["sugerencias"] = TipoLicencia.objects.filter(
+            activo=True
+        ).values_list("codigo", "articulo", "descripcion")
         return context
 
 

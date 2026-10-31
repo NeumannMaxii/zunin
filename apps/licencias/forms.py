@@ -3,12 +3,40 @@ Formularios para el módulo de Licencias y Justificación Diferida.
 Implementa el buscador de licencias y el flujo en papel (RF-09, RF-11, RF-15, Ticket 8).
 """
 
+import unicodedata
 from django import forms
 from django.db.models import Q
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.forms import TailwindForm
 from apps.licencias.models import TipoLicencia
 from apps.personal.models import CargoDocente, Docente
+
+
+def _variantes_token_busqueda(token):
+    """
+    Genera el token y variantes con/sin tildes para búsqueda predictiva (Ticket 8).
+    """
+    if not token:
+        return []
+    nfkd = unicodedata.normalize("NFKD", token)
+    sin_tilde = "".join(
+        [c for c in nfkd if not unicodedata.combining(c)]
+    ).lower()
+    tildes_map = {"a": "á", "e": "é", "i": "í", "o": "ó", "u": "ú"}
+    variantes = {token.lower(), sin_tilde}
+
+    for i, char in enumerate(sin_tilde):
+        if char in tildes_map:
+            variantes.add(sin_tilde[:i] + tildes_map[char] + sin_tilde[i + 1:])
+
+    if "cion" in sin_tilde:
+        variantes.add(sin_tilde.replace("cion", "ción"))
+    if "amen" in sin_tilde:
+        variantes.add(sin_tilde.replace("amen", "ámen"))
+    if "menes" in sin_tilde:
+        variantes.add(sin_tilde.replace("menes", "ámenes"))
+
+    return list(variantes)
 
 
 class TipoLicenciaSearchForm(TailwindForm):
@@ -66,11 +94,16 @@ class TipoLicenciaSearchForm(TailwindForm):
         activo = self.cleaned_data.get("activo")
 
         if q_val:
-            queryset = queryset.filter(
-                Q(codigo__icontains=q_val)
-                | Q(articulo__icontains=q_val)
-                | Q(descripcion__icontains=q_val)
-            )
+            tokens = q_val.split()
+            for token in tokens:
+                q_token = Q()
+                for variante in _variantes_token_busqueda(token):
+                    q_token |= (
+                        Q(codigo__icontains=variante)
+                        | Q(articulo__icontains=variante)
+                        | Q(descripcion__icontains=variante)
+                    )
+                queryset = queryset.filter(q_token)
 
         # Filtro por cuadro (Ticket 8: ?cuadro=IL-01 o ?cuadro=IL-02)
         cuadro_filtro = cuadro_val or cuadro_mensual

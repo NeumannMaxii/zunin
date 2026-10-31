@@ -14,7 +14,7 @@
                 <span class="text-xs font-medium text-slate-400">Solo Lectura</span>
             </div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight mt-1">Catálogo de Licencias Estatutarias</h1>
-            <p class="text-sm text-slate-500">Consulta ágil de códigos, artículos del estatuto docente y cuadros oficiales de liquidación (IL-01 / IL-02).</p>
+            <p class="text-sm text-slate-500">Consulta ágil y predictiva de códigos, artículos estatutarios y cuadros de liquidación (IL-01 / IL-02).</p>
         </div>
         <div class="flex items-center gap-3">
             <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <!-- Barra de Filtros y Búsqueda -->
+    <!-- Barra de Filtros y Búsqueda Predictiva -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
         <!-- Pestañas de Cuadro -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -51,18 +51,19 @@
                 </a>
             </div>
 
-            <!-- Contador de Resultados -->
+            <!-- Contador de Resultados Dinámico -->
             <div class="text-xs text-slate-500">
-                Total encontrados: <span class="font-bold text-slate-900">{{ total_encontrados }}</span> tipos
+                Mostrando: <span id="contador-encontrados" class="font-bold text-slate-900">{{ total_encontrados }}</span> tipos
             </div>
         </div>
 
-        <!-- Formulario de Búsqueda de Texto ?q= -->
+        <!-- Formulario de Búsqueda Predictiva ?q= -->
         <form method="get" action="{% url 'licencias:tipolicencia_list' %}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {% if cuadro %}
             <input type="hidden" name="cuadro" value="{{ cuadro }}">
             {% endif %}
 
+            <!-- Input con Sugerencias y Filtrado en Tiempo Real -->
             <div class="relative flex-1">
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,14 +71,38 @@
                     </svg>
                 </div>
                 <input type="text"
+                       id="search-input"
                        name="q"
                        value="{{ q }}"
-                       placeholder="Buscar por código, artículo o descripción (ej: 340-A, Maternidad, Duelo)..."
-                       class="block w-full pl-10 pr-4 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:border-institucional-600 transition-colors">
+                       list="sugerencias-licencias"
+                       autocomplete="off"
+                       placeholder="Escribí para buscar al instante (ej: 340, mat, due, enf, atencion)..."
+                       class="block w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:border-institucional-600 transition-colors">
+                
+                <!-- Botón rápido para limpiar texto del input -->
+                <button type="button"
+                        id="clear-search-btn"
+                        class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                        title="Borrar texto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
 
+            <!-- Datalist para sugerencias predictivas del navegador -->
+            <datalist id="sugerencias-licencias">
+                {% for codigo, articulo, descripcion in sugerencias %}
+                    <option value="{{ codigo }}">{{ articulo|default:"" }} - {{ descripcion }}</option>
+                    <option value="{{ descripcion }}">{{ codigo }}</option>
+                    {% if articulo %}
+                    <option value="{{ articulo }}">{{ descripcion }}</option>
+                    {% endif %}
+                {% endfor %}
+            </datalist>
+
             <div class="flex items-center gap-2">
-                <button type="submit" class="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                <button type="submit" class="inline-flex items-center justify-center px-4 py-2.5 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
@@ -85,7 +110,7 @@
                 </button>
 
                 {% if q or cuadro %}
-                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center justify-center px-3 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors" title="Restablecer todos los filtros">
+                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center justify-center px-3.5 py-2.5 border border-slate-300 shadow-xs text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors" title="Restablecer todos los filtros">
                     Limpiar
                 </a>
                 {% endif %}
@@ -128,9 +153,10 @@
                         <th class="px-6 py-3 text-center">Estado</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200 text-sm">
+                <tbody id="licencias-tbody" class="divide-y divide-slate-200 text-sm">
                     {% for lic in tipo_licencias %}
-                    <tr class="hover:bg-slate-50/75 transition-colors">
+                    <tr class="hover:bg-slate-50/75 transition-colors"
+                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }}">
                         <td class="px-6 py-4 font-mono font-bold text-institucional-700 whitespace-nowrap">
                             {{ lic.codigo }}
                         </td>
@@ -221,10 +247,125 @@
                         </td>
                     </tr>
                     {% endfor %}
+
+                    <!-- Fila dinámica para filtrado predictivo en vivo cuando no hay coincidencias -->
+                    <tr id="empty-search-row" class="hidden">
+                        <td colspan="8" class="px-6 py-8 text-center">
+                            <div class="max-w-sm mx-auto space-y-2">
+                                <div class="w-10 h-10 mx-auto rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <p id="empty-search-text" class="text-sm font-medium text-slate-700">No se encontraron licencias coincidentes.</p>
+                                <p class="text-xs text-slate-400">Intenta buscar por parte del código, artículo o palabra clave.</p>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
         {% include "core/includes/paginator.html" %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('search-input');
+        const tableBody = document.getElementById('licencias-tbody');
+        const emptyRow = document.getElementById('empty-search-row');
+        const emptyText = document.getElementById('empty-search-text');
+        const counterBadge = document.getElementById('contador-encontrados');
+        const clearBtn = document.getElementById('clear-search-btn');
+
+        if (!searchInput || !tableBody) return;
+
+        // Función de normalización: minúsculas y remoción de tildes/diacríticos
+        function normalizeText(text) {
+            return (text || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        }
+
+        const rows = Array.from(tableBody.querySelectorAll('tr[data-search]'));
+        const totalRows = rows.length;
+
+        // Búsqueda predictiva e instantánea en tiempo real
+        function filterTable() {
+            const rawValue = searchInput.value;
+            const query = normalizeText(rawValue);
+            const tokens = query.split(/\s+/).filter(Boolean);
+
+            if (clearBtn) {
+                clearBtn.classList.toggle('hidden', rawValue.length === 0);
+            }
+
+            let visibleCount = 0;
+
+            rows.forEach(function (row) {
+                const rowText = normalizeText(row.getAttribute('data-search'));
+                // Comprueba que todos los términos/tokens parciales coincidan
+                const matches = tokens.every(function (token) {
+                    return rowText.indexOf(token) !== -1;
+                });
+
+                if (matches) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            // Actualiza contador de resultados
+            if (counterBadge) {
+                if (tokens.length > 0) {
+                    counterBadge.textContent = visibleCount + ' de ' + totalRows;
+                } else {
+                    counterBadge.textContent = totalRows;
+                }
+            }
+
+            // Muestra mensaje de vacío instantáneo si ningún registro coincide
+            if (emptyRow) {
+                if (visibleCount === 0 && tokens.length > 0) {
+                    emptyRow.classList.remove('hidden');
+                    if (emptyText) {
+                        emptyText.textContent = 'No se encontraron licencias que coincidan con "' + rawValue + '".';
+                    }
+                } else {
+                    emptyRow.classList.add('hidden');
+                }
+            }
+        }
+
+        // Ejecutar en cada pulsación de tecla para respuesta 0ms instantánea
+        searchInput.addEventListener('input', filterTable);
+
+        // Limpieza con tecla Escape o botón de borrar
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                filterTable();
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                filterTable();
+                searchInput.focus();
+            });
+        }
+
+        // Ejecución inicial si el campo vino poblado por URL GET
+        if (searchInput.value) {
+            filterTable();
+        }
+    });
+</script>
 {% endblock %}

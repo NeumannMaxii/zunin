@@ -3,7 +3,7 @@ Pruebas automatizadas para Ticket 8: Pantalla 2 — Catálogo Licencias.
 Valida:
 - Vista de solo lectura (TipoLicenciaListView) con autenticación obligatoria.
 - Filtros GET por cuadro (?cuadro=IL-01 o ?cuadro=IL-02).
-- Búsqueda por texto (?q=) en código, artículo o descripción.
+- Búsqueda predictiva y flexible por texto (?q=) con y sin tildes.
 - Combinación de filtros y preservación de parámetros en paginación.
 """
 
@@ -18,7 +18,7 @@ class CatalogoLicenciasTicket8Tests(TestCase):
     Suite de pruebas para validar los criterios de aceptación del Ticket 8:
     1. Vista de solo lectura.
     2. Filtros GET por cuadro (?cuadro=IL-01 o ?cuadro=IL-02).
-    3. Barra de búsqueda por texto (?q=).
+    3. Barra de búsqueda por texto (?q=) predictiva y flexible.
     4. Aplicación precisa y combinada de filtros.
     """
 
@@ -182,6 +182,30 @@ class CatalogoLicenciasTicket8Tests(TestCase):
         licencias = list(response.context["tipo_licencias"])
         self.assertEqual(len(licencias), 1)
         self.assertEqual(licencias[0].codigo, "LIC-341")
+
+    def test_busqueda_predictiva_parcial_q(self):
+        """Ticket 8: Búsqueda predictiva por prefijo parcial (ej: 'mat', 'enf')."""
+        response = self.client.get(self.url, {"q": "mat"})
+        self.assertEqual(response.status_code, 200)
+        licencias = list(response.context["tipo_licencias"])
+        codigos = [lic.codigo for lic in licencias]
+        self.assertIn("LIC-341", codigos)
+
+    def test_busqueda_insensible_a_tildes(self):
+        """Ticket 8: Búsqueda sin tilde ('atencion') encuentra 'Atención Familiar'."""
+        response = self.client.get(self.url, {"q": "atencion"})
+        self.assertEqual(response.status_code, 200)
+        licencias = list(response.context["tipo_licencias"])
+        self.assertEqual(len(licencias), 1)
+        self.assertEqual(licencias[0].codigo, "LIC-340D")
+
+    def test_busqueda_multi_termino(self):
+        """Ticket 8: Búsqueda por múltiples términos ('340 fam')."""
+        response = self.client.get(self.url, {"q": "340 fam"})
+        self.assertEqual(response.status_code, 200)
+        licencias = list(response.context["tipo_licencias"])
+        self.assertEqual(len(licencias), 1)
+        self.assertEqual(licencias[0].codigo, "LIC-340D")
 
     def test_filtros_combinados_cuadro_y_q(self):
         """
