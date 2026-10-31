@@ -8,13 +8,14 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from apps.asistencia.models import RegistroAsistencia
+from apps.core.audit import audit_save
 
 
 def guardar_asistencia_diaria_masiva(lote_datos, usuario=None, request=None):
     """
     Carga Diaria Masiva de Asistencias (Ticket 5 y 3.8).
     Garantiza que todo el bucle de guardado se ejecute de manera atómica bajo
-    'with transaction.atomic():'.
+    'with transaction.atomic():' y registre auditoría con audit_save().
 
     Si cualquier fila del lote arroja ValidationError o IntegrityError:
     1. Se realiza rollback total inmediato (0 registros persistidos).
@@ -34,12 +35,8 @@ def guardar_asistencia_diaria_masiva(lote_datos, usuario=None, request=None):
                         f"Elemento del lote no válido: tipo {type(item)} no soportado."
                     )
 
-                if usuario and not instancia.creado_por_id:
-                    instancia.creado_por = usuario
-
-                # Validación de modelo y reglas de negocio del registro
-                instancia.full_clean()
-                instancia.save()
+                created = instancia.pk is None
+                audit_save(instancia, user=usuario, created=created)
                 registros_guardados.append(instancia)
 
             return registros_guardados

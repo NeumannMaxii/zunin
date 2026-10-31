@@ -1,14 +1,18 @@
 """
 Vistas para la aplicación Asistencia.
-Listados paginados, ABM de Feriados (Ticket 4), carga masiva y justificaciones.
+Listados paginados, ABM de Feriados (Ticket 4), carga diaria / masiva (Ticket 5)
+y justificaciones por lote (Ticket 7).
 """
 
+import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -18,11 +22,10 @@ from django.views.generic import (
 )
 from apps.asistencia.forms import DiaNoLaborableForm
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
-from apps.asistencia.services import (
-    guardar_asistencia_diaria_masiva,
-    justificar_lote_asistencias,
-)
-from apps.core.audit import AuditoriaFormMixin
+from apps.asistencia.services import justificar_lote_asistencias
+from apps.core.audit import AuditoriaFormMixin, audit_save
+from apps.licencias.models import TipoLicencia
+from apps.personal.models import CargoDocente, Docente
 
 
 class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
@@ -38,43 +41,281 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     ordering = ["-fecha", "docente__apellido"]
 
 
-class CargaDiariaMasivaView(LoginRequiredMixin, View):
+class AsistenciaDiariaView(LoginRequiredMixin, View):
     """
-    Vista para Carga Diaria Masiva de Novedades (Ticket 5 y 3.8).
-    Asegura ejecución atómica con rollback total ante errores.
+    Pantalla 3: Asistencia Diaria y Carga de Novedades (RF-10, Ticket 5 y 3.8).
+    Permite registrar y actualizar la asistencia diaria docente mediante audit_save(),
+    gestionando la advertencia visual de feriados sin bloquear la carga operativa.
     """
 
-    def get(self, request):
-        return render(
-            request,
-            "asistencia/carga_masiva.html",
-            {"titulo": "Carga Diaria Masiva de Asistencia"},
+    def get_fecha(self, request):
+        fecha_str = request.GET.get("fecha") or request.POST.get("fecha")
+        if fecha_str:
+            parsed = parse_date(str(fecha_str).strip())
+            if parsed:
+                return parsed
+        return timezone.localdate()
+
+    def get_docentes_activos_vigentes(self, fecha):
+        """
+        Filtra docentes que estén activos y vigentes para la fecha especificada.
+        Un docente inactivo (activo=False) nunca aparece en la grilla.
+        Si el docente tiene cargos asignados, debe tener al menos un cargo
+        cuya designación se encuentre vigente a la fecha de referencia.
+        """
+        docentes_qs = (
+            Docente.objects.filter(activo=True)
+            .prefetch_related("cargos__materia", "cargos__cargo_catalogo")
+            .order_by("apellido", "nombre")
         )
 
+        vigentes = []
+        for doc in docentes_qs:
+            cargos = list(doc.cargos.all())
+            if not cargos:
+                vigentes.append(doc)
+            elif any(c.es_designacion_vigente(fecha) for c in cargos):
+                vigentes.append(doc)
+
+        return vigentes
+
+    def get(self, request):
+        fecha = self.get_fecha(request)
+        feriado = DiaNoLaborable.objects.filter(fecha=fecha).first()
+        docentes = self.get_docentes_activos_vigentes(fecha)
+
+        registros_map = {
+            r.docente_id: r
+            for r in RegistroAsistencia.objects.filter(
+                fecha=fecha, docente__in=docentes
+            ).select_related("tipo_licencia", "cargo")
+        }
+
+        for doc in docentes:
+            doc.registro_actual = registros_map.get(doc.id)
+
+        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by(
+            "codigo"
+        )
+
+        context = {
+            "titulo": "Asistencia Diaria",
+            "fecha": fecha,
+            "feriado": feriado,
+            "es_feriado": feriado is not None,
+            "docentes": docentes,
+            "tipos_licencia": tipos_licencia,
+        }
+        return render(request, "asistencia/carga_masiva.html", context)
+
     def post(self, request):
+        fecha = self.get_fecha(request)
+        feriado = DiaNoLaborable.objects.filter(fecha=fecha).first()
+        es_feriado = feriado is not None
+
+        # 1. Extracción polimórfica de ítems a procesar
         lote_items = request.POST.getlist("items", [])
-        if not lote_items:
+        registros_data = []
+
+        if lote_items:
+            for item in lote_items:
+                if isinstance(item, str):
+                    try:
+                        parsed = json.loads(item)
+                        if isinstance(parsed, dict):
+                            registros_data.append(parsed)
+                    except Exception:
+                        pass
+                elif isinstance(item, dict):
+                    registros_data.append(item)
+                elif isinstance(item, RegistroAsistencia):
+                    registros_data.append(item)
+
+        if not registros_data:
+            docente_ids = request.POST.getlist("docente_ids")
+            if not docente_ids:
+                for k in request.POST.keys():
+                    if k.startswith("estado_"):
+                        d_id = k.split("estado_")[1]
+                        if d_id.isdigit():
+                            docente_ids.append(d_id)
+
+            if not docente_ids and (
+                "docente" in request.POST or "docente_id" in request.POST
+            ):
+                d_id = request.POST.get("docente") or request.POST.get(
+                    "docente_id"
+                )
+                if d_id:
+                    docente_ids.append(str(d_id))
+
+            for d_id in docente_ids:
+                registros_data.append(
+                    {
+                        "docente_id": int(d_id),
+                        "fecha": fecha,
+                        "estado": request.POST.get(f"estado_{d_id}")
+                        or request.POST.get("estado", "PRESENTE"),
+                        "marca_diaria": request.POST.get(f"marca_diaria_{d_id}")
+                        or request.POST.get("marca_diaria"),
+                        "tipo_licencia_id": request.POST.get(
+                            f"tipo_licencia_{d_id}"
+                        )
+                        or request.POST.get("tipo_licencia"),
+                        "cargo_id": request.POST.get(f"cargo_{d_id}")
+                        or request.POST.get("cargo"),
+                        "observaciones": request.POST.get(
+                            f"observaciones_{d_id}"
+                        )
+                        or request.POST.get("observaciones", ""),
+                        "justifica": request.POST.get(f"justifica_{d_id}"),
+                    }
+                )
+
+        if not registros_data:
             messages.warning(
-                request, "No se recibieron datos para la carga masiva."
+                request, "No se recibieron registros para la carga diaria."
             )
             return redirect("asistencia:asistencia_list")
 
         try:
-            guardar_asistencia_diaria_masiva(
-                lote_items, usuario=request.user, request=request
+            with transaction.atomic():
+                guardados = []
+                for item in registros_data:
+                    if isinstance(item, RegistroAsistencia):
+                        instancia = item
+                        created = instancia.pk is None
+                        audit_save(
+                            instancia, user=request.user, created=created
+                        )
+                        guardados.append(instancia)
+                        continue
+
+                    # Obtener docente
+                    doc_val = item.get("docente_id") or item.get("docente")
+                    if isinstance(doc_val, Docente):
+                        docente_obj = doc_val
+                    elif isinstance(doc_val, int) or (
+                        isinstance(doc_val, str) and str(doc_val).isdigit()
+                    ):
+                        docente_obj = Docente.objects.get(pk=int(doc_val))
+                    else:
+                        continue
+
+                    item_fecha = item.get("fecha") or fecha
+                    if isinstance(item_fecha, str):
+                        item_fecha = parse_date(item_fecha) or fecha
+
+                    # Buscar o instanciar (Crear o Actualizar)
+                    reg = RegistroAsistencia.objects.filter(
+                        docente=docente_obj, fecha=item_fecha
+                    ).first()
+                    created = reg is None
+                    if created:
+                        reg = RegistroAsistencia(
+                            docente=docente_obj, fecha=item_fecha
+                        )
+
+                    estado = item.get("estado", "PRESENTE")
+                    reg.estado = estado
+
+                    # Marca diaria coherente por defecto
+                    marca = item.get("marca_diaria")
+                    if not marca:
+                        if estado == "PRESENTE":
+                            marca = "PR"
+                        elif estado == "AUSENTE":
+                            marca = "I"
+                        elif estado == "LICENCIA":
+                            marca = "LIC"
+                        else:
+                            marca = "P"
+                    reg.marca_diaria = marca
+
+                    # Licencia
+                    lic_val = item.get("tipo_licencia_id") or item.get(
+                        "tipo_licencia"
+                    )
+                    if lic_val and estado == "LICENCIA":
+                        if isinstance(lic_val, TipoLicencia):
+                            reg.tipo_licencia = lic_val
+                        else:
+                            reg.tipo_licencia = TipoLicencia.objects.get(
+                                pk=lic_val
+                            )
+                    else:
+                        reg.tipo_licencia = None
+
+                    # Cargo
+                    cargo_val = item.get("cargo_id") or item.get("cargo")
+                    if cargo_val:
+                        if isinstance(cargo_val, CargoDocente):
+                            reg.cargo = cargo_val
+                        else:
+                            reg.cargo = CargoDocente.objects.get(pk=cargo_val)
+                    else:
+                        reg.cargo = None
+
+                    if "observaciones" in item:
+                        reg.observaciones = item["observaciones"] or ""
+
+                    justifica_val = item.get("justifica")
+                    if justifica_val is not None and str(
+                        justifica_val
+                    ).lower() in [
+                        "false",
+                        "0",
+                        "no",
+                    ]:
+                        reg.justifica = False
+                    elif estado == "AUSENTE":
+                        reg.justifica = False
+                    elif estado in ["PRESENTE", "JUSTIFICADO"]:
+                        reg.justifica = True
+
+                    # Persistir con auditoría polimórfica
+                    audit_save(reg, user=request.user, created=created)
+                    guardados.append(reg)
+
+            # Notificación según si es feriado o jornada habitual
+            if es_feriado:
+                messages.warning(
+                    request,
+                    f"Asistencia del feriado ({feriado.descripcion}) "
+                    "registrada correctamente. El motor mensual omitirá esta "
+                    "fecha en la liquidación de horas.",
+                )
+            else:
+                messages.success(
+                    request,
+                    f"Asistencia diaria del {fecha.strftime('%d/%m/%Y')} "
+                    "guardada con éxito.",
+                )
+
+            return redirect(
+                f"{request.path}?fecha={fecha.strftime('%Y-%m-%d')}"
             )
-            messages.success(
-                request, "Carga diaria masiva procesada correctamente."
-            )
-            return redirect("asistencia:asistencia_list")
-        except (ValidationError, IntegrityError, Exception):
-            # Error registrado en request por guardar_asistencia_diaria_masiva
-            return render(
+
+        except (ValidationError, IntegrityError, Exception) as exc:
+            messages.error(
                 request,
-                "asistencia/carga_masiva.html",
-                {"titulo": "Carga Diaria Masiva de Asistencia", "error": True},
-                status=400,
+                f"Error al procesar la asistencia diaria: {exc}. "
+                "Se revirtieron todas las operaciones y no se guardó ningún registro.",
             )
+            context = {
+                "titulo": "Asistencia Diaria",
+                "fecha": fecha,
+                "feriado": feriado,
+                "es_feriado": es_feriado,
+                "error": True,
+            }
+            return render(
+                request, "asistencia/carga_masiva.html", context, status=400
+            )
+
+
+# Alias para retrocompatibilidad total con Ticket 3.8 y rutas existentes
+CargaDiariaMasivaView = AsistenciaDiariaView
 
 
 class JustificacionesLoteView(LoginRequiredMixin, View):
