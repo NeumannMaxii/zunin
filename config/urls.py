@@ -15,6 +15,7 @@ urlpatterns = [
     path("personal/", include("apps.personal.urls")),
     path("asistencia/", include("apps.asistencia.urls")),
     path("licencias/", include("apps.licencias.urls")),
+    path("api/", include("apps.licencias.api_urls")),
     path(
         "serviceworker.js",
         TemplateView.as_view(
