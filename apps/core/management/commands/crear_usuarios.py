@@ -1,9 +1,9 @@
 """
 Management command para crear y configurar usuarios y grupos base del sistema.
 
-Población inicial de seguridad (Ticket 0):
+Población inicial de seguridad (Ticket 0 / Ticket 3.9.4):
 - Grupos: Admin_Institucional, Bedelia_Operadoras, Consulta_Directiva
-- Usuarios: admin, director, zaquino, msosa
+- Usuarios: admin, director, zaquino, mudarte, msosa
 - Contraseña predeterminada: admin123
 """
 
@@ -17,7 +17,7 @@ from django.db.models import Q
 class Command(BaseCommand):
     help = (
         "Crea los grupos y usuarios base para el funcionamiento y testing "
-        "del sistema Zunin (Ticket 0)."
+        "del sistema Zunin (Ticket 0 / Ticket 3.9.4)."
     )
 
     MANAGED_USERS = {
@@ -35,6 +35,14 @@ class Command(BaseCommand):
             "is_superuser": False,
             "is_staff": True,
             "group": "Bedelia_Operadoras",
+        },
+        "mudarte": {
+            "is_superuser": False,
+            "is_staff": True,
+            "group": "Bedelia_Operadoras",
+            "first_name": "María Eva",
+            "last_name": "Duarte",
+            "email": "mudarte@iesetyfp.edu.ar",
         },
         "msosa": {
             "is_superuser": False,
@@ -147,6 +155,12 @@ class Command(BaseCommand):
                 )
                 user.is_superuser = config["is_superuser"]
                 user.is_staff = config["is_staff"]
+                if "first_name" in config:
+                    user.first_name = config["first_name"]
+                if "last_name" in config:
+                    user.last_name = config["last_name"]
+                if "email" in config:
+                    user.email = config["email"]
                 user.set_password(self.DEFAULT_PASSWORD)
                 user.save()
 

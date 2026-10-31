@@ -78,3 +78,43 @@ class AuthViewsTests(TestCase):
 
         post_response = self.client.post(reverse("logout"))
         self.assertIn(post_response.status_code, [200, 302])
+
+
+class CrearUsuariosCommandTests(TestCase):
+    """Pruebas para el comando crear_usuarios (Ticket 0 / Ticket 3.9.4)."""
+
+    def test_crear_usuarios_reset_crea_mudarte_con_permisos(self):
+        """
+        Ticket 3.9.4:
+        - Al correr crear_usuarios --reset, la usuaria mudarte se crea exitosamente.
+        - mudarte autentica y posee permisos de carga (grupo Bedelia_Operadoras).
+        """
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("crear_usuarios", reset=True, stdout=out)
+
+        User = get_user_model()
+        self.assertTrue(User.objects.filter(username="mudarte").exists())
+
+        usuario_mudarte = User.objects.get(username="mudarte")
+        self.assertEqual(usuario_mudarte.first_name, "María Eva")
+        self.assertEqual(usuario_mudarte.last_name, "Duarte")
+        self.assertTrue(usuario_mudarte.is_staff)
+        self.assertFalse(usuario_mudarte.is_superuser)
+
+        # Autenticación con contraseña admin123
+        self.assertTrue(usuario_mudarte.check_password("admin123"))
+
+        # Pertenencia a grupo Bedelia_Operadoras
+        self.assertTrue(
+            usuario_mudarte.groups.filter(name="Bedelia_Operadoras").exists()
+        )
+
+        # Permisos operativos de carga (add y change) pero NO delete
+        self.assertTrue(usuario_mudarte.has_perm("asistencia.add_registroasistencia"))
+        self.assertTrue(usuario_mudarte.has_perm("asistencia.change_registroasistencia"))
+        self.assertTrue(usuario_mudarte.has_perm("personal.add_docente"))
+        self.assertFalse(usuario_mudarte.has_perm("personal.delete_docente"))
+
