@@ -24,6 +24,11 @@ urlpatterns = [
         name="exportar_planilla_csv",
     ),
     path(
+        "planillas/exportar/",
+        views.ExportarPlanillaCSVView.as_view(),
+        name="planilla_export_csv",
+    ),
+    path(
         "planillas/csv/",
         views.ExportarPlanillaCSVView.as_view(),
         name="planilla_csv",
@@ -37,6 +42,11 @@ urlpatterns = [
         "planillas/<int:pk>/editar-articulo/",
         views.CambiarLicenciaRenglonView.as_view(),
         name="renglon_editar_articulo",
+    ),
+    path(
+        "planillas/<int:pk>/instrumento/",
+        views.ActualizarInstrumentoRenglonView.as_view(),
+        name="renglon_actualizar_instrumento",
     ),
     path(
         "justificacion-diferida/",

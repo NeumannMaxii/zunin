@@ -271,11 +271,32 @@ def generar_planilla_mes(mes, anio, usuario=None):
                 if not cargos_a_crear:
                     continue
 
-                num_disp = f"{correlativo:03d}/{anio}"
-                correlativo += 1
+                # Determinar si el bloque contiene resoluciones ministeriales
+                es_resolucion = False
+                num_inst = None
+                for reg in bloque["registros"]:
+                    if reg.numero_disposicion:
+                        nd_str = str(reg.numero_disposicion).strip()
+                        nd_lower = nd_str.lower()
+                        if (
+                            "res" in nd_lower
+                            or "resoluci" in nd_lower
+                            or "m.e.c" in nd_lower
+                        ):
+                            es_resolucion = True
+                            num_inst = nd_str
+                            break
+
+                if es_resolucion and num_inst:
+                    tipo_inst = "RESOLUCION"
+                    final_num = num_inst
+                else:
+                    tipo_inst = "DISPOSICION"
+                    final_num = f"{correlativo:03d}/{anio}"
+                    correlativo += 1
 
                 for reg in bloque["registros"]:
-                    reg.numero_disposicion = num_disp
+                    reg.numero_disposicion = final_num
                     reg.save(update_fields=["numero_disposicion"])
 
                 for cargo, horas in cargos_a_crear:
@@ -291,8 +312,8 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         hasta=bloque["hasta"],
                         horas_afectadas=horas,
                         marca_origen=bloque["marca_origen"],
-                        tipo_instrumento="DISPOSICION",
-                        numero_instrumento=num_disp,
+                        tipo_instrumento=tipo_inst,
+                        numero_instrumento=final_num,
                         creado_por=usuario,
                         modificado_por=usuario,
                     )
@@ -311,6 +332,7 @@ def procesar_justificacion_rango(
     observaciones=None,
     cargo=None,
     usuario=None,
+    tipo_instrumento="DISPOSICION",
 ):
     """
     Procesa la justificación diferida de inasistencias en un rango de fechas
@@ -372,6 +394,15 @@ def procesar_justificacion_rango(
             dias_a_justificar.append(dia_cursor)
         dia_cursor += datetime.timedelta(days=1)
 
+    num_final = numero_disposicion
+    if tipo_instrumento == "RESOLUCION" and numero_disposicion:
+        nd_str = str(numero_disposicion).strip()
+        nd_lower = nd_str.lower()
+        if not ("res" in nd_lower or "resoluci" in nd_lower):
+            num_final = f"Resolución {nd_str}"
+        else:
+            num_final = nd_str
+
     with transaction.atomic():
         registros_guardados = []
         meses_afectados = set()
@@ -397,8 +428,8 @@ def procesar_justificacion_rango(
                 reg.justifica = True
                 if cargo and not reg.cargo:
                     reg.cargo = cargo
-                if numero_disposicion:
-                    reg.numero_disposicion = numero_disposicion
+                if num_final:
+                    reg.numero_disposicion = num_final
                 if observaciones:
                     if reg.observaciones:
                         reg.observaciones = (
@@ -418,7 +449,7 @@ def procesar_justificacion_rango(
                     marca_diaria=nueva_marca,
                     tipo_licencia=tipo_licencia,
                     justifica=True,
-                    numero_disposicion=numero_disposicion,
+                    numero_disposicion=num_final,
                     observaciones=observaciones or "",
                 )
                 audit_save(nuevo_reg, user=usuario, created=True)

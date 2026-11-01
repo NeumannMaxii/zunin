@@ -149,10 +149,24 @@
                         {% endif %}
                     </div>
 
-                    <!-- Número de Disposición -->
-                    <div class="sm:col-span-2 space-y-1.5">
+                    <!-- Tipo de Instrumento Legal -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.tipo_instrumento.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Tipo de Instrumento Legal
+                        </label>
+                        {{ form.tipo_instrumento }}
+                        {% if form.tipo_instrumento.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.tipo_instrumento.help_text }}</p>
+                        {% endif %}
+                        {% if form.tipo_instrumento.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_instrumento.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Número de Disposición Interna -->
+                    <div class="space-y-1.5">
                         <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Número de Disposición / Instrumento
+                            N° Disposición Interna
                         </label>
                         {{ form.numero_disposicion }}
                         {% if form.numero_disposicion.help_text %}
@@ -160,6 +174,20 @@
                         {% endif %}
                         {% if form.numero_disposicion.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_disposicion.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Número de Resolución Ministerial Externa -->
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.numero_resolucion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            N° Resolución Ministerial Externa (M.E.C.C.y T.)
+                        </label>
+                        {{ form.numero_resolucion }}
+                        {% if form.numero_resolucion.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.numero_resolucion.help_text }}</p>
+                        {% endif %}
+                        {% if form.numero_resolucion.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_resolucion.errors }}</div>
                         {% endif %}
                     </div>
 
