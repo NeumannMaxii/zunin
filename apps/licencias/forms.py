@@ -187,12 +187,31 @@ class JustificacionDiferidaForm(TailwindForm):
         label="Tipo de Licencia Estatutaria",
         help_text="Requerido si se justifica con Licencia médica o especial.",
     )
+    TIPO_INSTRUMENTO_CHOICES = [
+        ("DISPOSICION", "Disposición Interna IESETyFP"),
+        ("RESOLUCION", "Resolución Ministerial M.E.C.C.y T."),
+    ]
+
+    tipo_instrumento = forms.ChoiceField(
+        choices=TIPO_INSTRUMENTO_CHOICES,
+        required=False,
+        initial="DISPOSICION",
+        label="Tipo de Instrumento Legal",
+    )
     numero_disposicion = forms.CharField(
         max_length=50,
         required=False,
         label="Número de Disposición / Instrumento",
         widget=forms.TextInput(
             attrs={"placeholder": "Ej: Disp. Interna 042/2026"}
+        ),
+    )
+    numero_resolucion = forms.CharField(
+        max_length=50,
+        required=False,
+        label="Número de Resolución Ministerial Externa",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej: Res. 1450/2026 M.E.C.C.y T."}
         ),
     )
     observaciones = forms.CharField(
@@ -281,8 +300,17 @@ class JustificacionDiferidaForm(TailwindForm):
         registro = self.cleaned_data.get("registro")
         nueva_marca = self.cleaned_data["nueva_marca"]
         tipo_licencia = self.cleaned_data.get("tipo_licencia")
+        tipo_instrumento = (
+            self.cleaned_data.get("tipo_instrumento") or "DISPOSICION"
+        )
+        numero_resolucion = self.cleaned_data.get("numero_resolucion")
         numero_disposicion = self.cleaned_data.get("numero_disposicion")
         observaciones = self.cleaned_data.get("observaciones")
+
+        if tipo_instrumento == "RESOLUCION" and numero_resolucion:
+            num_final = numero_resolucion
+        else:
+            num_final = numero_disposicion or numero_resolucion
 
         if registro:
             registro.justificar_con_formulario(
@@ -290,8 +318,8 @@ class JustificacionDiferidaForm(TailwindForm):
                 tipo_licencia=tipo_licencia,
                 usuario=usuario,
             )
-            if numero_disposicion:
-                registro.numero_disposicion = numero_disposicion
+            if num_final:
+                registro.numero_disposicion = num_final
             if observaciones:
                 if registro.observaciones:
                     registro.observaciones = (
@@ -315,10 +343,11 @@ class JustificacionDiferidaForm(TailwindForm):
                 fecha_hasta=fecha_hasta,
                 nueva_marca=nueva_marca,
                 tipo_licencia=tipo_licencia,
-                numero_disposicion=numero_disposicion,
+                numero_disposicion=num_final,
                 observaciones=observaciones,
                 cargo=cargo,
                 usuario=usuario,
+                tipo_instrumento=tipo_instrumento,
             )
 
 

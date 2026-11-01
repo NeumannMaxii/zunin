@@ -91,9 +91,52 @@
                             {% endif %}
                         </td>
 
-                        <!-- N° Disposición (Instrumento) -->
-                        <td class="px-4 py-4 font-mono font-bold text-xs text-institucional-700 whitespace-nowrap">
-                            {{ r.numero_instrumento|default:"-" }}
+                        <!-- N° Disposición / Instrumento (Ticket 9 y Ticket 10.3) -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-1.5">
+                                    {% if r.tipo_instrumento == 'RESOLUCION' %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                            Resolución
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                                            Disposición
+                                        </span>
+                                    {% endif %}
+                                    <span class="font-mono font-bold text-xs text-slate-800">
+                                        {{ r.numero_instrumento|default:"-" }}
+                                    </span>
+                                </div>
+
+                                <details class="group text-xs">
+                                    <summary class="cursor-pointer text-institucional-600 hover:text-institucional-800 font-medium select-none text-[11px] inline-flex items-center space-x-1">
+                                        <span>&pencil; Conmutar Instrumento</span>
+                                    </summary>
+                                    <form method="post" action="{% url 'licencias:renglon_actualizar_instrumento' r.id %}" class="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2 shadow-xs min-w-[210px]">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Instrumento:</label>
+                                            <select name="tipo_instrumento" class="text-xs w-full py-1 px-2 bg-white border border-slate-300 rounded focus:ring-institucional-500 focus:border-institucional-500">
+                                                <option value="DISPOSICION" {% if r.tipo_instrumento == 'DISPOSICION' %}selected{% endif %}>Disposición Interna</option>
+                                                <option value="RESOLUCION" {% if r.tipo_instrumento == 'RESOLUCION' %}selected{% endif %}>Resolución Ministerial</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">N° Oficial Externo:</label>
+                                            <input type="text" name="numero_instrumento" value="{{ r.numero_instrumento|default:'' }}" 
+                                                   placeholder="Ej: Res. 1450/2026 M.E.C.C.y T." 
+                                                   class="text-xs w-full py-1 px-2 bg-white border border-slate-300 rounded focus:ring-institucional-500 focus:border-institucional-500">
+                                        </div>
+                                        <div class="text-right pt-1">
+                                            <button type="submit" class="px-2.5 py-1 bg-institucional-600 hover:bg-institucional-700 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer">
+                                                Guardar
+                                            </button>
+                                        </div>
+                                    </form>
+                                </details>
+                            </div>
                         </td>
 
                         <!-- Docente -->

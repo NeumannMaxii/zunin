@@ -224,9 +224,25 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
 
             tipo_lic_str = r.tipo_licencia.codigo if r.tipo_licencia else ""
 
+            # Ticket 10.3: Si es Resolución Ministerial, reflejar "Resolución"
+            # con su número oficial
+            if r.tipo_instrumento == "RESOLUCION":
+                num_inst = (r.numero_instrumento or "").strip()
+                num_lower = num_inst.lower()
+                if "resolución" in num_lower or "resolucion" in num_lower:
+                    instrumento_str = num_inst
+                elif num_lower.startswith("res.") or num_lower.startswith("res "):
+                    instrumento_str = (
+                        f"Resolución {num_inst[4:].strip()}".strip()
+                    )
+                else:
+                    instrumento_str = f"Resolución {num_inst}".strip()
+            else:
+                instrumento_str = r.numero_instrumento or ""
+
             fila = [
                 r.cuadro,
-                r.numero_instrumento or "",
+                instrumento_str,
                 r.docente.nombre_completo,
                 r.docente.dni,
                 r.desde.strftime("%d/%m/%Y") if r.desde else "",
@@ -242,15 +258,16 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
 
 class CambiarLicenciaRenglonView(LoginRequiredMixin, View):
     """
-    Ticket 9: Permite modificar el Tipo de Licencia / Artículo de un Renglón
-    de Planilla Mensual de manera segura.
-    Si se cambia un renglón de cuadro (ej. pasar de IL-01 a IL-02), se debe
-    mantener intacto su numero_instrumento (Disposición) original para no
-    romper la auditoría.
+    Ticket 9 y Ticket 10.3:
+    Permite modificar el Tipo de Licencia / Artículo de un Renglón y/o
+    conmutar su instrumento entre Disposición Interna y Resolución Ministerial externa
+    con su correspondiente número oficial.
     """
 
     def post(self, request, pk):
         renglon = get_object_or_404(RenglonPlanillaMensual, pk=pk)
+
+        # 1. Actualización de Tipo de Licencia (Ticket 9)
         nuevo_tipo_id = request.POST.get("tipo_licencia")
         if nuevo_tipo_id:
             if isinstance(nuevo_tipo_id, TipoLicencia):
@@ -272,16 +289,36 @@ class CambiarLicenciaRenglonView(LoginRequiredMixin, View):
                 else:
                     renglon.cuadro = "IL-02"
 
-                # Preservar el número correlativo de instrumento original
-                renglon.numero_instrumento = num_original
-                audit_save(renglon, user=request.user, created=False)
+                # Preservar el correlativo si no se envió cambio explícito
+                if not request.POST.get("numero_instrumento"):
+                    renglon.numero_instrumento = num_original
 
-                messages.success(
-                    request,
-                    f"Renglón de {renglon.docente.nombre_completo} "
-                    f"actualizado a {nuevo_tipo.codigo} ({renglon.cuadro}). "
-                    f"Disposición {num_original} preservada.",
-                )
+        # 2. Conmutación de Instrumento (Ticket 10.3)
+        tipo_inst = request.POST.get("tipo_instrumento")
+        if tipo_inst in ["DISPOSICION", "RESOLUCION"]:
+            renglon.tipo_instrumento = tipo_inst
+
+        # 3. Número oficial externo o interno
+        nuevo_num = (
+            request.POST.get("numero_instrumento")
+            or request.POST.get("numero_resolucion")
+            or request.POST.get("numero_disposicion")
+        )
+        if nuevo_num is not None and nuevo_num.strip():
+            renglon.numero_instrumento = nuevo_num.strip()
+
+        audit_save(renglon, user=request.user, created=False)
+
+        tipo_desc = (
+            "Resolución Ministerial"
+            if renglon.tipo_instrumento == "RESOLUCION"
+            else "Disposición Interna"
+        )
+        messages.success(
+            request,
+            f"Renglón de {renglon.docente.nombre_completo} actualizado: "
+            f"{tipo_desc} N° {renglon.numero_instrumento or '-'}.",
+        )
 
         next_url = (
             request.POST.get("next")
@@ -289,6 +326,9 @@ class CambiarLicenciaRenglonView(LoginRequiredMixin, View):
             or reverse("licencias:planilla_list")
         )
         return redirect(next_url)
+
+
+ActualizarInstrumentoRenglonView = CambiarLicenciaRenglonView
 
 
 class JustificacionDiferidaView(
