@@ -412,12 +412,20 @@ def procesar_justificacion_rango(
         registros_guardados = []
         meses_afectados = set()
 
+        # Ticket 10.5: Precargar todas las asistencias del intervalo con
+        # fecha__range en una sola consulta
+        asistencias_map = {
+            r.fecha: r
+            for r in RegistroAsistencia.objects.filter(
+                docente=docente,
+                fecha__range=[fecha_desde, fecha_hasta],
+            )
+        }
+
         for dia in dias_a_justificar:
             meses_afectados.add((dia.month, dia.year))
 
-            reg = RegistroAsistencia.objects.filter(
-                docente=docente, fecha=dia
-            ).first()
+            reg = asistencias_map.get(dia)
 
             estado_destino = (
                 "LICENCIA"

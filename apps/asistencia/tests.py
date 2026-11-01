@@ -805,3 +805,152 @@ class Ticket5AsistenciaDiariaTests(TestCase):
         self.assertEqual(reg.marca_diaria, "I")
         self.assertEqual(reg.observaciones, "Novedad rectificada")
         self.assertEqual(reg.modificado_por, self.user)
+
+
+class Ticket10_5RendimientoTests(TestCase):
+    """
+    Pruebas para el Ticket 10.5:
+    - Optimización de Rendimiento y Erradicación de Consultas N+1.
+    - Precarga con in_bulk en AsistenciaDiariaView.post.
+    - Criterio de Aceptación: Guardar la asistencia de 20 docentes consume
+      menos de 15 queries SQL totales.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username="admin_perf",
+            password="password123",
+            email="admin_perf@test.com",
+        )
+        self.client.login(username="admin_perf", password="password123")
+
+        # Crear 20 docentes activos
+        self.docentes_20 = [
+            Docente.objects.create(
+                dni=f"300000{i:02d}",
+                apellido=f"DOCENTE_{i:02d}",
+                nombre=f"Nombre_{i:02d}",
+                sexo="M",
+                activo=True,
+            )
+            for i in range(1, 21)
+        ]
+
+    def test_criterio_guardar_asistencia_20_docentes_menos_de_15_queries(self):
+        """
+        Criterio de Aceptación:
+        El test de rendimiento con CaptureQueriesContext confirma que guardar
+        la asistencia de 20 docentes consume menos de 15 queries SQL totales.
+        """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        fecha_prueba = datetime.date(2026, 11, 2)
+        post_data = {
+            "fecha": fecha_prueba.isoformat(),
+            "docente_ids": [d.id for d in self.docentes_20],
+        }
+        for d in self.docentes_20:
+            post_data[f"estado_{d.id}"] = "PRESENTE"
+            post_data[f"marca_diaria_{d.id}"] = "PR"
+            post_data[f"observaciones_{d.id}"] = "Carga rápida masiva"
+
+        # 1. Medir queries SQL al crear masivamente 20 registros
+        with CaptureQueriesContext(connection) as queries_context:
+            response = self.client.post("/asistencia/carga-masiva/", post_data)
+
+        self.assertEqual(response.status_code, 302)
+        total_queries = len(queries_context)
+        self.assertLess(
+            total_queries,
+            15,
+            f"Criterio de Aceptación no cumplido: se ejecutaron {total_queries} "
+            f"queries para 20 docentes (debe ser estrictamente menor a 15).",
+        )
+
+        # Verificar que se crearon los 20 registros
+        self.assertEqual(
+            RegistroAsistencia.objects.filter(fecha=fecha_prueba).count(),
+            20,
+        )
+
+        # 2. Medir queries SQL al actualizar masivamente los 20 registros existentes
+        post_data_act = {
+            "fecha": fecha_prueba.isoformat(),
+            "docente_ids": [d.id for d in self.docentes_20],
+        }
+        for d in self.docentes_20:
+            post_data_act[f"estado_{d.id}"] = "AUSENTE"
+            post_data_act[f"marca_diaria_{d.id}"] = "I"
+            post_data_act[f"observaciones_{d.id}"] = "Rectificación masiva"
+
+        with CaptureQueriesContext(connection) as queries_act_context:
+            resp_act = self.client.post("/asistencia/carga-masiva/", post_data_act)
+
+        self.assertEqual(resp_act.status_code, 302)
+        total_queries_act = len(queries_act_context)
+        self.assertLess(
+            total_queries_act,
+            15,
+            f"Criterio de Aceptación no cumplido al actualizar: se ejecutaron "
+            f"{total_queries_act} queries (debe ser menor a 15).",
+        )
+
+        # Siguen siendo 20 registros actualizados a AUSENTE
+        self.assertEqual(
+            RegistroAsistencia.objects.filter(
+                fecha=fecha_prueba, estado="AUSENTE"
+            ).count(),
+            20,
+        )
+
+    def test_procesar_justificacion_rango_precarga_fecha_range_una_sola_query(
+        self,
+    ):
+        """
+        Valida que procesar_justificacion_rango precargue todas las
+        asistencias del intervalo en una sola consulta SQL usando fecha__range.
+        """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        from apps.licencias.services import procesar_justificacion_rango
+
+        docente = self.docentes_20[0]
+        # Crear 5 asistencias previas
+        for dia in range(1, 6):
+            RegistroAsistencia.objects.create(
+                docente=docente,
+                fecha=datetime.date(2026, 8, dia),
+                estado="AUSENTE",
+                marca_diaria="I",
+            )
+
+        f_desde = datetime.date(2026, 8, 1)
+        f_hasta = datetime.date(2026, 8, 7)
+
+        # Monitorear consultas durante la justificación del rango
+        with CaptureQueriesContext(connection) as ctx:
+            procesar_justificacion_rango(
+                docente=docente,
+                fecha_desde=f_desde,
+                fecha_hasta=f_hasta,
+                nueva_marca="P",
+                usuario=self.user,
+            )
+
+        # Verificar que se realizó el SELECT con fecha__range
+        queries_sql = [q["sql"] for q in ctx.captured_queries]
+        select_range = [
+            sql
+            for sql in queries_sql
+            if "registroasistencia" in sql.lower()
+            and "between" in sql.lower()
+        ]
+        self.assertGreaterEqual(
+            len(select_range),
+            1,
+            "Debe existir al menos una consulta con fecha__range (BETWEEN).",
+        )
