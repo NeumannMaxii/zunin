@@ -6,7 +6,13 @@ Maneja datos filiatorios del cuerpo docente y la asignación de cargos/horas cá
 from datetime import date
 from django import forms
 from apps.core.forms import TailwindForm, TailwindModelForm
-from apps.personal.models import CargoDocente, Docente
+from apps.personal.models import (
+    CargoCatalogo,
+    CargoDocente,
+    Carrera,
+    Docente,
+    TipoAutorizacion,
+)
 
 
 class DocenteForm(TailwindModelForm):
@@ -267,3 +273,117 @@ class ImportarCSVForm(TailwindForm):
                 "El archivo seleccionado debe tener extensión .csv."
             )
         return archivo
+
+
+class CarreraForm(TailwindModelForm):
+    """
+    Formulario para el alta y edición de Carreras (Ticket 10.1).
+    """
+
+    class Meta:
+        model = Carrera
+        fields = ["codigo", "nombre", "activo"]
+        widgets = {
+            "codigo": forms.TextInput(
+                attrs={"placeholder": "Ej: TEC-DS"}
+            ),
+            "nombre": forms.TextInput(
+                attrs={
+                    "placeholder": (
+                        "Ej: Tecnicatura Superior en Desarrollo de Software"
+                    )
+                }
+            ),
+        }
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data.get("codigo", "").strip().upper()
+        if not codigo:
+            raise forms.ValidationError("El código es obligatorio.")
+        qs = Carrera.objects.filter(codigo__iexact=codigo)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                "Ya existe una carrera registrada con este código."
+            )
+        return codigo
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre", "").strip()
+        if not nombre:
+            raise forms.ValidationError(
+                "El nombre de la carrera es obligatorio."
+            )
+        return nombre
+
+
+class CargoCatalogoForm(TailwindModelForm):
+    """
+    Formulario para el alta y edición del catálogo de cargos (Ticket 10.1).
+    """
+
+    class Meta:
+        model = CargoCatalogo
+        fields = ["codigo", "descripcion", "activo"]
+        widgets = {
+            "codigo": forms.TextInput(
+                attrs={"placeholder": "Ej: MEP"}
+            ),
+            "descripcion": forms.TextInput(
+                attrs={
+                    "placeholder": (
+                        "Ej: Maestro de Enseñanza Práctica"
+                    )
+                }
+            ),
+        }
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data.get("codigo", "").strip().upper()
+        if not codigo:
+            raise forms.ValidationError("El código de cargo es obligatorio.")
+        qs = CargoCatalogo.objects.filter(codigo__iexact=codigo)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                "Ya existe un cargo registrado con este código."
+            )
+        return codigo
+
+    def clean_descripcion(self):
+        descripcion = self.cleaned_data.get("descripcion", "").strip()
+        if not descripcion:
+            raise forms.ValidationError("La descripción es obligatoria.")
+        return descripcion
+
+
+class TipoAutorizacionForm(TailwindModelForm):
+    """
+    Formulario para el catálogo de tipos de autorización (Ticket 10.1).
+    """
+
+    class Meta:
+        model = TipoAutorizacion
+        fields = ["nombre", "activo"]
+        widgets = {
+            "nombre": forms.TextInput(
+                attrs={"placeholder": "Ej: RESOLUCIÓN"}
+            ),
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre", "").strip().upper()
+        if not nombre:
+            raise forms.ValidationError(
+                "El nombre del tipo de autorización es obligatorio."
+            )
+        qs = TipoAutorizacion.objects.filter(nombre__iexact=nombre)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                "Ya existe un tipo de autorización con este nombre."
+            )
+        return nombre

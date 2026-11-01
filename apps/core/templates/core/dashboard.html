@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load auth_tags %}
 
 {% block title %}{{ titulo }} - IESETyFP Zunin{% endblock %}
 
@@ -77,6 +78,27 @@
                 <span class="font-semibold text-amber-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
         </a>
+
+        {% if user|es_administrador %}
+        <!-- Catálogos Institucionales -->
+        <a href="{% url 'personal:catalogos_hub' %}" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all flex flex-col justify-between group">
+            <div class="space-y-3">
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg group-hover:bg-indigo-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <h2 class="text-lg font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">Catálogos Institucionales</h2>
+                <p class="text-xs text-slate-500">
+                    Administración de Carreras, Cargos de Catálogo y Tipos de Autorización base.
+                </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
+                <span class="text-slate-400">apps.personal</span>
+                <span class="font-semibold text-indigo-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
+            </div>
+        </a>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -61,4 +61,55 @@ urlpatterns = [
         views.ImportarCSVView.as_view(),
         name="importar_csv",
     ),
+    # Catálogos Institucionales (Ticket 10.1)
+    path(
+        "catalogos/",
+        views.CatalogosHubView.as_view(),
+        name="catalogos_hub",
+    ),
+    path(
+        "catalogos/carreras/",
+        views.CarreraListView.as_view(),
+        name="carrera_list",
+    ),
+    path(
+        "catalogos/carreras/crear/",
+        views.CarreraCreateView.as_view(),
+        name="carrera_create",
+    ),
+    path(
+        "catalogos/carreras/<int:pk>/editar/",
+        views.CarreraUpdateView.as_view(),
+        name="carrera_update",
+    ),
+    path(
+        "catalogos/cargos/",
+        views.CargoCatalogoListView.as_view(),
+        name="cargocatalogo_list",
+    ),
+    path(
+        "catalogos/cargos/crear/",
+        views.CargoCatalogoCreateView.as_view(),
+        name="cargocatalogo_create",
+    ),
+    path(
+        "catalogos/cargos/<int:pk>/editar/",
+        views.CargoCatalogoUpdateView.as_view(),
+        name="cargocatalogo_update",
+    ),
+    path(
+        "catalogos/autorizaciones/",
+        views.TipoAutorizacionListView.as_view(),
+        name="tipoautorizacion_list",
+    ),
+    path(
+        "catalogos/autorizaciones/crear/",
+        views.TipoAutorizacionCreateView.as_view(),
+        name="tipoautorizacion_create",
+    ),
+    path(
+        "catalogos/autorizaciones/<int:pk>/editar/",
+        views.TipoAutorizacionUpdateView.as_view(),
+        name="tipoautorizacion_update",
+    ),
 ]
