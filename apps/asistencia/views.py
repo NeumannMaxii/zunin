@@ -23,7 +23,7 @@ from django.views.generic import (
 from apps.asistencia.forms import DiaNoLaborableForm
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import justificar_lote_asistencias
-from apps.core.audit import AuditoriaFormMixin, audit_save
+from apps.core.audit import AuditoriaFormMixin
 from apps.licencias.models import TipoLicencia
 from apps.personal.models import CargoDocente, Docente
 
@@ -178,38 +178,125 @@ class AsistenciaDiariaView(LoginRequiredMixin, View):
             )
             return redirect("asistencia:asistencia_list")
 
+        # Ticket 10.5: Extraer IDs para precarga masiva en memoria con in_bulk
+        doc_ids = set()
+        lic_ids = set()
+        cargo_ids = set()
+        fechas = set()
+
+        for item in registros_data:
+            if isinstance(item, RegistroAsistencia):
+                doc_ids.add(item.docente_id)
+                fechas.add(item.fecha)
+                if item.tipo_licencia_id:
+                    lic_ids.add(item.tipo_licencia_id)
+                if item.cargo_id:
+                    cargo_ids.add(item.cargo_id)
+                continue
+
+            doc_val = item.get("docente_id") or item.get("docente")
+            if isinstance(doc_val, Docente):
+                doc_ids.add(doc_val.pk)
+            elif doc_val is not None:
+                try:
+                    doc_ids.add(int(doc_val))
+                except (ValueError, TypeError):
+                    pass
+
+            lic_val = item.get("tipo_licencia_id") or item.get("tipo_licencia")
+            if isinstance(lic_val, TipoLicencia):
+                lic_ids.add(lic_val.pk)
+            elif lic_val is not None:
+                try:
+                    lic_ids.add(int(lic_val))
+                except (ValueError, TypeError):
+                    pass
+
+            cargo_val = item.get("cargo_id") or item.get("cargo")
+            if isinstance(cargo_val, CargoDocente):
+                cargo_ids.add(cargo_val.pk)
+            elif cargo_val is not None:
+                try:
+                    cargo_ids.add(int(cargo_val))
+                except (ValueError, TypeError):
+                    pass
+
+            item_fecha = item.get("fecha") or fecha
+            if isinstance(item_fecha, str):
+                item_fecha = parse_date(item_fecha) or fecha
+            fechas.add(item_fecha)
+
         try:
             with transaction.atomic():
+                # Precarga en memoria con in_bulk y diccionarios (Ticket 10.5)
+                docentes_map = Docente.objects.in_bulk(doc_ids)
+                licencias_map = (
+                    TipoLicencia.objects.in_bulk(lic_ids) if lic_ids else {}
+                )
+                cargos_map = (
+                    CargoDocente.objects.in_bulk(cargo_ids) if cargo_ids else {}
+                )
+                registros_existentes_map = {
+                    (r.docente_id, r.fecha): r
+                    for r in RegistroAsistencia.objects.filter(
+                        docente_id__in=doc_ids, fecha__in=fechas
+                    )
+                }
+
+                nuevos = []
+                existentes = []
                 guardados = []
+                audit_user = (
+                    request.user
+                    if (
+                        request.user is not None
+                        and getattr(request.user, "is_authenticated", True)
+                    )
+                    else None
+                )
+                ahora = timezone.now()
+
+                audit_user_id = audit_user.pk if audit_user else None
                 for item in registros_data:
                     if isinstance(item, RegistroAsistencia):
                         instancia = item
                         created = instancia.pk is None
-                        audit_save(
-                            instancia, user=request.user, created=created
-                        )
+                        if created:
+                            if not instancia.creado_por_id:
+                                instancia.creado_por_id = audit_user_id
+                            instancia.modificado_por_id = audit_user_id
+                            instancia.actualizado_en = ahora
+                            instancia.clean()
+                            nuevos.append(instancia)
+                        else:
+                            instancia.modificado_por_id = audit_user_id
+                            instancia.actualizado_en = ahora
+                            instancia.clean()
+                            existentes.append(instancia)
                         guardados.append(instancia)
                         continue
 
-                    # Obtener docente
+                    # Obtener docente desde memoria
                     doc_val = item.get("docente_id") or item.get("docente")
                     if isinstance(doc_val, Docente):
                         docente_obj = doc_val
-                    elif isinstance(doc_val, int) or (
-                        isinstance(doc_val, str) and str(doc_val).isdigit()
-                    ):
-                        docente_obj = Docente.objects.get(pk=int(doc_val))
                     else:
+                        try:
+                            docente_obj = docentes_map.get(int(doc_val))
+                        except (ValueError, TypeError):
+                            docente_obj = None
+
+                    if not docente_obj:
                         continue
 
                     item_fecha = item.get("fecha") or fecha
                     if isinstance(item_fecha, str):
                         item_fecha = parse_date(item_fecha) or fecha
 
-                    # Buscar o instanciar (Crear o Actualizar)
-                    reg = RegistroAsistencia.objects.filter(
-                        docente=docente_obj, fecha=item_fecha
-                    ).first()
+                    # Buscar o instanciar desde el mapa en memoria
+                    reg = registros_existentes_map.get(
+                        (docente_obj.id, item_fecha)
+                    )
                     created = reg is None
                     if created:
                         reg = RegistroAsistencia(
@@ -232,7 +319,7 @@ class AsistenciaDiariaView(LoginRequiredMixin, View):
                             marca = "P"
                     reg.marca_diaria = marca
 
-                    # Licencia
+                    # Licencia desde mapa en memoria
                     lic_val = item.get("tipo_licencia_id") or item.get(
                         "tipo_licencia"
                     )
@@ -240,19 +327,25 @@ class AsistenciaDiariaView(LoginRequiredMixin, View):
                         if isinstance(lic_val, TipoLicencia):
                             reg.tipo_licencia = lic_val
                         else:
-                            reg.tipo_licencia = TipoLicencia.objects.get(
-                                pk=lic_val
-                            )
+                            try:
+                                reg.tipo_licencia = licencias_map.get(
+                                    int(lic_val)
+                                )
+                            except (ValueError, TypeError):
+                                reg.tipo_licencia = None
                     else:
                         reg.tipo_licencia = None
 
-                    # Cargo
+                    # Cargo desde mapa en memoria
                     cargo_val = item.get("cargo_id") or item.get("cargo")
                     if cargo_val:
                         if isinstance(cargo_val, CargoDocente):
                             reg.cargo = cargo_val
                         else:
-                            reg.cargo = CargoDocente.objects.get(pk=cargo_val)
+                            try:
+                                reg.cargo = cargos_map.get(int(cargo_val))
+                            except (ValueError, TypeError):
+                                reg.cargo = None
                     else:
                         reg.cargo = None
 
@@ -273,9 +366,39 @@ class AsistenciaDiariaView(LoginRequiredMixin, View):
                     elif estado in ["PRESENTE", "JUSTIFICADO"]:
                         reg.justifica = True
 
-                    # Persistir con auditoría polimórfica
-                    audit_save(reg, user=request.user, created=created)
+                    # Auditoría y validación en memoria
+                    if created:
+                        if not reg.creado_por_id:
+                            reg.creado_por_id = audit_user_id
+                        reg.modificado_por_id = audit_user_id
+                        reg.actualizado_en = ahora
+                        reg.clean()
+                        nuevos.append(reg)
+                    else:
+                        reg.modificado_por_id = audit_user_id
+                        reg.actualizado_en = ahora
+                        reg.clean()
+                        existentes.append(reg)
+
                     guardados.append(reg)
+
+                # Persistencia optimizada en lote
+                if nuevos:
+                    RegistroAsistencia.objects.bulk_create(nuevos)
+                if existentes:
+                    RegistroAsistencia.objects.bulk_update(
+                        existentes,
+                        fields=[
+                            "estado",
+                            "marca_diaria",
+                            "tipo_licencia",
+                            "cargo",
+                            "observaciones",
+                            "justifica",
+                            "modificado_por",
+                            "actualizado_en",
+                        ],
+                    )
 
             # Notificación según si es feriado o jornada habitual
             if es_feriado:
