@@ -288,6 +288,33 @@ def autocompletar_por_articulo(articulo_str):
     return TipoLicencia.autocompletar_por_articulo(articulo_str)
 
 
+class RenglonPlanillaQuerySet(models.QuerySet):
+    """QuerySet personalizado para RenglonPlanillaMensual (Ticket 10.4)."""
+
+    def vigentes(self):
+        """Retorna únicamente los renglones vigentes (desactualizada=False)."""
+        return self.filter(desactualizada=False)
+
+    def desactualizados(self):
+        """Retorna los renglones desactualizados (desactualizada=True)."""
+        return self.filter(desactualizada=True)
+
+
+class RenglonPlanillaManager(
+    models.Manager.from_queryset(RenglonPlanillaQuerySet)
+):
+    """
+    Custom Manager para RenglonPlanillaMensual (Ticket 10.4).
+    Permite filtrar renglones vigentes o desactualizados.
+    """
+
+    def vigentes(self):
+        return self.get_queryset().vigentes()
+
+    def desactualizados(self):
+        return self.get_queryset().desactualizados()
+
+
 class RenglonPlanillaMensual(AuditoriaModel):
     """
     Renglón consolidado de la planilla mensual de novedades docentes (IL-01 / IL-02).
@@ -295,6 +322,8 @@ class RenglonPlanillaMensual(AuditoriaModel):
     para la asignación de instrumentos legales correlativos
     (RF-12 a RF-16, RN-10 y RN-11).
     """
+
+    objects = RenglonPlanillaManager()
 
     CUADRO_CHOICES = [
         ("IL-01", "IL-01 - Enfermedad"),

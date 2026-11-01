@@ -95,8 +95,7 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = (
-            super()
-            .get_queryset()
+            RenglonPlanillaMensual.objects.vigentes()
             .select_related(
                 "docente",
                 "cargo__materia",
@@ -147,12 +146,16 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
         context["tipos_licencia"] = TipoLicencia.objects.filter(
             activo=True
         ).order_by("cuadro_mensual", "codigo")
-        context["total_il01"] = RenglonPlanillaMensual.objects.filter(
-            cuadro="IL-01"
-        ).count()
-        context["total_il02"] = RenglonPlanillaMensual.objects.filter(
-            cuadro="IL-02"
-        ).count()
+        context["total_il01"] = (
+            RenglonPlanillaMensual.objects.vigentes()
+            .filter(cuadro="IL-01")
+            .count()
+        )
+        context["total_il02"] = (
+            RenglonPlanillaMensual.objects.vigentes()
+            .filter(cuadro="IL-02")
+            .count()
+        )
         return context
 
 
@@ -164,17 +167,21 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
     """
 
     def get(self, request, *args, **kwargs):
-        queryset = RenglonPlanillaMensual.objects.select_related(
-            "docente",
-            "cargo__materia",
-            "cargo__cargo_catalogo",
-            "tipo_licencia",
-        ).order_by(
-            "-anio",
-            "-mes",
-            "cuadro",
-            "numero_instrumento",
-            "docente__apellido",
+        queryset = (
+            RenglonPlanillaMensual.objects.vigentes()
+            .select_related(
+                "docente",
+                "cargo__materia",
+                "cargo__cargo_catalogo",
+                "tipo_licencia",
+            )
+            .order_by(
+                "-anio",
+                "-mes",
+                "cuadro",
+                "numero_instrumento",
+                "docente__apellido",
+            )
         )
 
         cuadro = (request.GET.get("cuadro") or "").strip().upper()

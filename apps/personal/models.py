@@ -74,8 +74,25 @@ class TipoAutorizacion(models.Model):
         return self.nombre
 
 
+class DocenteQuerySet(models.QuerySet):
+    """QuerySet personalizado para Docente (Ticket 10.4)."""
+
+    def activos(self):
+        """Retorna únicamente los docentes activos (activo=True)."""
+        return self.filter(activo=True)
+
+
+class DocenteManager(models.Manager.from_queryset(DocenteQuerySet)):
+    """Custom Manager para Docente con método activos() (Ticket 10.4)."""
+
+    def activos(self):
+        return self.get_queryset().activos()
+
+
 class Docente(models.Model):
     """Información filiatoria y de contacto del personal docente del IESETyFP."""
+
+    objects = DocenteManager()
 
     SEXO_CHOICES = [
         ("M", "Masculino"),
@@ -342,11 +359,42 @@ class EspacioCurricular(models.Model):
         return f"{self.codigo} - {self.nombre} ({self.carrera} - {self.anio}° Año)"
 
 
+class CargoDocenteQuerySet(models.QuerySet):
+    """QuerySet personalizado para CargoDocente (Ticket 10.4)."""
+
+    def vigentes(self, fecha_referencia=None):
+        """
+        Retorna las designaciones activas cuya fecha_baja sea nula o
+        mayor o igual a la fecha de referencia (por defecto, hoy).
+        """
+        if fecha_referencia is None:
+            fecha_referencia = timezone.now().date()
+        elif isinstance(fecha_referencia, datetime.datetime):
+            fecha_referencia = fecha_referencia.date()
+
+        return self.filter(
+            models.Q(activo=True)
+            & (
+                models.Q(fecha_baja__isnull=True)
+                | models.Q(fecha_baja__gte=fecha_referencia)
+            )
+        )
+
+
+class CargoDocenteManager(models.Manager.from_queryset(CargoDocenteQuerySet)):
+    """Custom Manager para CargoDocente con método vigentes() (Ticket 10.4)."""
+
+    def vigentes(self, fecha_referencia=None):
+        return self.get_queryset().vigentes(fecha_referencia=fecha_referencia)
+
+
 class CargoDocente(models.Model):
     """
     Designación de un docente en un espacio curricular o cargo institucional
     y su distribución semanal de horas cátedra por día hábil.
     """
+
+    objects = CargoDocenteManager()
 
     SITUACION_CHOICES = [
         ("TITULAR", "Titular"),

@@ -250,16 +250,21 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         cargos_con_horas.append((cargos_a_evaluar[0], 0))
 
                 # Idempotencia (SKIP): verificar si el renglón ya existe
+                # entre los vigentes (Ticket 10.4)
                 cargos_a_crear = []
                 for cargo, horas in cargos_con_horas:
-                    renglon_existente = RenglonPlanillaMensual.objects.filter(
-                        docente=docente,
-                        cargo=cargo,
-                        mes=mes,
-                        anio=anio,
-                        desde=bloque["desde"],
-                        hasta=bloque["hasta"],
-                    ).first()
+                    renglon_existente = (
+                        RenglonPlanillaMensual.objects.vigentes()
+                        .filter(
+                            docente=docente,
+                            cargo=cargo,
+                            mes=mes,
+                            anio=anio,
+                            desde=bloque["desde"],
+                            hasta=bloque["hasta"],
+                        )
+                        .first()
+                    )
 
                     if renglon_existente:
                         renglones_resultado.append(renglon_existente)
