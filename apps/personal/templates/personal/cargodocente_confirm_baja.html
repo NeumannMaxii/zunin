@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar Cese de Cargo / Designación - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <!-- Encabezado con Icono de Alerta -->
+        <div class="flex items-center space-x-3 text-rose-600">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">¿Confirmar cese de designación?</h1>
+                <p class="text-xs text-slate-500">Operación restringida a Administradores Institucionales (Ticket 10.2).</p>
+            </div>
+        </div>
+
+        <!-- Ficha Resumen del Cargo -->
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-sm">
+            <div class="flex justify-between">
+                <span class="text-slate-500">Docente titular:</span>
+                <span class="font-semibold text-slate-900">{{ cargo.docente.apellido }}, {{ cargo.docente.nombre }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">DNI Docente:</span>
+                <span class="font-mono font-medium text-slate-900">{{ cargo.docente.dni }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Materia / Espacio Curricular:</span>
+                <span class="font-medium text-slate-800">{{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"Sin materia asignada" }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Situación de Revista:</span>
+                <span class="text-slate-700">{{ cargo.get_situacion_revista_display }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Horas Semanales:</span>
+                <span class="font-semibold text-slate-800">{{ cargo.total_horas_semanales }} hs</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Período de Designación:</span>
+                <span class="font-mono text-xs text-slate-600">{{ cargo.desde_texto }} &rarr; {{ cargo.hasta_texto }}</span>
+            </div>
+            <div class="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                <span class="text-slate-500">Estado actual del Cargo:</span>
+                {% if cargo.activo %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo / Cesado</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Aviso Institucional de Integridad -->
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed space-y-1">
+            <p><strong>Cese Puntual de Designación:</strong> Al confirmar, se establecerá la <code>fecha_baja = hoy</code> y el cargo pasará a <em>Inactivo</em>.</p>
+            <p class="text-emerald-800 font-medium">&check; El legajo institucional del docente permanecerá activo y no se alterarán otras materias ni su historial de asistencia.</p>
+        </div>
+
+        <!-- Formulario POST de Confirmación -->
+        <form method="post" action="{% url 'personal:cargodocente_baja' cargo.pk %}" class="pt-2 flex flex-col sm:flex-row justify-end items-center gap-3">
+            {% csrf_token %}
+            <a href="{% url 'personal:cargodocente_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                Cancelar
+            </a>
+            <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-rose-600 text-sm font-semibold rounded-lg text-white hover:bg-rose-700 shadow-xs transition-colors cursor-pointer">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Confirmar Cese de Cargo
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

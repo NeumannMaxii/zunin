@@ -50,6 +50,12 @@ urlpatterns = [
         views.CargoDocenteListView.as_view(),
         name="cargodocente_list",
     ),
+    # Cese puntual de cargo: POST /personal/cargos/<pk>/baja/ (Ticket 10.2)
+    path(
+        "cargos/<int:pk>/baja/",
+        views.CargoDocenteBajaView.as_view(),
+        name="cargodocente_baja",
+    ),
     path(
         "importar-csv/",
         views.ImportarCSVView.as_view(),

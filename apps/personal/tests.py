@@ -836,6 +836,239 @@ class DocenteCRUDSeguridadTests(TestCase):
         self.assertEqual(DocenteListView.paginate_by, 25)
 
 
+class Ticket10_2CeseDesignacionPuntualTests(TestCase):
+    """
+    Pruebas para el Ticket 10.2: Baja Lógica / Cese de Designación Puntual.
+    Endpoint: POST /personal/cargos/<pk>/baja/
+
+    Criterios de Aceptación:
+    1. Bedelia_Operadoras recibe HTTP 403 al accionar el endpoint.
+    2. Consulta_Directiva recibe HTTP 403 al accionar el endpoint.
+    3. El administrador ejecuta el cese de un cargo y el Docente vinculado
+       permanece activo.
+    4. Al ejecutarse el cese, fecha_baja = date.today() y activo = False
+       únicamente en ese CargoDocente.
+    5. Docente con múltiples cargos: solo el cargo cesado pasa a inactivo,
+       los demás siguen vigentes.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group, Permission
+
+        User = get_user_model()
+
+        # Grupos de seguridad
+        self.grupo_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.grupo_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.grupo_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+
+        # Permisos
+        perms_bedelia = Permission.objects.filter(
+            codename__in=[
+                "add_docente",
+                "change_docente",
+                "view_docente",
+                "view_cargodocente",
+            ]
+        )
+        self.grupo_bedelia.permissions.set(perms_bedelia)
+
+        # Usuarios
+        self.director = User.objects.create_user(
+            username="director_admin",
+            password="password123",
+            is_staff=True,
+        )
+        self.director.groups.add(self.grupo_admin)
+
+        self.bedelia = User.objects.create_user(
+            username="bedelia_user",
+            password="password123",
+            is_staff=True,
+        )
+        self.bedelia.groups.add(self.grupo_bedelia)
+
+        self.consulta = User.objects.create_user(
+            username="consulta_user",
+            password="password123",
+            is_staff=True,
+        )
+        self.consulta.groups.add(self.grupo_consulta)
+
+        # Docente
+        self.docente = Docente.objects.create(
+            dni="28444555",
+            apellido="FERRER",
+            nombre="Esteban",
+            sexo="M",
+            activo=True,
+        )
+
+        # Espacios curriculares
+        self.materia1 = EspacioCurricular.objects.create(
+            codigo="MAT-101",
+            nombre="Matemática Aplicada",
+            carrera="Software",
+            anio=1,
+        )
+        self.materia2 = EspacioCurricular.objects.create(
+            codigo="PROG-102",
+            nombre="Programación I",
+            carrera="Software",
+            anio=1,
+        )
+
+        # Cargo 1 activo
+        self.cargo1 = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.materia1,
+            situacion_revista="TIT",
+            activo=True,
+            horas_lunes=4,
+            desde_texto="01/03/2026",
+            hasta_texto="SIN TERMINO",
+            fecha_alta=datetime.date(2026, 3, 1),
+            fecha_baja=None,
+        )
+
+        # Cargo 2 activo
+        self.cargo2 = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.materia2,
+            situacion_revista="INT",
+            activo=True,
+            horas_martes=4,
+            desde_texto="01/03/2026",
+            hasta_texto="SIN TERMINO",
+            fecha_alta=datetime.date(2026, 3, 1),
+            fecha_baja=None,
+        )
+
+    def test_bedelia_operadoras_recibe_403_al_accionar_endpoint_cese(self):
+        """
+        Criterio de Aceptación 1:
+        Bedelia_Operadoras recibe HTTP 403 al accionar el endpoint POST.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="bedelia_user", password="password123")
+        url_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
+        )
+
+        # GET recibe 403 Forbidden
+        resp_get = self.client.get(url_baja)
+        self.assertEqual(resp_get.status_code, 403)
+
+        # POST recibe 403 Forbidden
+        resp_post = self.client.post(url_baja)
+        self.assertEqual(resp_post.status_code, 403)
+
+        # El cargo y docente permanecen inalterados
+        self.cargo1.refresh_from_db()
+        self.assertTrue(self.cargo1.activo)
+        self.assertIsNone(self.cargo1.fecha_baja)
+
+        self.docente.refresh_from_db()
+        self.assertTrue(self.docente.activo)
+
+    def test_consulta_directiva_recibe_403_al_accionar_endpoint_cese(self):
+        """
+        Valida que Consulta_Directiva también reciba HTTP 403 Forbidden.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="consulta_user", password="password123")
+        url_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
+        )
+
+        resp_post = self.client.post(url_baja)
+        self.assertEqual(resp_post.status_code, 403)
+
+        self.cargo1.refresh_from_db()
+        self.assertTrue(self.cargo1.activo)
+
+    def test_administrador_ejecuta_cese_y_docente_vinculado_permanece_activo(
+        self,
+    ):
+        """
+        Criterio de Aceptación 2:
+        El administrador ejecuta el cese de un cargo y el Docente vinculado
+        permanece activo.
+        Al ejecutarse, actualizar fecha_baja = date.today() y activo = False
+        únicamente en ese CargoDocente.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_admin", password="password123")
+        url_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
+        )
+
+        # GET muestra la pantalla de confirmación
+        resp_get = self.client.get(url_baja)
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertContains(resp_get, "¿Confirmar cese de designación?")
+        self.assertContains(resp_get, "FERRER, Esteban")
+
+        # POST ejecuta el cese
+        resp_post = self.client.post(url_baja)
+        self.assertEqual(resp_post.status_code, 302)
+        self.assertRedirects(resp_post, reverse("personal:cargodocente_list"))
+
+        # Verificación del Cargo cesado
+        self.cargo1.refresh_from_db()
+        self.assertFalse(self.cargo1.activo)
+        self.assertEqual(self.cargo1.fecha_baja, datetime.date.today())
+        self.assertEqual(self.cargo1.modificado_por, self.director)
+
+        # Criterio clave: El Docente vinculado permanece activo
+        self.docente.refresh_from_db()
+        self.assertTrue(
+            self.docente.activo,
+            "El Docente institucional debe permanecer activo tras el "
+            "cese puntual de su cargo.",
+        )
+
+    def test_cese_puntual_no_afecta_otros_cargos_del_docente(self):
+        """
+        Verifica que al cesar un cargo puntual de un docente con múltiples
+        materias, los demás cargos del mismo docente sigan activos e inalterados.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_admin", password="password123")
+        url_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
+        )
+
+        # Cesa cargo 1
+        resp = self.client.post(url_baja)
+        self.assertEqual(resp.status_code, 302)
+
+        # Cargo 1 cesado
+        self.cargo1.refresh_from_db()
+        self.assertFalse(self.cargo1.activo)
+        self.assertEqual(self.cargo1.fecha_baja, datetime.date.today())
+
+        # Cargo 2 permanece activo e intacto
+        self.cargo2.refresh_from_db()
+        self.assertTrue(self.cargo2.activo)
+        self.assertIsNone(self.cargo2.fecha_baja)
+
+        # Docente continúa activo
+        self.docente.refresh_from_db()
+        self.assertTrue(self.docente.activo)
+
+
 class ABMCCatalogosInstitucionalesTests(TestCase):
     """
     Pruebas automatizadas para el Ticket 10.1:
