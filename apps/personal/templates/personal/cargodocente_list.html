@@ -7,7 +7,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cargos y Designaciones</h1>
-            <p class="text-sm text-slate-500">Distribución de horas, situaciones de revista y vigencias.</p>
+            <p class="text-sm text-slate-500">Distribución de horas, situaciones de revista, vigencias y cese puntual.</p>
         </div>
         <div>
             <a href="{% url 'personal:docente_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
@@ -27,6 +27,8 @@
                         <th class="px-6 py-3">Desde (Texto)</th>
                         <th class="px-6 py-3">Hasta (Texto)</th>
                         <th class="px-6 py-3">Horas Sem.</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -38,10 +40,28 @@
                         <td class="px-6 py-4 font-mono text-xs text-slate-500">{{ cargo.desde_texto }}</td>
                         <td class="px-6 py-4 font-mono text-xs text-slate-500">{{ cargo.hasta_texto }}</td>
                         <td class="px-6 py-4 font-semibold text-slate-800">{{ cargo.total_horas_semanales }} hs</td>
+                        <td class="px-6 py-4">
+                            {% if cargo.activo %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200" title="Fecha de baja: {{ cargo.fecha_baja|default:'-' }}">
+                                Baja{% if cargo.fecha_baja %} ({{ cargo.fecha_baja|date:"d/m/Y" }}){% endif %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            {% if cargo.activo %}
+                            <a href="{% url 'personal:cargodocente_baja' cargo.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors">
+                                Cesar Cargo
+                            </a>
+                            {% else %}
+                            <span class="text-xs text-slate-400">Cesado</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">No se encontraron cargos registrados.</td>
+                        <td colspan="8" class="px-6 py-8 text-center text-slate-400">No se encontraron cargos registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

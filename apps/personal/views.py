@@ -4,6 +4,7 @@ Implementa Ticket 3.8: Paginación obligatoria (paginate_by = 25)
 y Ticket 6: Pantalla 1 — CRUD Personal y endpoint de baja lógica con seguridad.
 """
 
+import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import get_object_or_404, redirect, render
@@ -219,6 +220,65 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
     context_object_name = "cargos"
     paginate_by = 25
     ordering = ["docente__apellido", "docente__nombre"]
+
+
+class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Endpoint de baja lógica / cese de designación puntual (Ticket 10.2).
+    Ruta protegida: POST /personal/cargos/<pk>/baja/.
+    Permisos estrictos: Exclusivo para Superusuarios y miembros de Admin_Institucional.
+    Si accede Bedelia_Operadoras o Consulta_Directiva, retorna HTTP 403 Forbidden.
+    Acción: Actualiza fecha_baja = date.today() y activo = False únicamente en ese
+    CargoDocente, manteniendo inalterado el legajo del Docente vinculado.
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(name="Admin_Institucional").exists()
+        )
+
+    def get(self, request, pk, *args, **kwargs):
+        cargo = get_object_or_404(
+            CargoDocente.objects.select_related(
+                "docente", "materia", "cargo_catalogo"
+            ),
+            pk=pk,
+        )
+        return render(
+            request,
+            "personal/cargodocente_confirm_baja.html",
+            {
+                "cargo": cargo,
+                "titulo": f"Confirmar Cese de Cargo: {cargo}",
+            },
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        cargo = get_object_or_404(
+            CargoDocente.objects.select_related(
+                "docente", "materia", "cargo_catalogo"
+            ),
+            pk=pk,
+        )
+        cargo.fecha_baja = datetime.date.today()
+        cargo.activo = False
+        audit_save(cargo, user=request.user, created=False)
+        messages.success(
+            request,
+            f"El cese de la designación '{cargo}' fue procesado exitosamente. "
+            f"El legajo de {cargo.docente.nombre_completo} permanece activo.",
+        )
+        next_url = (
+            request.POST.get("next")
+            or reverse_lazy("personal:cargodocente_list")
+        )
+        return redirect(next_url)
 
 
 class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
