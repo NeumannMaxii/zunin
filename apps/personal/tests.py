@@ -9,7 +9,14 @@ from django.test import TestCase
 from django.utils import timezone
 from apps.asistencia.models import RegistroAsistencia
 from apps.personal.forms import CargoDocenteForm, DocenteForm
-from apps.personal.models import CargoDocente, Docente, EspacioCurricular
+from apps.personal.models import (
+    CargoCatalogo,
+    CargoDocente,
+    Carrera,
+    Docente,
+    EspacioCurricular,
+    TipoAutorizacion,
+)
 
 
 class SaneamientoModelosIntegridadTests(TestCase):
@@ -827,3 +834,446 @@ class DocenteCRUDSeguridadTests(TestCase):
         from apps.personal.views import DocenteListView
 
         self.assertEqual(DocenteListView.paginate_by, 25)
+
+
+class ABMCCatalogosInstitucionalesTests(TestCase):
+    """
+    Pruebas automatizadas para el Ticket 10.1:
+    - ABMC de Catálogos Institucionales (Carrera, CargoCatalogo, TipoAutorizacion).
+    - Criterios de Aceptación:
+      * Bedelía recibe HTTP 403 Forbidden al intentar entrar a las rutas.
+      * Consulta Directiva recibe HTTP 403 Forbidden.
+      * Usuarios anónimos son redirigidos a login (HTTP 302).
+      * El Administrador puede listar, crear y actualizar los catálogos.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group, User
+
+        self.grupo_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.grupo_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.grupo_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+
+        self.director = User.objects.create_user(
+            username="director_catalogos",
+            password="password123",
+            is_staff=True,
+        )
+        self.director.groups.add(self.grupo_admin)
+
+        self.zaquino = User.objects.create_user(
+            username="zaquino_catalogos",
+            password="password123",
+            is_staff=True,
+        )
+        self.zaquino.groups.add(self.grupo_bedelia)
+
+        self.msosa = User.objects.create_user(
+            username="msosa_catalogos",
+            password="password123",
+            is_staff=True,
+        )
+        self.msosa.groups.add(self.grupo_consulta)
+
+        self.superuser = User.objects.create_superuser(
+            username="admin_catalogos",
+            password="password123",
+            email="admin@iesetyfp.edu.ar",
+        )
+
+        # Registros iniciales
+        self.carrera = Carrera.objects.create(
+            codigo="TEC-DS",
+            nombre="Tecnicatura Superior en Desarrollo de Software",
+            activo=True,
+        )
+        self.cargo_cat = CargoCatalogo.objects.create(
+            codigo="MEP",
+            descripcion="Maestro de Enseñanza Práctica",
+            activo=True,
+        )
+        self.tipo_aut = TipoAutorizacion.objects.create(
+            nombre="RESOLUCIÓN",
+            activo=True,
+        )
+
+    def test_usuario_anonimo_es_redirigido_a_login(self):
+        """
+        Los usuarios anónimos que intentan acceder a cualquier pantalla
+        de catálogos deben ser redirigidos (302) a la pantalla de login.
+        """
+        from django.urls import reverse
+
+        urls = [
+            reverse("personal:catalogos_hub"),
+            reverse("personal:carrera_list"),
+            reverse("personal:carrera_create"),
+            reverse("personal:carrera_update", kwargs={"pk": self.carrera.pk}),
+            reverse("personal:cargocatalogo_list"),
+            reverse("personal:cargocatalogo_create"),
+            reverse(
+                "personal:cargocatalogo_update",
+                kwargs={"pk": self.cargo_cat.pk},
+            ),
+            reverse("personal:tipoautorizacion_list"),
+            reverse("personal:tipoautorizacion_create"),
+            reverse(
+                "personal:tipoautorizacion_update",
+                kwargs={"pk": self.tipo_aut.pk},
+            ),
+        ]
+        for url in urls:
+            response = self.client.get(url)
+            self.assertEqual(
+                response.status_code,
+                302,
+                f"La URL {url} no redirigió a login para usuario anónimo.",
+            )
+
+    def test_bedelia_recibe_403_en_todas_las_rutas_de_catalogos(self):
+        """
+        Criterio de Aceptación:
+        Bedelia recibe HTTP 403 al intentar entrar a las rutas de catálogos.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="zaquino_catalogos", password="password123")
+
+        rutas_get = [
+            reverse("personal:catalogos_hub"),
+            reverse("personal:carrera_list"),
+            reverse("personal:carrera_create"),
+            reverse("personal:carrera_update", kwargs={"pk": self.carrera.pk}),
+            reverse("personal:cargocatalogo_list"),
+            reverse("personal:cargocatalogo_create"),
+            reverse(
+                "personal:cargocatalogo_update",
+                kwargs={"pk": self.cargo_cat.pk},
+            ),
+            reverse("personal:tipoautorizacion_list"),
+            reverse("personal:tipoautorizacion_create"),
+            reverse(
+                "personal:tipoautorizacion_update",
+                kwargs={"pk": self.tipo_aut.pk},
+            ),
+        ]
+        for url in rutas_get:
+            resp = self.client.get(url)
+            self.assertEqual(
+                resp.status_code,
+                403,
+                f"Bedelía no recibió 403 en GET {url}",
+            )
+
+        rutas_post = [
+            (
+                reverse("personal:carrera_create"),
+                {"codigo": "X1", "nombre": "Carrera X", "activo": True},
+            ),
+            (
+                reverse(
+                    "personal:carrera_update", kwargs={"pk": self.carrera.pk}
+                ),
+                {"codigo": "TEC-DS", "nombre": "Cambio", "activo": True},
+            ),
+            (
+                reverse("personal:cargocatalogo_create"),
+                {"codigo": "X2", "descripcion": "Cargo X", "activo": True},
+            ),
+            (
+                reverse(
+                    "personal:cargocatalogo_update",
+                    kwargs={"pk": self.cargo_cat.pk},
+                ),
+                {"codigo": "MEP", "descripcion": "Cambio", "activo": True},
+            ),
+            (
+                reverse("personal:tipoautorizacion_create"),
+                {"nombre": "AUT-X", "activo": True},
+            ),
+            (
+                reverse(
+                    "personal:tipoautorizacion_update",
+                    kwargs={"pk": self.tipo_aut.pk},
+                ),
+                {"nombre": "RESOL-CAMBIO", "activo": True},
+            ),
+        ]
+        for url, data in rutas_post:
+            resp = self.client.post(url, data)
+            self.assertEqual(
+                resp.status_code,
+                403,
+                f"Bedelía no recibió 403 en POST {url}",
+            )
+
+    def test_consulta_directiva_recibe_403_en_todas_las_rutas(self):
+        """
+        Consulta_Directiva tampoco puede acceder a la gestión de catálogos base.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="msosa_catalogos", password="password123")
+        url_hub = reverse("personal:catalogos_hub")
+        response = self.client.get(url_hub)
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_institucional_y_superuser_acceden_con_200(self):
+        """
+        Admin_Institucional y superusuarios acceden con HTTP 200 al Hub y listas.
+        """
+        from django.urls import reverse
+
+        # Admin Institucional
+        self.client.login(username="director_catalogos", password="password123")
+        resp_admin = self.client.get(reverse("personal:catalogos_hub"))
+        self.assertEqual(resp_admin.status_code, 200)
+        self.assertContains(resp_admin, "Catálogos Institucionales")
+
+        # Superusuario
+        self.client.login(username="admin_catalogos", password="password123")
+        resp_su = self.client.get(reverse("personal:catalogos_hub"))
+        self.assertEqual(resp_su.status_code, 200)
+
+    def test_carrera_list_y_busqueda(self):
+        """
+        El Administrador puede listar y filtrar carreras por término de búsqueda.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_list = reverse("personal:carrera_list")
+
+        # Listado completo
+        resp = self.client.get(url_list)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "TEC-DS")
+        self.assertContains(resp, "Desarrollo de Software")
+
+        # Búsqueda por término coincidente
+        resp_search = self.client.get(url_list, {"q": "Software"})
+        self.assertEqual(resp_search.status_code, 200)
+        self.assertContains(resp_search, "TEC-DS")
+
+        # Búsqueda sin coincidencias
+        resp_empty = self.client.get(url_list, {"q": "Inexistente"})
+        self.assertEqual(resp_empty.status_code, 200)
+        self.assertNotContains(resp_empty, "TEC-DS")
+
+    def test_carrera_crear_exitosa_y_validacion_unicidad(self):
+        """
+        El Administrador puede crear una nueva Carrera y se valida unicidad de código.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_create = reverse("personal:carrera_create")
+
+        # GET formulario de creación
+        resp_get = self.client.get(url_create)
+        self.assertEqual(resp_get.status_code, 200)
+
+        # POST alta exitosa
+        data_nueva = {
+            "codigo": "TEC-REDES",
+            "nombre": "Tecnicatura Superior en Redes e Infraestructura",
+            "activo": True,
+        }
+        resp_post = self.client.post(url_create, data_nueva)
+        self.assertEqual(resp_post.status_code, 302)
+        self.assertTrue(Carrera.objects.filter(codigo="TEC-REDES").exists())
+
+        # POST duplicado: debe fallar con error de validación
+        resp_dup = self.client.post(url_create, data_nueva)
+        self.assertEqual(resp_dup.status_code, 200)
+        self.assertFormError(
+            resp_dup.context["form"],
+            "codigo",
+            "Ya existe una carrera registrada con este código.",
+        )
+
+    def test_carrera_editar_exitosa(self):
+        """
+        El Administrador puede actualizar una Carrera existente.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_update = reverse(
+            "personal:carrera_update", kwargs={"pk": self.carrera.pk}
+        )
+
+        resp_get = self.client.get(url_update)
+        self.assertEqual(resp_get.status_code, 200)
+
+        data_update = {
+            "codigo": "TEC-DS",
+            "nombre": "Tecnicatura Superior en Software (Plan Renovado)",
+            "activo": False,
+        }
+        resp_post = self.client.post(url_update, data_update)
+        self.assertEqual(resp_post.status_code, 302)
+
+        self.carrera.refresh_from_db()
+        self.assertEqual(
+            self.carrera.nombre,
+            "Tecnicatura Superior en Software (Plan Renovado)",
+        )
+        self.assertFalse(self.carrera.activo)
+
+    def test_cargocatalogo_list_y_busqueda(self):
+        """
+        El Administrador puede listar y filtrar cargos de catálogo.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_list = reverse("personal:cargocatalogo_list")
+
+        resp = self.client.get(url_list)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "MEP")
+
+        resp_search = self.client.get(url_list, {"q": "Práctica"})
+        self.assertEqual(resp_search.status_code, 200)
+        self.assertContains(resp_search, "MEP")
+
+    def test_cargocatalogo_crear_exitosa_y_validacion_unicidad(self):
+        """
+        El Administrador puede crear cargos de catálogo y se valida código único.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_create = reverse("personal:cargocatalogo_create")
+
+        data_nuevo = {
+            "codigo": "DIR",
+            "descripcion": "Director / Rectora de Instituto",
+            "activo": True,
+        }
+        resp = self.client.post(url_create, data_nuevo)
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(CargoCatalogo.objects.filter(codigo="DIR").exists())
+
+        # Duplicado
+        resp_dup = self.client.post(url_create, data_nuevo)
+        self.assertEqual(resp_dup.status_code, 200)
+        self.assertFormError(
+            resp_dup.context["form"],
+            "codigo",
+            "Ya existe un cargo registrado con este código.",
+        )
+
+    def test_cargocatalogo_editar_exitosa(self):
+        """
+        El Administrador puede actualizar la descripción y estado de un cargo.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_update = reverse(
+            "personal:cargocatalogo_update", kwargs={"pk": self.cargo_cat.pk}
+        )
+
+        data_update = {
+            "codigo": "MEP",
+            "descripcion": "Maestro de Taller y Enseñanza Práctica",
+            "activo": True,
+        }
+        resp = self.client.post(url_update, data_update)
+        self.assertEqual(resp.status_code, 302)
+
+        self.cargo_cat.refresh_from_db()
+        self.assertEqual(
+            self.cargo_cat.descripcion,
+            "Maestro de Taller y Enseñanza Práctica",
+        )
+
+    def test_tipoautorizacion_list_y_busqueda(self):
+        """
+        El Administrador puede listar y filtrar tipos de autorización.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_list = reverse("personal:tipoautorizacion_list")
+
+        resp = self.client.get(url_list)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "RESOLUCIÓN")
+
+        resp_search = self.client.get(url_list, {"q": "RESOL"})
+        self.assertEqual(resp_search.status_code, 200)
+        self.assertContains(resp_search, "RESOLUCIÓN")
+
+    def test_tipoautorizacion_crear_exitosa_y_validacion_unicidad(self):
+        """
+        El Administrador puede crear un tipo de autorización y se valida nombre único.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_create = reverse("personal:tipoautorizacion_create")
+
+        data_nuevo = {
+            "nombre": "DISPOSICIÓN",
+            "activo": True,
+        }
+        resp = self.client.post(url_create, data_nuevo)
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(
+            TipoAutorizacion.objects.filter(nombre="DISPOSICIÓN").exists()
+        )
+
+        # Duplicado
+        resp_dup = self.client.post(url_create, data_nuevo)
+        self.assertEqual(resp_dup.status_code, 200)
+        self.assertFormError(
+            resp_dup.context["form"],
+            "nombre",
+            "Ya existe un tipo de autorización con este nombre.",
+        )
+
+    def test_tipoautorizacion_editar_exitosa(self):
+        """
+        El Administrador puede actualizar el nombre y estado de un tipo de autorización.
+        """
+        from django.urls import reverse
+
+        self.client.login(username="director_catalogos", password="password123")
+        url_update = reverse(
+            "personal:tipoautorizacion_update",
+            kwargs={"pk": self.tipo_aut.pk},
+        )
+
+        data_update = {
+            "nombre": "DECRETO PROVINCIAL",
+            "activo": False,
+        }
+        resp = self.client.post(url_update, data_update)
+        self.assertEqual(resp.status_code, 302)
+
+        self.tipo_aut.refresh_from_db()
+        self.assertEqual(self.tipo_aut.nombre, "DECRETO PROVINCIAL")
+        self.assertFalse(self.tipo_aut.activo)
+
+    def test_paginacion_obligatoria_en_catalogos(self):
+        """
+        Valida que las tres vistas de listado de catálogos tengan paginate_by = 25.
+        """
+        from apps.personal.views import (
+            CargoCatalogoListView,
+            CarreraListView,
+            TipoAutorizacionListView,
+        )
+
+        self.assertEqual(CarreraListView.paginate_by, 25)
+        self.assertEqual(CargoCatalogoListView.paginate_by, 25)
+        self.assertEqual(TipoAutorizacionListView.paginate_by, 25)
