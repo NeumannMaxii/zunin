@@ -391,7 +391,7 @@ class CargoDocenteManager(models.Manager.from_queryset(CargoDocenteQuerySet)):
 class CargoDocente(models.Model):
     """
     Designación de un docente en un espacio curricular o cargo institucional
-    y su distribución semanal de horas cátedra por día hábil.
+    y su distribución semanal de horas cátedra por día hábil o fines de semana.
     """
 
     objects = CargoDocenteManager()
@@ -511,6 +511,12 @@ class CargoDocente(models.Model):
     horas_viernes = models.PositiveSmallIntegerField(
         default=0, verbose_name="Horas Viernes"
     )
+    horas_sabado = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Horas Sábado"
+    )
+    horas_domingo = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Horas Domingo"
+    )
     dia_lunes = models.CharField(
         max_length=15, blank=True, default="", verbose_name="Día Lunes (Texto)"
     )
@@ -531,6 +537,18 @@ class CargoDocente(models.Model):
         blank=True,
         default="",
         verbose_name="Día Viernes (Texto)",
+    )
+    dia_sabado = models.CharField(
+        max_length=15,
+        blank=True,
+        default="",
+        verbose_name="Día Sábado (Texto)",
+    )
+    dia_domingo = models.CharField(
+        max_length=15,
+        blank=True,
+        default="",
+        verbose_name="Día Domingo (Texto)",
     )
     desde_texto = models.CharField(
         max_length=50,
@@ -657,19 +675,21 @@ class CargoDocente(models.Model):
 
     @property
     def total_horas_semanales(self):
-        """Retorna la suma total de horas cátedra asignadas de lunes a viernes."""
+        """Retorna la suma total de horas cátedra asignadas en la semana."""
         return (
             self.horas_lunes
             + self.horas_martes
             + self.horas_miercoles
             + self.horas_jueves
             + self.horas_viernes
+            + self.horas_sabado
+            + self.horas_domingo
         )
 
     def get_horas_dia(self, weekday):
         """
         Retorna las horas cátedra correspondientes al día de la semana.
-        0: Lunes, 1: Martes, 2: Miércoles, 3: Jueves, 4: Viernes.
+        0: Lunes, 1: Martes, 2: Miércoles, 3: Jueves, 4: Viernes, 5: Sábado, 6: Domingo.
         """
         dias_map = {
             0: self.horas_lunes,
@@ -677,19 +697,20 @@ class CargoDocente(models.Model):
             2: self.horas_miercoles,
             3: self.horas_jueves,
             4: self.horas_viernes,
+            5: getattr(self, "horas_sabado", 0),
+            6: getattr(self, "horas_domingo", 0),
         }
         return dias_map.get(weekday, 0)
 
     def obtener_horas_en_fecha(self, fecha_obj):
         """
-        RF-13: Retorna la cantidad de horas cátedra asignadas en la fecha dada.
-        Evalúa el día de la semana (0: Lunes .. 4: Viernes).
-        Toma horas_lunes..horas_viernes o evalúa dia_lunes..dia_viernes
-        (extrayendo el número o asignando 1 si contiene 'X').
+        RF-13 / Ticket 10.7: Retorna la cantidad de horas cátedra asignadas
+        en la fecha dada.
+        Evalúa el día de la semana (0: Lunes .. 6: Domingo).
+        Toma horas_lunes..horas_viernes (y horas_sabado/horas_domingo si aplican)
+        o evalúa dia_lunes..dia_viernes / dia_sabado.
         """
         weekday = fecha_obj.weekday()
-        if weekday >= 5:
-            return 0
 
         hs = self.get_horas_dia(weekday)
         if hs > 0:
@@ -701,6 +722,8 @@ class CargoDocente(models.Model):
             2: self.dia_miercoles,
             3: self.dia_jueves,
             4: self.dia_viernes,
+            5: getattr(self, "dia_sabado", ""),
+            6: getattr(self, "dia_domingo", ""),
         }
         txt = (texto_map.get(weekday) or "").strip().upper()
         if "X" in txt:

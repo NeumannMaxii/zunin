@@ -370,7 +370,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
     )
     oficina = models.CharField(
         max_length=20,
-        default="1452",
+        default=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
         verbose_name="Oficina",
     )
     desde = models.DateField(
