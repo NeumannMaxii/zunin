@@ -30,15 +30,11 @@ def generar_planilla_mes(mes, anio, usuario=None):
     """
     Docente = apps.get_model("personal", "Docente")
     DiaNoLaborable = apps.get_model("asistencia", "DiaNoLaborable")
-    RenglonPlanillaMensual = apps.get_model(
-        "licencias", "RenglonPlanillaMensual"
-    )
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
 
     with transaction.atomic():
         # 1. Precarga de días no laborables en un set en memoria
-        dias_no_laborables = set(
-            DiaNoLaborable.objects.values_list("fecha", flat=True)
-        )
+        dias_no_laborables = set(DiaNoLaborable.objects.values_list("fecha", flat=True))
 
         # 2. Contador anual correlativo para el año indicado (Cross-year support)
         max_correlativo = 0
@@ -117,9 +113,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                     fecha__month=mes,
                 )
                 .filter(
-                    models.Q(
-                        estado__in=["AUSENTE", "LICENCIA", "JUSTIFICADO"]
-                    )
+                    models.Q(estado__in=["AUSENTE", "LICENCIA", "JUSTIFICADO"])
                     | models.Q(
                         marca_diaria__in=[
                             "I",
@@ -130,10 +124,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                             "PERM",
                         ]
                     )
-                    | (
-                        models.Q(marca_diaria="P")
-                        & ~models.Q(estado="PRESENTE")
-                    )
+                    | (models.Q(marca_diaria="P") & ~models.Q(estado="PRESENTE"))
                 )
                 .order_by("fecha")
             )
@@ -148,10 +139,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                 tipo_lic = reg.tipo_licencia
                 cuadro = (
                     "IL-01"
-                    if (
-                        tipo_lic
-                        and tipo_lic.cuadro_mensual in ["IL-01", "DL-01"]
-                    )
+                    if (tipo_lic and tipo_lic.cuadro_mensual in ["IL-01", "DL-01"])
                     else "IL-02"
                 )
 
@@ -172,19 +160,12 @@ def generar_planilla_mes(mes, anio, usuario=None):
                     )
 
                     es_contiguo = False
-                    if (
-                        r_desde
-                        <= current_block["hasta"] + datetime.timedelta(days=1)
-                    ):
+                    if r_desde <= current_block["hasta"] + datetime.timedelta(days=1):
                         es_contiguo = True
                     else:
-                        dia = current_block["hasta"] + datetime.timedelta(
-                            days=1
-                        )
+                        dia = current_block["hasta"] + datetime.timedelta(days=1)
                         todos_no_habiles = True
-                        cargo_actual = (
-                            current_block.get("cargo_fijado") or reg.cargo
-                        )
+                        cargo_actual = current_block.get("cargo_fijado") or reg.cargo
                         while dia < r_desde:
                             if cargo_actual:
                                 tiene_clases = (
@@ -193,10 +174,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                             else:
                                 tiene_clases = dia.weekday() < 5
 
-                            if (
-                                tiene_clases
-                                and dia not in dias_no_laborables
-                            ):
+                            if tiene_clases and dia not in dias_no_laborables:
                                 todos_no_habiles = False
                                 break
                             dia += datetime.timedelta(days=1)
@@ -229,9 +207,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                 if bloque["cargo_fijado"]:
                     cargos_a_evaluar = [bloque["cargo_fijado"]]
                 else:
-                    cargos_a_evaluar = list(
-                        docente.cargos.filter(activo=True)
-                    )
+                    cargos_a_evaluar = list(docente.cargos.filter(activo=True))
 
                 cargos_con_horas = []
                 for cargo in cargos_a_evaluar:
@@ -240,9 +216,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                     while dia_cursor <= bloque["hasta"]:
                         # Validación de vigencia del cargo día por día
                         if cargo.es_designacion_vigente(dia_cursor):
-                            total_horas += cargo.obtener_horas_en_fecha(
-                                dia_cursor
-                            )
+                            total_horas += cargo.obtener_horas_en_fecha(dia_cursor)
                         dia_cursor += datetime.timedelta(days=1)
 
                     if total_horas > 0:
@@ -323,9 +297,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         cuadro=bloque["cuadro"],
                         mes=mes,
                         anio=anio,
-                        oficina=getattr(
-                            settings, "DEFAULT_OFICINA_CODE", "1452"
-                        ),
+                        oficina=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
                         desde=bloque["desde"],
                         hasta=bloque["hasta"],
                         horas_afectadas=horas,
@@ -392,9 +364,7 @@ def procesar_justificacion_rango(
 
     DiaNoLaborable = apps.get_model("asistencia", "DiaNoLaborable")
     RegistroAsistencia = apps.get_model("asistencia", "RegistroAsistencia")
-    RenglonPlanillaMensual = apps.get_model(
-        "licencias", "RenglonPlanillaMensual"
-    )
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
 
     # Precarga de feriados y asuetos en el rango
     feriados_fechas = set(
@@ -418,8 +388,7 @@ def procesar_justificacion_rango(
             )
             if cargos_activos:
                 tiene_clases = any(
-                    c.obtener_horas_en_fecha(dia_cursor) > 0
-                    for c in cargos_activos
+                    c.obtener_horas_en_fecha(dia_cursor) > 0 for c in cargos_activos
                 )
             else:
                 tiene_clases = dia_cursor.weekday() < 5
@@ -457,9 +426,7 @@ def procesar_justificacion_rango(
             reg = asistencias_map.get(dia)
 
             estado_destino = (
-                "LICENCIA"
-                if nueva_marca in ["LIC", "LIC.", "LT"]
-                else "JUSTIFICADO"
+                "LICENCIA" if nueva_marca in ["LIC", "LIC.", "LT"] else "JUSTIFICADO"
             )
 
             if reg is not None:
@@ -474,9 +441,7 @@ def procesar_justificacion_rango(
                     reg.numero_disposicion = num_final
                 if observaciones:
                     if reg.observaciones:
-                        reg.observaciones = (
-                            f"{reg.observaciones} | {observaciones}"
-                        )
+                        reg.observaciones = f"{reg.observaciones} | {observaciones}"
                     else:
                         reg.observaciones = observaciones
                 audit_save(reg, user=usuario, created=False)
@@ -503,9 +468,7 @@ def procesar_justificacion_rango(
         # NO se deben borrar los renglones existentes. Se marcan como
         # desactualizados y se regenera la planilla de forma segura.
         for mes, anio in meses_afectados:
-            planillas_mes = RenglonPlanillaMensual.objects.filter(
-                mes=mes, anio=anio
-            )
+            planillas_mes = RenglonPlanillaMensual.objects.filter(mes=mes, anio=anio)
             if planillas_mes.exists():
                 planillas_mes.update(desactualizada=True)
                 generar_planilla_mes(mes=mes, anio=anio, usuario=usuario)

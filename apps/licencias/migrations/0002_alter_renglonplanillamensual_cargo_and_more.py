@@ -8,24 +8,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('licencias', '0001_initial'),
-        ('personal', '0001_initial'),
+        ("licencias", "0001_initial"),
+        ("personal", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='renglonplanillamensual',
-            name='cargo',
-            field=models.ForeignKey(help_text='RF-12: Desglose obligatorio por materia/cargo', on_delete=django.db.models.deletion.PROTECT, related_name='renglones_mensuales', to='personal.cargodocente', verbose_name='Cargo / Materia'),
+            model_name="renglonplanillamensual",
+            name="cargo",
+            field=models.ForeignKey(
+                help_text="RF-12: Desglose obligatorio por materia/cargo",
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="renglones_mensuales",
+                to="personal.cargodocente",
+                verbose_name="Cargo / Materia",
+            ),
         ),
         migrations.AlterField(
-            model_name='renglonplanillamensual',
-            name='docente',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='renglones_mensuales', to='personal.docente', verbose_name='Docente'),
+            model_name="renglonplanillamensual",
+            name="docente",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="renglones_mensuales",
+                to="personal.docente",
+                verbose_name="Docente",
+            ),
         ),
         migrations.AddIndex(
-            model_name='renglonplanillamensual',
-            index=models.Index(fields=['anio', 'mes'], name='gestion_asi_anio_6c9138_idx'),
+            model_name="renglonplanillamensual",
+            index=models.Index(
+                fields=["anio", "mes"], name="gestion_asi_anio_6c9138_idx"
+            ),
         ),
     ]

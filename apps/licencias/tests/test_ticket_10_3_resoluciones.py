@@ -102,9 +102,7 @@ class Ticket103ResolucionesMinisterialesTests(TestCase):
 
         self.renglon.refresh_from_db()
         self.assertEqual(self.renglon.tipo_instrumento, "RESOLUCION")
-        self.assertEqual(
-            self.renglon.numero_instrumento, "1450/2026 M.E.C.C.y T."
-        )
+        self.assertEqual(self.renglon.numero_instrumento, "1450/2026 M.E.C.C.y T.")
         self.assertEqual(self.renglon.modificado_por, self.user)
 
     def test_conmutar_instrumento_de_vuelta_a_disposicion_interna(self):
@@ -212,9 +210,7 @@ class Ticket103ResolucionesMinisterialesTests(TestCase):
 
         # Renglón con prefijo Res. -> debe reflejar "Resolución 2026/045 MECCyT"
         fila_britez = next(r for r in data_rows if "Britez" in r[2])
-        self.assertEqual(
-            fila_britez[col_idx], "Resolución 2026/045 MECCyT"
-        )
+        self.assertEqual(fila_britez[col_idx], "Resolución 2026/045 MECCyT")
 
     def test_guardar_justificacion_diferida_con_resolucion_ministerial(self):
         """

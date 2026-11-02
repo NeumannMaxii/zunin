@@ -71,9 +71,7 @@ def justificar_lote_asistencias(lote_datos, usuario=None, request=None):
             for item in lote_datos:
                 if isinstance(item, dict):
                     asistencia = (
-                        item.get("asistencia")
-                        or item.get("registro")
-                        or item.get("id")
+                        item.get("asistencia") or item.get("registro") or item.get("id")
                     )
                     nueva_marca = item.get("nueva_marca") or item.get("marca")
                     tipo_licencia = item.get("tipo_licencia")

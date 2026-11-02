@@ -31,15 +31,9 @@ class JustificacionDiferidaRN03Tests(TestCase):
         User = get_user_model()
 
         # Grupos de seguridad
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         # Permisos
         perms_bedelia = Permission.objects.filter(
@@ -176,9 +170,7 @@ class JustificacionDiferidaRN03Tests(TestCase):
             datetime.date(2026, 10, 12),
         ]
         for dia in dias_esperados:
-            reg = RegistroAsistencia.objects.get(
-                docente=self.docente, fecha=dia
-            )
+            reg = RegistroAsistencia.objects.get(docente=self.docente, fecha=dia)
             self.assertEqual(reg.estado, "LICENCIA")
             self.assertEqual(reg.marca_diaria, "LIC")
             self.assertEqual(reg.tipo_licencia, self.tipo_lic)

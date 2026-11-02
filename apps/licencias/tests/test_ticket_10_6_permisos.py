@@ -28,15 +28,9 @@ class Ticket10_6LicenciasPermisosTests(TestCase):
 
     def setUp(self):
         # Grupos de seguridad
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         # Usuarios
         self.user_consulta = User.objects.create_user(
@@ -143,8 +137,10 @@ class Ticket10_6LicenciasPermisosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            ("Consulta_Directiva debe recibir HTTP 403 Forbidden "
-             "al conmutar instrumento."),
+            (
+                "Consulta_Directiva debe recibir HTTP 403 Forbidden "
+                "al conmutar instrumento."
+            ),
         )
 
     def test_bedelia_operadoras_puede_post_cambiar_licencia(self):
@@ -156,9 +152,7 @@ class Ticket10_6LicenciasPermisosTests(TestCase):
             "licencias:renglon_cambiar_licencia",
             kwargs={"pk": self.renglon.pk},
         )
-        response = self.client.post(
-            url, {"tipo_licencia": self.lic_b.id}, follow=False
-        )
+        response = self.client.post(url, {"tipo_licencia": self.lic_b.id}, follow=False)
         self.assertEqual(response.status_code, 302)
 
         self.renglon.refresh_from_db()

@@ -39,9 +39,7 @@ class Ticket10_4CustomManagersTests(TestCase):
         User = get_user_model()
 
         # Grupos y Usuario Administrador
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
         self.admin_user = User.objects.create_user(
             username="admin_test",
             password="password123",
@@ -246,9 +244,7 @@ class Ticket10_4CustomManagersTests(TestCase):
         self.assertEqual(nuevo_renglon.cuadro, "IL-01")
 
         # Total en base de datos: 1 desactualizado + 1 vigente = 2
-        total_mayo = RenglonPlanillaMensual.objects.filter(
-            mes=5, anio=2026
-        ).count()
+        total_mayo = RenglonPlanillaMensual.objects.filter(mes=5, anio=2026).count()
         self.assertEqual(total_mayo, 2)
 
     def test_criterio_2_exportacion_csv_un_renglon_por_materia_sin_duplicados(
@@ -301,9 +297,7 @@ class Ticket10_4CustomManagersTests(TestCase):
         response = self.client.get(f"{url_csv}?mes=6&anio=2026")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response["Content-Type"], "text/csv; charset=utf-8"
-        )
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
 
         # Parsear el CSV resultante
         csv_content = response.content.decode("utf-8")

@@ -7,19 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asistencia', '0001_initial'),
-        ('personal', '0001_initial'),
+        ("asistencia", "0001_initial"),
+        ("personal", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='registroasistencia',
-            name='docente',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='asistencias', to='personal.docente', verbose_name='Docente'),
+            model_name="registroasistencia",
+            name="docente",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="asistencias",
+                to="personal.docente",
+                verbose_name="Docente",
+            ),
         ),
         migrations.AlterField(
-            model_name='registroasistencia',
-            name='fecha',
-            field=models.DateField(db_index=True, verbose_name='Fecha'),
+            model_name="registroasistencia",
+            name="fecha",
+            field=models.DateField(db_index=True, verbose_name="Fecha"),
         ),
     ]
