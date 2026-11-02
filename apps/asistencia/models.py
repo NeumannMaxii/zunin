@@ -108,6 +108,19 @@ class RegistroAsistencia(AuditoriaModel):
         help_text="Marca en planilla: P, I, LIC, LT, PR, etc.",
         verbose_name="Marca Diaria",
     )
+
+    def __init__(self, *args, **kwargs):
+        if "marca" in kwargs and "marca_diaria" not in kwargs:
+            kwargs["marca_diaria"] = kwargs.pop("marca")
+        super().__init__(*args, **kwargs)
+
+    @property
+    def marca(self):
+        return self.marca_diaria
+
+    @marca.setter
+    def marca(self, value):
+        self.marca_diaria = value
     oficina = models.CharField(
         max_length=20,
         default=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
