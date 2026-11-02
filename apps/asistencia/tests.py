@@ -1173,3 +1173,9 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         resp_post = self.client.post(delete_url, follow=False)
         self.assertEqual(resp_post.status_code, 302)
         self.assertFalse(DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists())
+
+
+# Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)
+from apps.asistencia.tests_ticket_12_6 import (  # noqa: F401, E402
+    ConsultaAvanzadaMulticriterioTests,
+)

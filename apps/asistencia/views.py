@@ -20,7 +20,7 @@ from django.views.generic import (
     ListView,
     UpdateView,
 )
-from apps.asistencia.forms import DiaNoLaborableForm
+from apps.asistencia.forms import ConsultaAsistenciaForm, DiaNoLaborableForm
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import justificar_lote_asistencias
 from apps.core.audit import AuditoriaFormMixin
@@ -39,8 +39,8 @@ class BackendPermisoMixin(PermisosEstrictosMixin):
 
 class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     """
-    Listado paginado de registros de asistencia.
-    Configuración obligatoria de paginate_by = 25 (Ticket 3.8).
+    Listado paginado y consulta avanzada multicriterio de registros de asistencia.
+    Configuración obligatoria de paginate_by = 25 (Ticket 3.8 y Ticket 12.6).
     """
 
     model = RegistroAsistencia
@@ -48,6 +48,39 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     context_object_name = "asistencias"
     paginate_by = 25
     ordering = ["-fecha", "docente__apellido"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related(
+            "docente", "cargo__materia", "tipo_licencia"
+        )
+        self.form = ConsultaAsistenciaForm(self.request.GET or None)
+        if self.form.is_valid():
+            queryset = self.form.filtrar(queryset)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = getattr(self, "form", None)
+        if form is None:
+            form = ConsultaAsistenciaForm(self.request.GET or None)
+        context["form"] = form
+        from apps.personal.models import EspacioCurricular
+
+        context["materias"] = EspacioCurricular.objects.all().order_by("nombre")
+        return context
+
+
+class ConsultaAsistenciaView(RegistroAsistenciaListView):
+    """
+    Vista de consulta avanzada multicriterio para auditar registros de asistencia
+    (Ticket 12.6).
+    Hereda de RegistroAsistenciaListView manteniendo filtros combinables y paginación.
+    """
+
+    pass
+
+
+ConsultaAsistenciaAvanzadaView = ConsultaAsistenciaView
 
 
 class AsistenciaDiariaView(BackendPermisoMixin, View):

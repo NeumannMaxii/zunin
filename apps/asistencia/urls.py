@@ -14,6 +14,16 @@ urlpatterns = [
         name="asistencia_list",
     ),
     path(
+        "consulta/",
+        views.ConsultaAsistenciaView.as_view(),
+        name="consulta_asistencia",
+    ),
+    path(
+        "consultar/",
+        views.ConsultaAsistenciaView.as_view(),
+        name="asistencia_consulta",
+    ),
+    path(
         "diaria/",
         views.AsistenciaDiariaView.as_view(),
         name="asistencia_diaria",
