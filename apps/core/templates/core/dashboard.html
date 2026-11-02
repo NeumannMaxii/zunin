@@ -115,5 +115,114 @@
         </a>
         {% endif %}
     </div>
+
+    <!-- Panel de Alertas Preventivas de Inasistencias (Ticket 12 / RF-18) -->
+    <div id="panel-alertas-inasistencias" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 sm:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Control Normativo RF-18
+                    </span>
+                    <span class="text-xs text-slate-400">Tope Legal Anual: {{ limite_legal }} faltas</span>
+                </div>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight">
+                    Panel de Alertas Preventivas
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Monitoreo en tiempo real de inasistencias acumuladas respecto al tope normativo anual (fórmula optimizada en BD).
+                </p>
+            </div>
+
+            <!-- Resumen de Alertas -->
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+                    Precaución: {{ total_precaucion }}
+                </span>
+                <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5 animate-pulse"></span>
+                    Crítico: {{ total_critico }}
+                </span>
+            </div>
+        </div>
+
+        {% if docentes_alertas %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th scope="col" class="py-3.5 px-6">Docente</th>
+                        <th scope="col" class="py-3.5 px-6">DNI</th>
+                        <th scope="col" class="py-3.5 px-6 text-center">Faltas 'I'</th>
+                        <th scope="col" class="py-3.5 px-6">Porcentaje Legal</th>
+                        <th scope="col" class="py-3.5 px-6 text-right">Estado de Alerta</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for docente in docentes_alertas %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="py-4 px-6 font-medium text-slate-900 whitespace-nowrap">
+                            <a href="{% url 'personal:docente_update' docente.pk %}" class="hover:text-institucional-600 hover:underline">
+                                {{ docente.nombre_completo }}
+                            </a>
+                        </td>
+                        <td class="py-4 px-6 text-slate-500 whitespace-nowrap font-mono text-xs">
+                            {{ docente.dni }}
+                        </td>
+                        <td class="py-4 px-6 text-center font-semibold text-slate-800 whitespace-nowrap">
+                            {{ docente.faltas_count }} <span class="text-xs text-slate-400 font-normal">/ {{ limite_legal }}</span>
+                        </td>
+                        <td class="py-4 px-6 whitespace-nowrap">
+                            <div class="w-48">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-bold {% if docente.nivel_alerta == 'CRITICO' %}text-rose-700{% else %}text-amber-700{% endif %}">
+                                        {{ docente.porcentaje|floatformat:1 }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="h-2 rounded-full {% if docente.nivel_alerta == 'CRITICO' %}bg-rose-500{% else %}bg-amber-500{% endif %}"
+                                         style="width: {% if docente.porcentaje > 100 %}100{% else %}{{ docente.porcentaje|floatformat:0 }}{% endif %}%;">
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 text-right whitespace-nowrap">
+                            {% if docente.nivel_alerta == 'CRITICO' %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
+                                <svg class="w-3.5 h-3.5 mr-1 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                                Alerta Roja (Crítico)
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
+                                <svg class="w-3.5 h-3.5 mr-1 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                Alerta Naranja (Precaución)
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center bg-slate-50/50">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mb-3 border border-emerald-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-800">Sin alertas preventivas activas</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                La totalidad del personal docente se encuentra por debajo del umbral preventivo del 70% de inasistencias anuales.
+            </p>
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
+

@@ -145,17 +145,13 @@ class Ticket9PantallaMensualPlanillasTests(TestCase):
         self.assertContains(response, self.lic_il02.codigo)
 
         # Filtro exclusivo por Cuadro IL-01
-        res_il01 = self.client.get(
-            reverse("licencias:planilla_list") + "?cuadro=IL-01"
-        )
+        res_il01 = self.client.get(reverse("licencias:planilla_list") + "?cuadro=IL-01")
         self.assertEqual(res_il01.status_code, 200)
         self.assertContains(res_il01, "045/2026")
         self.assertNotContains(res_il01, "046/2026")
 
         # Filtro exclusivo por Cuadro IL-02
-        res_il02 = self.client.get(
-            reverse("licencias:planilla_list") + "?cuadro=IL-02"
-        )
+        res_il02 = self.client.get(reverse("licencias:planilla_list") + "?cuadro=IL-02")
         self.assertEqual(res_il02.status_code, 200)
         self.assertContains(res_il02, "046/2026")
         self.assertNotContains(res_il02, "045/2026")
@@ -218,9 +214,7 @@ class Ticket9PantallaMensualPlanillasTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/csv", response.headers.get("Content-Type", ""))
-        self.assertIn(
-            "attachment;", response.headers.get("Content-Disposition", "")
-        )
+        self.assertIn("attachment;", response.headers.get("Content-Disposition", ""))
 
         contenido = response.content.decode("utf-8")
         reader = csv.reader(io.StringIO(contenido))

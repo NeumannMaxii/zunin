@@ -314,16 +314,19 @@ class DocenteListViewPaginacionTests(TestCase):
 
     def setUp(self):
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
         self.user = User.objects.create_user(username="operador", password="pass123")
         self.client.login(username="operador", password="pass123")
 
     def test_docente_listview_paginate_by_25(self):
         from apps.personal.views import DocenteListView
+
         self.assertEqual(DocenteListView.paginate_by, 25)
 
     def test_docente_listview_paginacion_30_elementos(self):
         from django.urls import reverse
+
         for i in range(30):
             Docente.objects.create(
                 dni=f"90000{i:03d}",
@@ -362,9 +365,7 @@ class ImportarCSVWebTests(TestCase):
         self.user_admin = User.objects.create_user(
             username="admin_inst_user", password="password123"
         )
-        group_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
+        group_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
         self.user_admin.groups.add(group_admin)
 
         self.superuser = User.objects.create_superuser(
@@ -376,17 +377,13 @@ class ImportarCSVWebTests(TestCase):
         self.user_bedelia = User.objects.create_user(
             username="bedelia_user", password="password123"
         )
-        group_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
+        group_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
         self.user_bedelia.groups.add(group_bedelia)
 
         self.user_consulta = User.objects.create_user(
             username="consulta_user", password="password123"
         )
-        group_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        group_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
         self.user_consulta.groups.add(group_consulta)
 
     def test_acceso_formulario_permitido_admin_institucional_y_superuser(self):
@@ -522,9 +519,7 @@ class CargoDocenteAdminSecurityTests(TestCase):
         cargo_admin = admin.site._registry[CargoDocente]
 
         self.assertFalse(cargo_admin.has_delete_permission(request))
-        self.assertFalse(
-            cargo_admin.has_delete_permission(request, obj=self.cargo)
-        )
+        self.assertFalse(cargo_admin.has_delete_permission(request, obj=self.cargo))
 
     def test_cargodocente_admin_sin_acciones_borrado_masivo(self):
         """Verifica que 'delete_selected' no esté presente en acciones admin."""
@@ -541,16 +536,10 @@ class CargoDocenteAdminSecurityTests(TestCase):
         """Verifica que el form no tenga botón de borrar y la vista delete dé 403."""
         from django.urls import reverse
 
-        self.client.login(
-            username="admin_cargo_sec", password="adminpassword123"
-        )
+        self.client.login(username="admin_cargo_sec", password="adminpassword123")
 
-        url_change = reverse(
-            "admin:personal_cargodocente_change", args=[self.cargo.pk]
-        )
-        url_delete = reverse(
-            "admin:personal_cargodocente_delete", args=[self.cargo.pk]
-        )
+        url_change = reverse("admin:personal_cargodocente_change", args=[self.cargo.pk])
+        url_delete = reverse("admin:personal_cargodocente_delete", args=[self.cargo.pk])
 
         resp_change = self.client.get(url_change)
         self.assertEqual(resp_change.status_code, 200)
@@ -576,15 +565,9 @@ class DocenteCRUDSeguridadTests(TestCase):
         User = get_user_model()
 
         # Grupos de seguridad
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         # Asignar permisos básicos a Bedelia (add_docente, change_docente, view_docente)
         perms_bedelia = Permission.objects.filter(
@@ -643,9 +626,7 @@ class DocenteCRUDSeguridadTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="zaquino", password="password123")
-        url_update = reverse(
-            "personal:docente_update", kwargs={"pk": self.docente.pk}
-        )
+        url_update = reverse("personal:docente_update", kwargs={"pk": self.docente.pk})
 
         # 1. GET: el campo 'activo' no debe estar presente en el form ni en el HTML
         response = self.client.get(url_update)
@@ -704,9 +685,7 @@ class DocenteCRUDSeguridadTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="director", password="password123")
-        url_baja = reverse(
-            "personal:docente_baja", kwargs={"pk": self.docente.pk}
-        )
+        url_baja = reverse("personal:docente_baja", kwargs={"pk": self.docente.pk})
 
         # GET a baja muestra la confirmación de baja
         resp_get = self.client.get(url_baja)
@@ -731,9 +710,7 @@ class DocenteCRUDSeguridadTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="zaquino", password="password123")
-        url_baja = reverse(
-            "personal:docente_baja", kwargs={"pk": self.docente.pk}
-        )
+        url_baja = reverse("personal:docente_baja", kwargs={"pk": self.docente.pk})
 
         # GET debe retornar 403
         resp_get = self.client.get(url_baja)
@@ -755,9 +732,7 @@ class DocenteCRUDSeguridadTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="msosa", password="password123")
-        url_baja = reverse(
-            "personal:docente_baja", kwargs={"pk": self.docente.pk}
-        )
+        url_baja = reverse("personal:docente_baja", kwargs={"pk": self.docente.pk})
 
         resp_post = self.client.post(url_baja)
         self.assertEqual(resp_post.status_code, 403)
@@ -773,9 +748,7 @@ class DocenteCRUDSeguridadTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="director", password="password123")
-        url_update = reverse(
-            "personal:docente_update", kwargs={"pk": self.docente.pk}
-        )
+        url_update = reverse("personal:docente_update", kwargs={"pk": self.docente.pk})
 
         response = self.client.get(url_update)
         self.assertEqual(response.status_code, 200)
@@ -859,15 +832,9 @@ class Ticket10_2CeseDesignacionPuntualTests(TestCase):
         User = get_user_model()
 
         # Grupos de seguridad
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         # Permisos
         perms_bedelia = Permission.objects.filter(
@@ -959,9 +926,7 @@ class Ticket10_2CeseDesignacionPuntualTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="bedelia_user", password="password123")
-        url_baja = reverse(
-            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
-        )
+        url_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk})
 
         # GET recibe 403 Forbidden
         resp_get = self.client.get(url_baja)
@@ -986,9 +951,7 @@ class Ticket10_2CeseDesignacionPuntualTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="consulta_user", password="password123")
-        url_baja = reverse(
-            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
-        )
+        url_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk})
 
         resp_post = self.client.post(url_baja)
         self.assertEqual(resp_post.status_code, 403)
@@ -1009,9 +972,7 @@ class Ticket10_2CeseDesignacionPuntualTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="director_admin", password="password123")
-        url_baja = reverse(
-            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
-        )
+        url_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk})
 
         # GET muestra la pantalla de confirmación
         resp_get = self.client.get(url_baja)
@@ -1046,9 +1007,7 @@ class Ticket10_2CeseDesignacionPuntualTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="director_admin", password="password123")
-        url_baja = reverse(
-            "personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk}
-        )
+        url_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo1.pk})
 
         # Cesa cargo 1
         resp = self.client.post(url_baja)
@@ -1083,15 +1042,9 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
     def setUp(self):
         from django.contrib.auth.models import Group, User
 
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         self.director = User.objects.create_user(
             username="director_catalogos",
@@ -1210,9 +1163,7 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
                 {"codigo": "X1", "nombre": "Carrera X", "activo": True},
             ),
             (
-                reverse(
-                    "personal:carrera_update", kwargs={"pk": self.carrera.pk}
-                ),
+                reverse("personal:carrera_update", kwargs={"pk": self.carrera.pk}),
                 {"codigo": "TEC-DS", "nombre": "Cambio", "activo": True},
             ),
             (
@@ -1338,9 +1289,7 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
         from django.urls import reverse
 
         self.client.login(username="director_catalogos", password="password123")
-        url_update = reverse(
-            "personal:carrera_update", kwargs={"pk": self.carrera.pk}
-        )
+        url_update = reverse("personal:carrera_update", kwargs={"pk": self.carrera.pk})
 
         resp_get = self.client.get(url_update)
         self.assertEqual(resp_get.status_code, 200)
@@ -1461,9 +1410,7 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
         }
         resp = self.client.post(url_create, data_nuevo)
         self.assertEqual(resp.status_code, 302)
-        self.assertTrue(
-            TipoAutorizacion.objects.filter(nombre="DISPOSICIÓN").exists()
-        )
+        self.assertTrue(TipoAutorizacion.objects.filter(nombre="DISPOSICIÓN").exists())
 
         # Duplicado
         resp_dup = self.client.post(url_create, data_nuevo)

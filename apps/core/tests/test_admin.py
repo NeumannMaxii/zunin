@@ -33,9 +33,7 @@ class ModularAdminTests(TestCase):
 
     def test_titulos_institucionales_configurados(self):
         """Verifica que el panel de administración tenga los títulos del IESETyFP."""
-        self.assertEqual(
-            admin.site.site_header, "IESETyFP - Bedelía y Gestión Docente"
-        )
+        self.assertEqual(admin.site.site_header, "IESETyFP - Bedelía y Gestión Docente")
         self.assertEqual(admin.site.site_title, "IESETyFP Bedelía")
         self.assertEqual(admin.site.index_title, "Panel de Administración")
 
@@ -130,12 +128,8 @@ class ModularAdminTests(TestCase):
 
         # 3. Vista de edición sin botón de eliminar
         self.client.login(username="admin_test", password="testpassword123")
-        url_change = reverse(
-            "admin:personal_cargodocente_change", args=[cargo.pk]
-        )
-        url_delete = reverse(
-            "admin:personal_cargodocente_delete", args=[cargo.pk]
-        )
+        url_change = reverse("admin:personal_cargodocente_change", args=[cargo.pk])
+        url_delete = reverse("admin:personal_cargodocente_delete", args=[cargo.pk])
         resp_change = self.client.get(url_change)
         self.assertEqual(resp_change.status_code, 200)
         self.assertFalse(resp_change.context["has_delete_permission"])

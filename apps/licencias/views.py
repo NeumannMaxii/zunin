@@ -10,7 +10,7 @@ Implementa:
 
 import csv
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -18,6 +18,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import FormView, ListView
 from apps.core.audit import audit_save
+from apps.core.mixins import PermisosEstrictosMixin
 from apps.licencias.forms import (
     JustificacionDiferidaForm,
     TipoLicenciaSearchForm,
@@ -67,9 +68,9 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
             if "paginator" in context
             else context["tipo_licencias"].count()
         )
-        context["sugerencias"] = TipoLicencia.objects.filter(
-            activo=True
-        ).values_list("codigo", "articulo", "descripcion")
+        context["sugerencias"] = TipoLicencia.objects.filter(activo=True).values_list(
+            "codigo", "articulo", "descripcion"
+        )
         return context
 
 
@@ -94,14 +95,11 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     ]
 
     def get_queryset(self):
-        queryset = (
-            RenglonPlanillaMensual.objects.vigentes()
-            .select_related(
-                "docente",
-                "cargo__materia",
-                "cargo__cargo_catalogo",
-                "tipo_licencia",
-            )
+        queryset = RenglonPlanillaMensual.objects.vigentes().select_related(
+            "docente",
+            "cargo__materia",
+            "cargo__cargo_catalogo",
+            "tipo_licencia",
         )
         cuadro = (self.request.GET.get("cuadro") or "").strip().upper()
         if cuadro in ["IL-01", "IL-02"]:
@@ -118,10 +116,7 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
         return queryset
 
     def get(self, request, *args, **kwargs):
-        if (
-            request.GET.get("export") == "csv"
-            or request.GET.get("format") == "csv"
-        ):
+        if request.GET.get("export") == "csv" or request.GET.get("format") == "csv":
             export_view = ExportarPlanillaCSVView.as_view()
             return export_view(request, *args, **kwargs)
         return super().get(request, *args, **kwargs)
@@ -143,18 +138,14 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
         context["cuadro_actual"] = cuadro_actual
         context["mes_actual"] = self.request.GET.get("mes", "")
         context["anio_actual"] = self.request.GET.get("anio", "")
-        context["tipos_licencia"] = TipoLicencia.objects.filter(
-            activo=True
-        ).order_by("cuadro_mensual", "codigo")
+        context["tipos_licencia"] = TipoLicencia.objects.filter(activo=True).order_by(
+            "cuadro_mensual", "codigo"
+        )
         context["total_il01"] = (
-            RenglonPlanillaMensual.objects.vigentes()
-            .filter(cuadro="IL-01")
-            .count()
+            RenglonPlanillaMensual.objects.vigentes().filter(cuadro="IL-01").count()
         )
         context["total_il02"] = (
-            RenglonPlanillaMensual.objects.vigentes()
-            .filter(cuadro="IL-02")
-            .count()
+            RenglonPlanillaMensual.objects.vigentes().filter(cuadro="IL-02").count()
         )
         return context
 
@@ -197,9 +188,7 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
             queryset = queryset.filter(anio=int(anio))
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
-        filename = (
-            f"planillas_{cuadro.lower() if cuadro else 'mensuales'}.csv"
-        )
+        filename = f"planillas_{cuadro.lower() if cuadro else 'mensuales'}.csv"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         writer = csv.writer(response)
@@ -221,10 +210,7 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
             if r.cargo:
                 if r.cargo.materia and r.cargo.materia.nombre:
                     materia_str = r.cargo.materia.nombre
-                elif (
-                    r.cargo.cargo_catalogo
-                    and r.cargo.cargo_catalogo.descripcion
-                ):
+                elif r.cargo.cargo_catalogo and r.cargo.cargo_catalogo.descripcion:
                     materia_str = r.cargo.cargo_catalogo.descripcion
                 else:
                     materia_str = str(r.cargo)
@@ -239,9 +225,7 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
                 if "resolución" in num_lower or "resolucion" in num_lower:
                     instrumento_str = num_inst
                 elif num_lower.startswith("res.") or num_lower.startswith("res "):
-                    instrumento_str = (
-                        f"Resolución {num_inst[4:].strip()}".strip()
-                    )
+                    instrumento_str = f"Resolución {num_inst[4:].strip()}".strip()
                 else:
                     instrumento_str = f"Resolución {num_inst}".strip()
             else:
@@ -263,31 +247,18 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         return response
 
 
-class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
+class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
     """
     Ticket 9 y Ticket 10.3:
     Permite modificar el Tipo de Licencia / Artículo de un Renglón y/o
     conmutar su instrumento entre Disposición Interna y Resolución Ministerial externa
     con su correspondiente número oficial.
-    Blindaje de permisos backend (Ticket 10.6): Restringe el endpoint POST a
+    Blindaje de permisos backend (Ticket 10.6 y Ticket 11): Restringe el endpoint POST a
     roles operativos (Admin_Institucional o Bedelia_Operadoras). Consulta_Directiva
     recibe HTTP 403 Forbidden.
     """
 
     raise_exception = True
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
-
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-        from django.core.exceptions import PermissionDenied
-
-        raise PermissionDenied(self.get_permission_denied_message())
 
     def test_func(self):
         user = self.request.user
@@ -310,13 +281,9 @@ class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
             if isinstance(nuevo_tipo_id, TipoLicencia):
                 nuevo_tipo = nuevo_tipo_id
             elif str(nuevo_tipo_id).isdigit():
-                nuevo_tipo = TipoLicencia.objects.filter(
-                    pk=int(nuevo_tipo_id)
-                ).first()
+                nuevo_tipo = TipoLicencia.objects.filter(pk=int(nuevo_tipo_id)).first()
             else:
-                nuevo_tipo = TipoLicencia.objects.filter(
-                    codigo=nuevo_tipo_id
-                ).first()
+                nuevo_tipo = TipoLicencia.objects.filter(codigo=nuevo_tipo_id).first()
 
             if nuevo_tipo:
                 num_original = renglon.numero_instrumento
@@ -368,13 +335,12 @@ class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
 ActualizarInstrumentoRenglonView = CambiarLicenciaRenglonView
 
 
-class JustificacionDiferidaView(
-    LoginRequiredMixin, UserPassesTestMixin, FormView
-):
+class JustificacionDiferidaView(PermisosEstrictosMixin, FormView):
     """
-    Vista protegida para procesar justificaciones diferidas (Ticket 7 y RN-03).
+    Vista protegida para justificaciones diferidas (Ticket 7, RN-03 y Ticket 11).
     Permisos: Solo accesible para Admin_Institucional y Bedelia_Operadoras.
-    Usuarios del grupo Consulta_Directiva o no autenticados reciben 403 Forbidden.
+    Usuarios no autenticados son redirigidos a login (302).
+    Usuarios del grupo Consulta_Directiva u otros sin privilegios reciben 403 Forbidden.
     """
 
     template_name = "licencias/justificacion_diferida.html"
@@ -551,13 +517,9 @@ class AutocompletarLicenciaAPIView(View):
             .strip()
         )
 
-        q_filter = (
-            Q(articulo__icontains=art_clean) | Q(codigo__icontains=art_clean)
-        )
+        q_filter = Q(articulo__icontains=art_clean) | Q(codigo__icontains=art_clean)
         if norm_val:
-            q_filter |= (
-                Q(articulo__icontains=norm_val) | Q(codigo__icontains=norm_val)
-            )
+            q_filter |= Q(articulo__icontains=norm_val) | Q(codigo__icontains=norm_val)
 
         qs = TipoLicencia.objects.filter(q_filter).distinct().order_by("codigo")
 
@@ -570,8 +532,7 @@ class AutocompletarLicenciaAPIView(View):
                     "descripcion": lic.descripcion,
                     "cuadro": (
                         "IL-01"
-                        if getattr(lic, "cuadro_mensual", "")
-                        in ["IL-01", "DL-01"]
+                        if getattr(lic, "cuadro_mensual", "") in ["IL-01", "DL-01"]
                         else "IL-02"
                     ),
                     "cuadro_mensual": getattr(lic, "cuadro_mensual", "IL-02"),

@@ -82,9 +82,7 @@ class AuditSavePolymorphicTests(TestCase):
         try:
             audit_save(asistencia, self.user1, created=True)
         except AttributeError as e:
-            self.fail(
-                f"audit_save levantó AttributeError en RegistroAsistencia: {e}"
-            )
+            self.fail(f"audit_save levantó AttributeError en RegistroAsistencia: {e}")
 
         self.assertIsNotNone(asistencia.pk)
         self.assertEqual(asistencia.creado_por, self.user1)
@@ -118,9 +116,7 @@ class AuditSavePolymorphicTests(TestCase):
         try:
             audit_save(cargo, self.user1, created=True)
         except AttributeError as e:
-            self.fail(
-                f"audit_save levantó AttributeError en CargoDocente: {e}"
-            )
+            self.fail(f"audit_save levantó AttributeError en CargoDocente: {e}")
 
         self.assertIsNotNone(cargo.pk)
         self.assertEqual(cargo.creado_por, self.user1)
@@ -167,6 +163,7 @@ class AuditoriaFormMixinTests(TestCase):
         Verifica que AuditoriaFormMixin intercepte form_valid e inyecte
         el usuario autenticado mediante audit_save.
         """
+
         class DummyForm:
             def __init__(self, instance):
                 self.instance = instance

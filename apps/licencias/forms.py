@@ -19,15 +19,13 @@ def _variantes_token_busqueda(token):
     if not token:
         return []
     nfkd = unicodedata.normalize("NFKD", token)
-    sin_tilde = "".join(
-        [c for c in nfkd if not unicodedata.combining(c)]
-    ).lower()
+    sin_tilde = "".join([c for c in nfkd if not unicodedata.combining(c)]).lower()
     tildes_map = {"a": "á", "e": "é", "i": "í", "o": "ó", "u": "ú"}
     variantes = {token.lower(), sin_tilde}
 
     for i, char in enumerate(sin_tilde):
         if char in tildes_map:
-            variantes.add(sin_tilde[:i] + tildes_map[char] + sin_tilde[i + 1:])
+            variantes.add(sin_tilde[:i] + tildes_map[char] + sin_tilde[i + 1 :])
 
     if "cion" in sin_tilde:
         variantes.add(sin_tilde.replace("cion", "ción"))
@@ -109,13 +107,9 @@ class TipoLicenciaSearchForm(TailwindForm):
         cuadro_filtro = cuadro_val or cuadro_mensual
         if cuadro_filtro:
             if cuadro_filtro in ["IL-01", "DL-01"]:
-                queryset = queryset.filter(
-                    cuadro_mensual__in=["IL-01", "DL-01"]
-                )
+                queryset = queryset.filter(cuadro_mensual__in=["IL-01", "DL-01"])
             elif cuadro_filtro in ["IL-02", "DL-02"]:
-                queryset = queryset.filter(
-                    cuadro_mensual__in=["IL-02", "DL-02"]
-                )
+                queryset = queryset.filter(cuadro_mensual__in=["IL-02", "DL-02"])
             else:
                 queryset = queryset.filter(cuadro_mensual=cuadro_filtro)
 
@@ -202,9 +196,7 @@ class JustificacionDiferidaForm(TailwindForm):
         max_length=50,
         required=False,
         label="Número de Disposición / Instrumento",
-        widget=forms.TextInput(
-            attrs={"placeholder": "Ej: Disp. Interna 042/2026"}
-        ),
+        widget=forms.TextInput(attrs={"placeholder": "Ej: Disp. Interna 042/2026"}),
     )
     numero_resolucion = forms.CharField(
         max_length=50,
@@ -232,8 +224,8 @@ class JustificacionDiferidaForm(TailwindForm):
         super().__init__(*args, **kwargs)
         if registro is not None:
             self.fields["registro"].initial = registro
-            self.fields["registro"].queryset = (
-                RegistroAsistencia.objects.filter(pk=registro.pk)
+            self.fields["registro"].queryset = RegistroAsistencia.objects.filter(
+                pk=registro.pk
             )
 
     def clean(self):
@@ -300,9 +292,7 @@ class JustificacionDiferidaForm(TailwindForm):
         registro = self.cleaned_data.get("registro")
         nueva_marca = self.cleaned_data["nueva_marca"]
         tipo_licencia = self.cleaned_data.get("tipo_licencia")
-        tipo_instrumento = (
-            self.cleaned_data.get("tipo_instrumento") or "DISPOSICION"
-        )
+        tipo_instrumento = self.cleaned_data.get("tipo_instrumento") or "DISPOSICION"
         numero_resolucion = self.cleaned_data.get("numero_resolucion")
         numero_disposicion = self.cleaned_data.get("numero_disposicion")
         observaciones = self.cleaned_data.get("observaciones")

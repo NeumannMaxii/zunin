@@ -37,9 +37,7 @@ class DiaNoLaborable(models.Model):
         related_name="dias_no_laborables_creados",
         verbose_name="Creado por",
     )
-    creado_en = models.DateTimeField(
-        auto_now_add=True, verbose_name="Creado en"
-    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
 
     class Meta:
         verbose_name = "Día No Laborable"
@@ -108,6 +106,20 @@ class RegistroAsistencia(AuditoriaModel):
         help_text="Marca en planilla: P, I, LIC, LT, PR, etc.",
         verbose_name="Marca Diaria",
     )
+
+    def __init__(self, *args, **kwargs):
+        if "marca" in kwargs and "marca_diaria" not in kwargs:
+            kwargs["marca_diaria"] = kwargs.pop("marca")
+        super().__init__(*args, **kwargs)
+
+    @property
+    def marca(self):
+        return self.marca_diaria
+
+    @marca.setter
+    def marca(self, value):
+        self.marca_diaria = value
+
     oficina = models.CharField(
         max_length=20,
         default=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
@@ -186,9 +198,7 @@ class RegistroAsistencia(AuditoriaModel):
                     "RN-06: Las inasistencias solamente pueden ser por un día."
                 )
 
-    def justificar_con_formulario(
-        self, nueva_marca, tipo_licencia=None, usuario=None
-    ):
+    def justificar_con_formulario(self, nueva_marca, tipo_licencia=None, usuario=None):
         """
         RF-09 y RF-11: Transiciona un registro diario de inasistencia ('I' o 'INA')
         a 'LIC' o 'P' (o 'LT') al recibir el formulario oficial en papel de Bedelía.
@@ -199,9 +209,7 @@ class RegistroAsistencia(AuditoriaModel):
                 "Solo se pueden justificar registros en estado de inasistencia ('I')."
             )
         if nueva_marca not in ["LIC", "LIC.", "P", "LT", "PERM"]:
-            raise ValidationError(
-                f"Marca no válida para justificación: {nueva_marca}."
-            )
+            raise ValidationError(f"Marca no válida para justificación: {nueva_marca}.")
 
         if nueva_marca in ["LIC", "LIC.", "LT"]:
             self.estado = "LICENCIA"
@@ -232,9 +240,7 @@ class RegistroAsistencia(AuditoriaModel):
         weekday = self.fecha.weekday()
         if self.cargo:
             return self.cargo.get_horas_dia(weekday)
-        return sum(
-            cargo.get_horas_dia(weekday) for cargo in self.docente.cargos.all()
-        )
+        return sum(cargo.get_horas_dia(weekday) for cargo in self.docente.cargos.all())
 
     def __str__(self):
         docente = self.docente.nombre_completo

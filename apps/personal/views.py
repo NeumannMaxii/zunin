@@ -6,7 +6,7 @@ y Ticket 6: Pantalla 1 — CRUD Personal y endpoint de baja lógica con segurida
 
 import datetime
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -14,6 +14,7 @@ from django.views import View
 from django.views.generic import CreateView, ListView, TemplateView, UpdateView
 from django.views.generic.edit import FormView
 from apps.core.audit import AuditoriaFormMixin, audit_save
+from apps.core.mixins import PermisosEstrictosMixin
 from apps.personal.forms import (
     CargoCatalogoForm,
     CarreraForm,
@@ -45,9 +46,7 @@ class DocenteListView(LoginRequiredMixin, ListView):
     ordering = ["apellido", "nombre"]
 
 
-class DocenteCreateView(
-    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, CreateView
-):
+class DocenteCreateView(PermisosEstrictosMixin, AuditoriaFormMixin, CreateView):
     """
     Vista para el alta de un nuevo legajo docente (Ticket 6).
     Accesible para Administradores y Bedelía Operadora.
@@ -74,12 +73,8 @@ class DocenteCreateView(
         user = self.request.user
         if not user.is_authenticated:
             return False
-        return (
-            user.groups.filter(name="Bedelia_Operadoras").exists()
-            and not (
-                user.is_superuser
-                or user.groups.filter(name="Admin_Institucional").exists()
-            )
+        return user.groups.filter(name="Bedelia_Operadoras").exists() and not (
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     def get_form_class(self):
@@ -109,9 +104,7 @@ class DocenteCreateView(
         return response
 
 
-class DocenteUpdateView(
-    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, UpdateView
-):
+class DocenteUpdateView(PermisosEstrictosMixin, AuditoriaFormMixin, UpdateView):
     """
     Vista de edición para actualizar datos filiatorios y legajo (Ticket 6).
     Si el usuario pertenece al grupo Bedelia_Operadoras, el campo 'activo'
@@ -139,12 +132,8 @@ class DocenteUpdateView(
         user = self.request.user
         if not user.is_authenticated:
             return False
-        return (
-            user.groups.filter(name="Bedelia_Operadoras").exists()
-            and not (
-                user.is_superuser
-                or user.groups.filter(name="Admin_Institucional").exists()
-            )
+        return user.groups.filter(name="Bedelia_Operadoras").exists() and not (
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     def get_form_class(self):
@@ -176,7 +165,7 @@ class DocenteUpdateView(
         return response
 
 
-class DocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+class DocenteBajaView(PermisosEstrictosMixin, View):
     """
     Endpoint de baja lógica para Docentes (Ticket 6).
     Ruta protegida: POST /personal/<pk>/baja/.
@@ -192,8 +181,7 @@ class DocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
         if not user.is_authenticated:
             return False
         return (
-            user.is_superuser
-            or user.groups.filter(name="Admin_Institucional").exists()
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     def get(self, request, pk, *args, **kwargs):
@@ -232,7 +220,7 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
     ordering = ["docente__apellido", "docente__nombre"]
 
 
-class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+class CargoDocenteBajaView(PermisosEstrictosMixin, View):
     """
     Endpoint de baja lógica / cese de designación puntual (Ticket 10.2).
     Ruta protegida: POST /personal/cargos/<pk>/baja/.
@@ -249,15 +237,12 @@ class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
         if not user.is_authenticated:
             return False
         return (
-            user.is_superuser
-            or user.groups.filter(name="Admin_Institucional").exists()
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     def get(self, request, pk, *args, **kwargs):
         cargo = get_object_or_404(
-            CargoDocente.objects.select_related(
-                "docente", "materia", "cargo_catalogo"
-            ),
+            CargoDocente.objects.select_related("docente", "materia", "cargo_catalogo"),
             pk=pk,
         )
         return render(
@@ -271,9 +256,7 @@ class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
 
     def post(self, request, pk, *args, **kwargs):
         cargo = get_object_or_404(
-            CargoDocente.objects.select_related(
-                "docente", "materia", "cargo_catalogo"
-            ),
+            CargoDocente.objects.select_related("docente", "materia", "cargo_catalogo"),
             pk=pk,
         )
         cargo.fecha_baja = datetime.date.today()
@@ -284,14 +267,13 @@ class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
             f"El cese de la designación '{cargo}' fue procesado exitosamente. "
             f"El legajo de {cargo.docente.nombre_completo} permanece activo.",
         )
-        next_url = (
-            request.POST.get("next")
-            or reverse_lazy("personal:cargodocente_list")
+        next_url = request.POST.get("next") or reverse_lazy(
+            "personal:cargodocente_list"
         )
         return redirect(next_url)
 
 
-class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+class ImportarCSVView(PermisosEstrictosMixin, FormView):
     """
     Vista para importar docentes y cargos desde un archivo CSV.
     Acceso restringido exclusivamente a Superusuarios o usuarios
@@ -308,8 +290,7 @@ class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         if not user.is_authenticated:
             return False
         return (
-            user.is_superuser
-            or user.groups.filter(name="Admin_Institucional").exists()
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     def get_context_data(self, **kwargs):
@@ -344,9 +325,7 @@ class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
             return super().form_valid(form)
         except Exception as exc:
-            messages.error(
-                self.request, f"Error durante la importación: {exc}"
-            )
+            messages.error(self.request, f"Error durante la importación: {exc}")
             return self.form_invalid(form)
 
 
@@ -355,37 +334,23 @@ class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 # ==============================================================================
 
 
-class SoloAdminInstitucionalMixin(LoginRequiredMixin, UserPassesTestMixin):
+class SoloAdminInstitucionalMixin(PermisosEstrictosMixin):
     """
     Mixin para restringir el acceso exclusivamente a Superusuarios y
-    miembros del grupo Admin_Institucional (Ticket 10.1).
+    miembros del grupo Admin_Institucional (Ticket 10.1 y Ticket 11).
     Los usuarios no autenticados son redirigidos a la pantalla de login (302).
     Los usuarios autenticados sin el rol adecuado reciben HTTP 403 Forbidden.
     """
 
-    raise_exception = False
+    raise_exception = True
 
     def test_func(self):
         user = self.request.user
         if not user.is_authenticated:
             return False
         return (
-            user.is_superuser
-            or user.groups.filter(name="Admin_Institucional").exists()
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
-
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-        from django.core.exceptions import PermissionDenied
-
-        raise PermissionDenied(self.get_permission_denied_message())
 
 
 class CatalogosHubView(SoloAdminInstitucionalMixin, TemplateView):
@@ -400,13 +365,9 @@ class CatalogosHubView(SoloAdminInstitucionalMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Catálogos Institucionales"
         context["total_carreras"] = Carrera.objects.count()
-        context["carreras_activas"] = Carrera.objects.filter(
-            activo=True
-        ).count()
+        context["carreras_activas"] = Carrera.objects.filter(activo=True).count()
         context["total_cargos"] = CargoCatalogo.objects.count()
-        context["cargos_activos"] = CargoCatalogo.objects.filter(
-            activo=True
-        ).count()
+        context["cargos_activos"] = CargoCatalogo.objects.filter(activo=True).count()
         context["total_autorizaciones"] = TipoAutorizacion.objects.count()
         context["autorizaciones_activas"] = TipoAutorizacion.objects.filter(
             activo=True
@@ -435,9 +396,7 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
         queryset = super().get_queryset()
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(
-                Q(codigo__icontains=q) | Q(nombre__icontains=q)
-            )
+            queryset = queryset.filter(Q(codigo__icontains=q) | Q(nombre__icontains=q))
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -452,9 +411,7 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
         return context
 
 
-class CarreraCreateView(
-    SoloAdminInstitucionalMixin, AuditoriaFormMixin, CreateView
-):
+class CarreraCreateView(SoloAdminInstitucionalMixin, AuditoriaFormMixin, CreateView):
     """
     Vista para dar de alta una nueva Carrera formativa (Ticket 10.1).
     """
@@ -482,9 +439,7 @@ class CarreraCreateView(
         return response
 
 
-class CarreraUpdateView(
-    SoloAdminInstitucionalMixin, AuditoriaFormMixin, UpdateView
-):
+class CarreraUpdateView(SoloAdminInstitucionalMixin, AuditoriaFormMixin, UpdateView):
     """
     Vista para actualizar una Carrera formativa existente (Ticket 10.1).
     """
@@ -594,9 +549,7 @@ class CargoCatalogoUpdateView(
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["titulo"] = (
-            f"Editar Cargo de Catálogo: {self.object.codigo}"
-        )
+        context["titulo"] = f"Editar Cargo de Catálogo: {self.object.codigo}"
         context["catalogo_nombre"] = "Cargo de Catálogo"
         context["list_url"] = reverse_lazy("personal:cargocatalogo_list")
         context["accion"] = "Guardar Cambios"
@@ -664,9 +617,7 @@ class TipoAutorizacionCreateView(
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Nuevo Tipo de Autorización"
         context["catalogo_nombre"] = "Tipo de Autorización"
-        context["list_url"] = reverse_lazy(
-            "personal:tipoautorizacion_list"
-        )
+        context["list_url"] = reverse_lazy("personal:tipoautorizacion_list")
         context["accion"] = "Registrar Tipo de Autorización"
         return context
 
@@ -674,8 +625,7 @@ class TipoAutorizacionCreateView(
         response = super().form_valid(form)
         messages.success(
             self.request,
-            f"Tipo de autorización '{self.object.nombre}' "
-            "registrado con éxito.",
+            f"Tipo de autorización '{self.object.nombre}' " "registrado con éxito.",
         )
         return response
 
@@ -694,13 +644,9 @@ class TipoAutorizacionUpdateView(
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["titulo"] = (
-            f"Editar Tipo de Autorización: {self.object.nombre}"
-        )
+        context["titulo"] = f"Editar Tipo de Autorización: {self.object.nombre}"
         context["catalogo_nombre"] = "Tipo de Autorización"
-        context["list_url"] = reverse_lazy(
-            "personal:tipoautorizacion_list"
-        )
+        context["list_url"] = reverse_lazy("personal:tipoautorizacion_list")
         context["accion"] = "Guardar Cambios"
         return context
 
@@ -708,7 +654,6 @@ class TipoAutorizacionUpdateView(
         response = super().form_valid(form)
         messages.success(
             self.request,
-            f"Tipo de autorización '{self.object.nombre}' "
-            "actualizado con éxito.",
+            f"Tipo de autorización '{self.object.nombre}' " "actualizado con éxito.",
         )
         return response

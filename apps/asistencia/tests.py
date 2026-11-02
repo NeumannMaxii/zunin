@@ -397,17 +397,13 @@ class AsistenciaPermisosVisualesTests(TestCase):
         self.user_consulta = User.objects.create_user(
             username="consulta_user", password="password123"
         )
-        group_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        group_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
         self.user_consulta.groups.add(group_consulta)
 
         self.user_bedelia = User.objects.create_user(
             username="bedelia_user", password="password123"
         )
-        group_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
+        group_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
         self.user_bedelia.groups.add(group_bedelia)
 
         self.user_admin = User.objects.create_superuser(
@@ -429,9 +425,7 @@ class AsistenciaPermisosVisualesTests(TestCase):
         self.assertNotContains(response, "+ Carga Masiva")
         self.assertNotContains(response, "Justificaciones por Lote")
         self.assertNotContains(response, reverse("asistencia:carga_masiva"))
-        self.assertNotContains(
-            response, reverse("asistencia:justificaciones_lote")
-        )
+        self.assertNotContains(response, reverse("asistencia:justificaciones_lote"))
 
     def test_botones_carga_masiva_visibles_para_bedelia_y_admin(self):
         """
@@ -537,10 +531,7 @@ class DiaNoLaborableABMTests(TestCase):
 
         messages = list(resp.context["messages"])
         self.assertTrue(
-            any(
-                "Día no laborable registrado con éxito." in m.message
-                for m in messages
-            )
+            any("Día no laborable registrado con éxito." in m.message for m in messages)
         )
 
     def test_update_view_feriado_con_auditoria(self):
@@ -572,18 +563,13 @@ class DiaNoLaborableABMTests(TestCase):
 
         messages = list(resp.context["messages"])
         self.assertTrue(
-            any(
-                "Día no laborable modificado con éxito." in m.message
-                for m in messages
-            )
+            any("Día no laborable modificado con éxito." in m.message for m in messages)
         )
 
     def test_delete_view_feriado(self):
         """Valida confirmación GET y eliminación física mediante POST."""
         self.client.login(username="operador_bedelia", password="password123")
-        delete_url = reverse(
-            "asistencia:feriado_delete", args=[self.feriado.pk]
-        )
+        delete_url = reverse("asistencia:feriado_delete", args=[self.feriado.pk])
 
         # GET renderiza plantilla de confirmación
         resp_get = self.client.get(delete_url)
@@ -596,14 +582,10 @@ class DiaNoLaborableABMTests(TestCase):
         # POST elimina el registro y redirige
         resp_post = self.client.post(delete_url, follow=True)
         self.assertRedirects(resp_post, reverse("asistencia:feriado_list"))
-        self.assertFalse(
-            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
-        )
+        self.assertFalse(DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists())
 
         messages = list(resp_post.context["messages"])
-        self.assertTrue(
-            any("eliminado correctamente" in m.message for m in messages)
-        )
+        self.assertTrue(any("eliminado correctamente" in m.message for m in messages))
 
     def test_create_view_error_validacion_fecha_duplicada(self):
         """Valida que una fecha duplicada rechace el formulario y muestre error."""
@@ -613,9 +595,7 @@ class DiaNoLaborableABMTests(TestCase):
             "tipo": "FERIADO",
             "descripcion": "Otro feriado duplicado",
         }
-        resp = self.client.post(
-            reverse("asistencia:feriado_create"), data=data
-        )
+        resp = self.client.post(reverse("asistencia:feriado_create"), data=data)
         self.assertEqual(resp.status_code, 200)
         self.assertFormError(
             resp.context["form"],
@@ -775,9 +755,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
             f"estado_{self.docente_activo.id}": "PRESENTE",
             f"marca_diaria_{self.docente_activo.id}": "PR",
         }
-        res_crear = self.client.post(
-            "/asistencia/carga-masiva/", post_data_crear
-        )
+        res_crear = self.client.post("/asistencia/carga-masiva/", post_data_crear)
         self.assertEqual(res_crear.status_code, 302)
 
         reg = RegistroAsistencia.objects.get(
@@ -794,9 +772,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
             f"marca_diaria_{self.docente_activo.id}": "I",
             f"observaciones_{self.docente_activo.id}": "Novedad rectificada",
         }
-        res_act = self.client.post(
-            "/asistencia/carga-masiva/", post_data_actualizar
-        )
+        res_act = self.client.post("/asistencia/carga-masiva/", post_data_actualizar)
         self.assertEqual(res_act.status_code, 302)
 
         # Sigue existiendo un único registro actualizado
@@ -952,8 +928,7 @@ class Ticket10_5RendimientoTests(TestCase):
         select_range = [
             sql
             for sql in queries_sql
-            if "registroasistencia" in sql.lower()
-            and "between" in sql.lower()
+            if "registroasistencia" in sql.lower() and "between" in sql.lower()
         ]
         self.assertGreaterEqual(
             len(select_range),
@@ -977,15 +952,9 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         User = get_user_model()
         from django.contrib.auth.models import Group
 
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_consulta, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
         self.user_consulta = User.objects.create_user(
             username="consulta_asist", password="password123"
@@ -1034,8 +1003,10 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            ("Consulta_Directiva debe recibir 403 Forbidden "
-             "al hacer POST a asistencia diaria."),
+            (
+                "Consulta_Directiva debe recibir 403 Forbidden "
+                "al hacer POST a asistencia diaria."
+            ),
         )
 
     def test_criterio_consulta_directiva_recibe_403_post_carga_masiva(self):
@@ -1056,8 +1027,10 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            ("Consulta_Directiva debe recibir 403 Forbidden "
-             "al hacer POST a carga masiva."),
+            (
+                "Consulta_Directiva debe recibir 403 Forbidden "
+                "al hacer POST a carga masiva."
+            ),
         )
 
     def test_criterio_consulta_directiva_recibe_403_post_justificaciones_lote(
@@ -1073,8 +1046,10 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            ("Consulta_Directiva debe recibir 403 Forbidden "
-             "al hacer POST a justificaciones lote."),
+            (
+                "Consulta_Directiva debe recibir 403 Forbidden "
+                "al hacer POST a justificaciones lote."
+            ),
         )
 
     def test_criterio_consulta_directiva_recibe_403_en_feriados_create_update_delete(
@@ -1120,9 +1095,7 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         Un usuario Bedelia_Operadoras recibe error 403 al intentar eliminar un feriado.
         """
         self.client.login(username="bedelia_asist", password="password123")
-        delete_url = reverse(
-            "asistencia:feriado_delete", args=[self.feriado.pk]
-        )
+        delete_url = reverse("asistencia:feriado_delete", args=[self.feriado.pk])
 
         # GET confirmación debe dar 403
         resp_get = self.client.get(delete_url)
@@ -1139,9 +1112,7 @@ class Ticket10_6BlindajePermisosTests(TestCase):
             403,
             "Bedelía debe recibir 403 al ejecutar POST para eliminar feriado.",
         )
-        self.assertTrue(
-            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
-        )
+        self.assertTrue(DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists())
 
     def test_bedelia_operadoras_puede_cargar_asistencia_y_crear_editar_feriado(
         self,
@@ -1194,18 +1165,14 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         feriado con éxito.
         """
         self.client.login(username="admin_asist_perm", password="password123")
-        delete_url = reverse(
-            "asistencia:feriado_delete", args=[self.feriado.pk]
-        )
+        delete_url = reverse("asistencia:feriado_delete", args=[self.feriado.pk])
 
         resp_get = self.client.get(delete_url)
         self.assertEqual(resp_get.status_code, 200)
 
         resp_post = self.client.post(delete_url, follow=False)
         self.assertEqual(resp_post.status_code, 302)
-        self.assertFalse(
-            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
-        )
+        self.assertFalse(DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists())
 
 
 # Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)

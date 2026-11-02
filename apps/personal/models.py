@@ -14,12 +14,8 @@ from django.utils import timezone
 class Carrera(models.Model):
     """Carrera o tecnicatura formativa dictada en el IESETyFP."""
 
-    codigo = models.CharField(
-        max_length=20, unique=True, verbose_name="Código"
-    )
-    nombre = models.CharField(
-        max_length=150, verbose_name="Nombre de la Carrera"
-    )
+    codigo = models.CharField(max_length=20, unique=True, verbose_name="Código")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre de la Carrera")
     activo = models.BooleanField(default=True, verbose_name="Activo")
 
     class Meta:
@@ -38,9 +34,7 @@ class CargoCatalogo(models.Model):
     codigo = models.CharField(
         max_length=30, unique=True, verbose_name="Código de Cargo"
     )
-    descripcion = models.CharField(
-        max_length=150, verbose_name="Descripción"
-    )
+    descripcion = models.CharField(max_length=150, verbose_name="Descripción")
     activo = models.BooleanField(default=True, verbose_name="Activo")
 
     class Meta:
@@ -239,11 +233,15 @@ class Docente(models.Model):
 
         registros = self.asistencias.filter(fecha__year=anio)
 
-        inasistencias_qs = registros.filter(
-            models.Q(marca_diaria__in=["I", "INA"])
-            | models.Q(estado="AUSENTE")
-            | models.Q(tipo_licencia__categoria="INASISTENCIA")
-        ).exclude(estado="PRESENTE", marca_diaria="PR").distinct()
+        inasistencias_qs = (
+            registros.filter(
+                models.Q(marca_diaria__in=["I", "INA"])
+                | models.Q(estado="AUSENTE")
+                | models.Q(tipo_licencia__categoria="INASISTENCIA")
+            )
+            .exclude(estado="PRESENTE", marca_diaria="PR")
+            .distinct()
+        )
         total_inasistencias = inasistencias_qs.count()
 
         permisos_qs = (
@@ -310,9 +308,7 @@ class EspacioCurricular(models.Model):
     codigo = models.CharField(
         max_length=30, unique=True, verbose_name="Código de Espacio"
     )
-    nombre = models.CharField(
-        max_length=150, verbose_name="Nombre de la Asignatura"
-    )
+    nombre = models.CharField(max_length=150, verbose_name="Nombre de la Asignatura")
     carrera = models.CharField(max_length=150, verbose_name="Carrera")
     anio = models.PositiveSmallIntegerField(verbose_name="Año de la Carrera")
     comision = models.CharField(
@@ -568,12 +564,8 @@ class CargoDocente(models.Model):
         null=True,
         verbose_name="Resolución de Designación",
     )
-    fecha_alta = models.DateField(
-        blank=True, null=True, verbose_name="Fecha de Alta"
-    )
-    fecha_baja = models.DateField(
-        blank=True, null=True, verbose_name="Fecha de Baja"
-    )
+    fecha_alta = models.DateField(blank=True, null=True, verbose_name="Fecha de Alta")
+    fecha_baja = models.DateField(blank=True, null=True, verbose_name="Fecha de Baja")
     activo = models.BooleanField(default=True, verbose_name="Activo")
     observaciones = models.TextField(
         blank=True, null=True, verbose_name="Observaciones"

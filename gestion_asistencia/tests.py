@@ -97,9 +97,7 @@ class ModelosRelacionalesTests(TestCase):
 
     def test_tipo_licencia_str(self):
         """Verifica formato de cadena de tipo de licencia con goce de haberes."""
-        expected = (
-            "Art. 340-A (LIC-340A) - Enfermedad de corto tratamiento [C/Goce]"
-        )
+        expected = "Art. 340-A (LIC-340A) - Enfermedad de corto tratamiento [C/Goce]"
         self.assertEqual(str(self.tipo_licencia), expected)
 
     def test_registro_asistencia_presente_exitoso(self):
@@ -200,12 +198,8 @@ class ModelosRelacionalesTests(TestCase):
         )
         cargo_suplente.full_clean()
         cargo_suplente.save()
-        self.assertEqual(
-            cargo_suplente.docente_reemplazado, docente_reemplazado
-        )
-        self.assertIn(
-            cargo_suplente, docente_reemplazado.suplencias_recibidas.all()
-        )
+        self.assertEqual(cargo_suplente.docente_reemplazado, docente_reemplazado)
+        self.assertIn(cargo_suplente, docente_reemplazado.suplencias_recibidas.all())
 
     def test_cargo_administrativo_sin_materia(self):
         """Permite cargo administrativo sin materia (null=True)."""
@@ -367,9 +361,7 @@ class ReglasNegocioRequerimientosV1Tests(TestCase):
         )
         cargo_sup.full_clean()
 
-        self.assertEqual(
-            Docente.objects.filter(dni="20111222").count(), 1
-        )
+        self.assertEqual(Docente.objects.filter(dni="20111222").count(), 1)
         cargos = self.docente.cargos.all()
         self.assertEqual(cargos.count(), 2)
         self.assertIn(cargo_tit, cargos)
@@ -399,9 +391,7 @@ class ReglasNegocioRequerimientosV1Tests(TestCase):
 
         self.assertEqual(lic_enfermedad.cuadro_mensual, "DL-01")
         self.assertEqual(lic_vacia.cuadro_mensual, "DL-02")
-        self.assertEqual(
-            lic_vacia.situacion_revista_aplicable, "TIT,INT,SUP"
-        )
+        self.assertEqual(lic_vacia.situacion_revista_aplicable, "TIT,INT,SUP")
         self.assertIn("(OTRA-01)", str(lic_vacia))
 
     def test_rn06_validacion_inasistencia_un_solo_dia(self):
@@ -540,6 +530,7 @@ class ReglasNegocioRequerimientosV1Tests(TestCase):
 
         # Unicidad por fecha en DiaNoLaborable
         from django.db import transaction
+
         with transaction.atomic():
             with self.assertRaises(IntegrityError):
                 DiaNoLaborable.objects.create(
@@ -751,9 +742,7 @@ class EspecificacionFuncionalV2Tests(TestCase):
         self.assertEqual(asistencia.marca_diaria, "PR")
 
         # Marcas válidas definidas
-        choices_keys = [
-            k for k, _ in RegistroAsistencia.MARCA_DIARIA_CHOICES
-        ]
+        choices_keys = [k for k, _ in RegistroAsistencia.MARCA_DIARIA_CHOICES]
         for marca in ["P", "I", "LIC", "LT", "PR", "INA", "PERM"]:
             self.assertIn(marca, choices_keys)
 
@@ -985,22 +974,14 @@ class EspecificacionFuncionalV2Tests(TestCase):
             mes=10, anio=2026, usuario=self.user
         )
 
-        renglones_carrizo = [
-            r for r in renglones if r.docente == docente_c
-        ]
+        renglones_carrizo = [r for r in renglones if r.docente == docente_c]
         self.assertEqual(len(renglones_carrizo), 2)
 
-        renglon_prog = next(
-            r for r in renglones_carrizo if r.cargo == cargo_c1
-        )
-        renglon_bd = next(
-            r for r in renglones_carrizo if r.cargo == cargo_c2
-        )
+        renglon_prog = next(r for r in renglones_carrizo if r.cargo == cargo_c1)
+        renglon_bd = next(r for r in renglones_carrizo if r.cargo == cargo_c2)
 
         # Mismo número correlativo de Disposición (RN-11)
-        self.assertEqual(
-            renglon_prog.numero_instrumento, renglon_bd.numero_instrumento
-        )
+        self.assertEqual(renglon_prog.numero_instrumento, renglon_bd.numero_instrumento)
         self.assertEqual(renglon_prog.cuadro, "IL-01")
         self.assertEqual(renglon_bd.cuadro, "IL-01")
         self.assertEqual(renglon_prog.desde, datetime.date(2026, 10, 22))
@@ -1056,12 +1037,8 @@ class EspecificacionFuncionalV2Tests(TestCase):
         # Se generan 3 renglones en total: 2 para Álvarez y 1 para Benítez
         self.assertEqual(len(renglones), 3)
 
-        renglones_alvarez = [
-            r for r in renglones if r.docente == self.docente_a
-        ]
-        renglones_benitez = [
-            r for r in renglones if r.docente == self.docente_b
-        ]
+        renglones_alvarez = [r for r in renglones if r.docente == self.docente_a]
+        renglones_benitez = [r for r in renglones if r.docente == self.docente_b]
 
         self.assertEqual(len(renglones_alvarez), 2)
         self.assertEqual(len(renglones_benitez), 1)
@@ -1078,12 +1055,8 @@ class EspecificacionFuncionalV2Tests(TestCase):
             self.assertEqual(renglon.creado_por, self.user)
 
         # Verificar sumatoria de horas afectadas por materia para Álvarez (RF-13)
-        renglon_prog = next(
-            r for r in renglones_alvarez if r.cargo == self.cargo_a1
-        )
-        renglon_bd = next(
-            r for r in renglones_alvarez if r.cargo == self.cargo_a2
-        )
+        renglon_prog = next(r for r in renglones_alvarez if r.cargo == self.cargo_a1)
+        renglon_bd = next(r for r in renglones_alvarez if r.cargo == self.cargo_a2)
         self.assertEqual(renglon_prog.horas_afectadas, 6)
         self.assertEqual(renglon_bd.horas_afectadas, 6)
 
