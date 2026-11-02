@@ -1,11 +1,13 @@
 """
-Formularios para el módulo de Asistencia (Días No Laborables y Registro de Novedades).
+Formularios para el módulo de Asistencia (Días No Laborables, Registro de Novedades
+y Consulta Avanzada Multicriterio).
 Aplica diseño Tailwind CSS y validaciones con delegación a las reglas de modelo.
 """
 
 from django import forms
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
-from apps.core.forms import TailwindModelForm
+from apps.asistencia.services import filtrar_asistencias_multicriterio
+from apps.core.forms import TailwindForm, TailwindModelForm
 from apps.personal.models import CargoDocente
 
 
@@ -142,7 +144,8 @@ class RegistroAsistenciaForm(TailwindModelForm):
                     or marca_diaria in ["I", "INA"]
                     or (
                         tipo_licencia
-                        and getattr(tipo_licencia, "categoria", None) == "INASISTENCIA"
+                        and getattr(tipo_licencia, "categoria", None)
+                        == "INASISTENCIA"
                     )
                 )
                 if es_inasistencia:
@@ -164,3 +167,131 @@ class RegistroAsistenciaForm(TailwindModelForm):
                 )
 
         return cleaned_data
+
+
+class ConsultaAsistenciaForm(TailwindForm):
+    """
+    Formulario de consulta avanzada multicriterio para auditar registros
+    de asistencia cruzando diferentes variables (Ticket 12.6).
+    Filtros combinables:
+    - fecha_desde, fecha_hasta: Rango de fechas inclusivo.
+    - dni_o_apellido, dni, apellido: DNI o apellido del docente.
+    - estado, marca, marca_diaria: Estado o marca diaria de asistencia.
+    - materia, materia_id: Espacio curricular / Asignatura del cargo.
+    """
+
+    fecha_desde = forms.DateField(
+        required=False,
+        label="Fecha Desde",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    fecha_hasta = forms.DateField(
+        required=False,
+        label="Fecha Hasta",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    dni_o_apellido = forms.CharField(
+        required=False,
+        label="DNI o Apellido",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Buscar por DNI o Apellido..."}
+        ),
+    )
+    dni = forms.CharField(
+        required=False,
+        label="DNI",
+        widget=forms.TextInput(attrs={"placeholder": "DNI..."}),
+    )
+    apellido = forms.CharField(
+        required=False,
+        label="Apellido",
+        widget=forms.TextInput(attrs={"placeholder": "Apellido..."}),
+    )
+    estado = forms.ChoiceField(
+        choices=[("", "Todos los estados")]
+        + list(RegistroAsistencia.ESTADO_CHOICES),
+        required=False,
+        label="Estado",
+    )
+    marca = forms.ChoiceField(
+        choices=[("", "Todas las marcas")]
+        + list(RegistroAsistencia.MARCA_DIARIA_CHOICES),
+        required=False,
+        label="Marca Diaria",
+    )
+    marca_diaria = forms.CharField(required=False)
+    estado_marca = forms.CharField(required=False)
+    materia = forms.CharField(
+        required=False,
+        label="Materia / Espacio Curricular",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Nombre o código de materia...",
+                "list": "materias-list",
+            }
+        ),
+    )
+    materia_id = forms.IntegerField(required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_desde = cleaned_data.get("fecha_desde")
+        fecha_hasta = cleaned_data.get("fecha_hasta")
+        if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+            self.add_error(
+                "fecha_hasta",
+                "La fecha de finalización no puede ser anterior a la inicial.",
+            )
+        return cleaned_data
+
+    def filtrar(self, queryset=None):
+        """
+        Aplica los filtros sobre el queryset provisto o sobre todos los registros.
+        """
+        if queryset is None:
+            queryset = RegistroAsistencia.objects.all()
+
+        if not self.is_valid():
+            return queryset
+
+        materia_val = (
+            self.data.get("materia")
+            if hasattr(self.data.get("materia"), "pk")
+            else self.cleaned_data.get("materia")
+        )
+
+        return filtrar_asistencias_multicriterio(
+            queryset=queryset,
+            fecha_desde=self.cleaned_data.get("fecha_desde"),
+            fecha_hasta=self.cleaned_data.get("fecha_hasta"),
+            dni_o_apellido=(
+                self.cleaned_data.get("dni_o_apellido")
+                or self.data.get("docente")
+                or self.data.get("q")
+            ),
+            dni=self.cleaned_data.get("dni"),
+            apellido=self.cleaned_data.get("apellido"),
+            estado=self.cleaned_data.get("estado"),
+            marca=self.cleaned_data.get("marca"),
+            marca_diaria=(
+                self.cleaned_data.get("marca_diaria")
+                or self.data.get("marca_diaria")
+            ),
+            estado_marca=(
+                self.cleaned_data.get("estado_marca")
+                or self.data.get("estado_marca")
+                or self.data.get("estado_o_marca")
+            ),
+            materia=materia_val,
+            materia_id=(
+                self.cleaned_data.get("materia_id")
+                or self.data.get("materia_id")
+            ),
+        )
+
+
+# Aliases semánticos y de compatibilidad
+AsistenciaConsultaForm = ConsultaAsistenciaForm
+ConsultaAvanzadaAsistenciaForm = ConsultaAsistenciaForm
+BusquedaAsistenciaForm = ConsultaAsistenciaForm
+FiltroAsistenciaForm = ConsultaAsistenciaForm
