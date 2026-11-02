@@ -1,8 +1,10 @@
 """
-Pruebas automatizadas para el Dashboard Core (Ticket 2):
+Pruebas automatizadas para el Dashboard Core (Ticket 2 y Ticket 10.8):
 - Validación de acceso protegido mediante @login_required.
 - Respuesta HTTP 302 (redirect al login) para usuarios anónimos.
 - Respuesta HTTP 200 y renderizado correcto para usuarios autenticados.
+- Presencia del enlace directo a Planillas en el navbar (Ticket 10.8).
+- Botones rápidos en Dashboard principal (Ticket 10.8).
 """
 
 from django.contrib.auth import get_user_model
@@ -11,7 +13,7 @@ from django.urls import reverse
 
 
 class DashboardCoreTests(TestCase):
-    """Pruebas para la vista dashboard_home."""
+    """Pruebas para la vista dashboard_home y la navegación institucional."""
 
     def setUp(self):
         self.client = Client()
@@ -23,7 +25,7 @@ class DashboardCoreTests(TestCase):
 
     def test_dashboard_usuario_anonimo_redirige_a_login(self):
         """
-        4. Valida que un usuario anónimo que intenta acceder al Dashboard
+        Valida que un usuario anónimo que intenta acceder al Dashboard
         sea redirigido con HTTP 302 hacia la pantalla de login.
         """
         response = self.client.get(reverse("core:dashboard_home"))
@@ -33,7 +35,7 @@ class DashboardCoreTests(TestCase):
 
     def test_dashboard_usuario_autenticado_retorna_200(self):
         """
-        4. Valida que un usuario autenticado acceda exitosamente con HTTP 200
+        Valida que un usuario autenticado acceda exitosamente con HTTP 200
         y utilice las plantillas base.html y core/dashboard.html.
         """
         self.client.login(username="docente_dashboard", password="password123")
@@ -77,3 +79,36 @@ class DashboardCoreTests(TestCase):
         self.client.login(username="superuser_test", password="password123")
         resp_super = self.client.get(reverse("core:dashboard_home"))
         self.assertNotContains(resp_super, "/admin/")
+
+    def test_navbar_contiene_enlace_a_planillas(self):
+        """
+        Ticket 10.8: Valida que el navbar superior contenga el enlace 'Planillas'
+        apuntando a licencias:planilla_list.
+        """
+        self.client.login(username="docente_dashboard", password="password123")
+        response = self.client.get(reverse("core:dashboard_home"))
+
+        self.assertEqual(response.status_code, 200)
+        planilla_url = reverse("licencias:planilla_list")
+        self.assertContains(response, planilla_url)
+        # Verificar que el enlace está presente como elemento del menú
+        expected_anchor = f'href="{planilla_url}"'
+        self.assertContains(response, expected_anchor)
+        self.assertContains(response, "Planillas")
+
+    def test_dashboard_contiene_botones_rapidos_a_planillas_y_justificacion(self):
+        """
+        Ticket 10.8: Valida que el dashboard incorpore botones rápidos
+        hacia 'Planillas Mensuales' y 'Justificación Diferida'.
+        """
+        self.client.login(username="docente_dashboard", password="password123")
+        response = self.client.get(reverse("core:dashboard_home"))
+
+        self.assertEqual(response.status_code, 200)
+        planilla_url = reverse("licencias:planilla_list")
+        justificacion_url = reverse("licencias:justificacion_diferida")
+
+        self.assertContains(response, planilla_url)
+        self.assertContains(response, justificacion_url)
+        self.assertContains(response, "Planillas Mensuales")
+        self.assertContains(response, "Justificación Diferida")

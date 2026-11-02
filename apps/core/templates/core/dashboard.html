@@ -18,6 +18,21 @@
                 Panel central de gestión de novedades docentes, asistencia y licencias institucionales.
             </p>
         </div>
+        <!-- Acciones Rápidas del Dashboard (Ticket 10.8) -->
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-semibold rounded-xl text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 transition-all">
+                <svg class="w-4 h-4 mr-2 text-institucional-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Planillas Mensuales
+            </a>
+            <a href="{% url 'licencias:justificacion_diferida' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-all">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Justificación Diferida
+            </a>
+        </div>
     </div>
 
     <!-- Módulos del Sistema -->
