@@ -111,6 +111,9 @@
                         <a href="{% url 'licencias:tipolicencia_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
                             Licencias
                         </a>
+                        <a href="{% url 'licencias:planilla_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                            Planillas
+                        </a>
                         {% if user|es_administrador %}
                         <a href="{% url 'personal:catalogos_hub' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
                             Catálogos
