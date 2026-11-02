@@ -6,7 +6,7 @@ y justificaciones por lote (Ticket 7).
 
 import json
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
@@ -28,6 +28,29 @@ from apps.licencias.models import TipoLicencia
 from apps.personal.models import CargoDocente, Docente
 
 
+class BackendPermisoMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """
+    Mixin base para blindaje de permisos backend (Ticket 10.6).
+    Redirige usuarios anónimos al login (302) y rechaza con 403 Forbidden estricto
+    a usuarios autenticados que no posean el rol o privilegios requeridos.
+    """
+
+    raise_exception = True
+
+    def handle_no_permission(self):
+        if not self.request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(
+                self.request.get_full_path(),
+                self.get_login_url(),
+                self.get_redirect_field_name(),
+            )
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied(self.get_permission_denied_message())
+
+
 class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     """
     Listado paginado de registros de asistencia.
@@ -41,12 +64,30 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     ordering = ["-fecha", "docente__apellido"]
 
 
-class AsistenciaDiariaView(LoginRequiredMixin, View):
+class AsistenciaDiariaView(BackendPermisoMixin, View):
     """
     Pantalla 3: Asistencia Diaria y Carga de Novedades (RF-10, Ticket 5 y 3.8).
     Permite registrar y actualizar la asistencia diaria docente mediante audit_save(),
     gestionando la advertencia visual de feriados sin bloquear la carga operativa.
+    Blindaje de permisos backend (Ticket 10.6): Restringe peticiones POST a roles
+    operativos (Admin_Institucional o Bedelia_Operadoras).
     """
+
+    raise_exception = True
+
+    def test_func(self):
+        if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("asistencia.add_registroasistencia")
+        )
 
     def get_fecha(self, request):
         fecha_str = request.GET.get("fecha") or request.POST.get("fecha")
@@ -441,10 +482,28 @@ class AsistenciaDiariaView(LoginRequiredMixin, View):
 CargaDiariaMasivaView = AsistenciaDiariaView
 
 
-class JustificacionesLoteView(LoginRequiredMixin, View):
+class JustificacionesLoteView(BackendPermisoMixin, View):
     """
     Vista para Justificaciones por Lote de Inasistencias (Ticket 7 y 3.8).
+    Blindaje de permisos backend (Ticket 10.6): Restringe peticiones POST a roles
+    operativos (Admin_Institucional o Bedelia_Operadoras).
     """
+
+    raise_exception = True
+
+    def test_func(self):
+        if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("asistencia.change_registroasistencia")
+        )
 
     def get(self, request):
         return render(
@@ -496,10 +555,25 @@ class DiaNoLaborableListView(LoginRequiredMixin, ListView):
         return context
 
 
-class DiaNoLaborableCreateView(LoginRequiredMixin, AuditoriaFormMixin, CreateView):
+class DiaNoLaborableCreateView(BackendPermisoMixin, AuditoriaFormMixin, CreateView):
     """
     Alta de nuevo feriado o día no laborable con auditoría (Ticket 4).
+    Blindaje de permisos backend (Ticket 10.6): Exige rol operativo.
     """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("asistencia.add_dianolaborable")
+        )
 
     model = DiaNoLaborable
     form_class = DiaNoLaborableForm
@@ -519,10 +593,25 @@ class DiaNoLaborableCreateView(LoginRequiredMixin, AuditoriaFormMixin, CreateVie
         return super().form_valid(form)
 
 
-class DiaNoLaborableUpdateView(LoginRequiredMixin, AuditoriaFormMixin, UpdateView):
+class DiaNoLaborableUpdateView(BackendPermisoMixin, AuditoriaFormMixin, UpdateView):
     """
     Edición de feriado o día no laborable existente con auditoría (Ticket 4).
+    Blindaje de permisos backend (Ticket 10.6): Exige rol operativo.
     """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("asistencia.change_dianolaborable")
+        )
 
     model = DiaNoLaborable
     form_class = DiaNoLaborableForm
@@ -542,10 +631,23 @@ class DiaNoLaborableUpdateView(LoginRequiredMixin, AuditoriaFormMixin, UpdateVie
         return super().form_valid(form)
 
 
-class DiaNoLaborableDeleteView(LoginRequiredMixin, DeleteView):
+class DiaNoLaborableDeleteView(BackendPermisoMixin, DeleteView):
     """
     Eliminación de un día no laborable / feriado del calendario (Ticket 4).
+    Blindaje de permisos backend (Ticket 10.6): Exclusivo para Admin_Institucional.
+    Bedelía y roles de consulta reciben HTTP 403 Forbidden.
     """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(name="Admin_Institucional").exists()
+        )
 
     model = DiaNoLaborable
     template_name = "asistencia/dianolaborable_confirm_delete.html"

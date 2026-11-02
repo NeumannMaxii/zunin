@@ -263,13 +263,43 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         return response
 
 
-class CambiarLicenciaRenglonView(LoginRequiredMixin, View):
+class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
     """
     Ticket 9 y Ticket 10.3:
     Permite modificar el Tipo de Licencia / Artículo de un Renglón y/o
     conmutar su instrumento entre Disposición Interna y Resolución Ministerial externa
     con su correspondiente número oficial.
+    Blindaje de permisos backend (Ticket 10.6): Restringe el endpoint POST a
+    roles operativos (Admin_Institucional o Bedelia_Operadoras). Consulta_Directiva
+    recibe HTTP 403 Forbidden.
     """
+
+    raise_exception = True
+
+    def handle_no_permission(self):
+        if not self.request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(
+                self.request.get_full_path(),
+                self.get_login_url(),
+                self.get_redirect_field_name(),
+            )
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied(self.get_permission_denied_message())
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("licencias.change_renglonplanillamensual")
+        )
 
     def post(self, request, pk):
         renglon = get_object_or_404(RenglonPlanillaMensual, pk=pk)
