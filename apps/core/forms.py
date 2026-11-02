@@ -14,12 +14,9 @@ class TailwindErrorList(ErrorList):
     """
 
     def __init__(self, initlist=None, error_class=None, **kwargs):
-        error_class = (
-            error_class
-            or (
-                "text-xs text-rose-600 mt-1 font-medium list-disc "
-                "list-inside space-y-0.5"
-            )
+        error_class = error_class or (
+            "text-xs text-rose-600 mt-1 font-medium list-disc "
+            "list-inside space-y-0.5"
         )
         super().__init__(initlist, error_class=error_class, **kwargs)
 
@@ -107,9 +104,11 @@ class TailwindFormMixin:
 
 class TailwindModelForm(TailwindFormMixin, forms.ModelForm):
     """Clase base de conveniencia para ModelForms estilizados con Tailwind."""
+
     pass
 
 
 class TailwindForm(TailwindFormMixin, forms.Form):
     """Clase base de conveniencia para Forms regulares con Tailwind."""
+
     pass

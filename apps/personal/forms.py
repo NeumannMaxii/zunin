@@ -95,8 +95,7 @@ class DocenteForm(TailwindModelForm):
         fecha = self.cleaned_data.get("fecha_nacimiento")
         if fecha and fecha > date.today():
             raise forms.ValidationError(
-                "La fecha de nacimiento no puede ser posterior a la "
-                "fecha actual."
+                "La fecha de nacimiento no puede ser posterior a la " "fecha actual."
             )
         return fecha
 
@@ -170,12 +169,8 @@ class CargoDocenteForm(TailwindModelForm):
                     "placeholder": "Observaciones o detalles de designación...",
                 }
             ),
-            "codigo_cargo": forms.TextInput(
-                attrs={"placeholder": "Ej: CARGO-BED-01"}
-            ),
-            "numero_autorizacion": forms.TextInput(
-                attrs={"placeholder": "Ej: 145/26"}
-            ),
+            "codigo_cargo": forms.TextInput(attrs={"placeholder": "Ej: CARGO-BED-01"}),
+            "numero_autorizacion": forms.TextInput(attrs={"placeholder": "Ej: 145/26"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -265,9 +260,7 @@ class ImportarCSVForm(TailwindForm):
     def clean_archivo(self):
         archivo = self.cleaned_data.get("archivo")
         if not archivo:
-            raise forms.ValidationError(
-                "Debe seleccionar un archivo para importar."
-            )
+            raise forms.ValidationError("Debe seleccionar un archivo para importar.")
         if not archivo.name.lower().endswith(".csv"):
             raise forms.ValidationError(
                 "El archivo seleccionado debe tener extensión .csv."
@@ -284,9 +277,7 @@ class CarreraForm(TailwindModelForm):
         model = Carrera
         fields = ["codigo", "nombre", "activo"]
         widgets = {
-            "codigo": forms.TextInput(
-                attrs={"placeholder": "Ej: TEC-DS"}
-            ),
+            "codigo": forms.TextInput(attrs={"placeholder": "Ej: TEC-DS"}),
             "nombre": forms.TextInput(
                 attrs={
                     "placeholder": (
@@ -312,9 +303,7 @@ class CarreraForm(TailwindModelForm):
     def clean_nombre(self):
         nombre = self.cleaned_data.get("nombre", "").strip()
         if not nombre:
-            raise forms.ValidationError(
-                "El nombre de la carrera es obligatorio."
-            )
+            raise forms.ValidationError("El nombre de la carrera es obligatorio.")
         return nombre
 
 
@@ -327,15 +316,9 @@ class CargoCatalogoForm(TailwindModelForm):
         model = CargoCatalogo
         fields = ["codigo", "descripcion", "activo"]
         widgets = {
-            "codigo": forms.TextInput(
-                attrs={"placeholder": "Ej: MEP"}
-            ),
+            "codigo": forms.TextInput(attrs={"placeholder": "Ej: MEP"}),
             "descripcion": forms.TextInput(
-                attrs={
-                    "placeholder": (
-                        "Ej: Maestro de Enseñanza Práctica"
-                    )
-                }
+                attrs={"placeholder": ("Ej: Maestro de Enseñanza Práctica")}
             ),
         }
 
@@ -368,9 +351,7 @@ class TipoAutorizacionForm(TailwindModelForm):
         model = TipoAutorizacion
         fields = ["nombre", "activo"]
         widgets = {
-            "nombre": forms.TextInput(
-                attrs={"placeholder": "Ej: RESOLUCIÓN"}
-            ),
+            "nombre": forms.TextInput(attrs={"placeholder": "Ej: RESOLUCIÓN"}),
         }
 
     def clean_nombre(self):

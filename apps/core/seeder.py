@@ -477,9 +477,7 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
 
         # 5. Opcional: Generar planilla mensual para demo
         if generar_planilla:
-            renglones = generar_planilla_mes(
-                mes=10, anio=2026, usuario=usuario
-            )
+            renglones = generar_planilla_mes(mes=10, anio=2026, usuario=usuario)
             resumen["renglones_planilla"] = len(renglones)
 
     return resumen

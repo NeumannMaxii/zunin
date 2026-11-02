@@ -6,7 +6,7 @@ y justificaciones por lote (Ticket 7).
 
 import json
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
@@ -24,11 +24,9 @@ from apps.asistencia.forms import DiaNoLaborableForm
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import justificar_lote_asistencias
 from apps.core.audit import AuditoriaFormMixin
+from apps.core.mixins import PermisosEstrictosMixin
 from apps.licencias.models import TipoLicencia
 from apps.personal.models import CargoDocente, Docente
-
-
-from apps.core.mixins import PermisosEstrictosMixin
 
 
 class BackendPermisoMixin(PermisosEstrictosMixin):
@@ -37,7 +35,6 @@ class BackendPermisoMixin(PermisosEstrictosMixin):
     Redirige usuarios anónimos al login (302) y rechaza con 403 Forbidden estricto
     a usuarios autenticados que no posean el rol o privilegios requeridos.
     """
-
 
 
 class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
@@ -124,9 +121,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         for doc in docentes:
             doc.registro_actual = registros_map.get(doc.id)
 
-        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by(
-            "codigo"
-        )
+        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
 
         context = {
             "titulo": "Asistencia Diaria",
@@ -173,9 +168,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             if not docente_ids and (
                 "docente" in request.POST or "docente_id" in request.POST
             ):
-                d_id = request.POST.get("docente") or request.POST.get(
-                    "docente_id"
-                )
+                d_id = request.POST.get("docente") or request.POST.get("docente_id")
                 if d_id:
                     docente_ids.append(str(d_id))
 
@@ -188,15 +181,11 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         or request.POST.get("estado", "PRESENTE"),
                         "marca_diaria": request.POST.get(f"marca_diaria_{d_id}")
                         or request.POST.get("marca_diaria"),
-                        "tipo_licencia_id": request.POST.get(
-                            f"tipo_licencia_{d_id}"
-                        )
+                        "tipo_licencia_id": request.POST.get(f"tipo_licencia_{d_id}")
                         or request.POST.get("tipo_licencia"),
                         "cargo_id": request.POST.get(f"cargo_{d_id}")
                         or request.POST.get("cargo"),
-                        "observaciones": request.POST.get(
-                            f"observaciones_{d_id}"
-                        )
+                        "observaciones": request.POST.get(f"observaciones_{d_id}")
                         or request.POST.get("observaciones", ""),
                         "justifica": request.POST.get(f"justifica_{d_id}"),
                     }
@@ -260,9 +249,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             with transaction.atomic():
                 # Precarga en memoria con in_bulk y diccionarios (Ticket 10.5)
                 docentes_map = Docente.objects.in_bulk(doc_ids)
-                licencias_map = (
-                    TipoLicencia.objects.in_bulk(lic_ids) if lic_ids else {}
-                )
+                licencias_map = TipoLicencia.objects.in_bulk(lic_ids) if lic_ids else {}
                 cargos_map = (
                     CargoDocente.objects.in_bulk(cargo_ids) if cargo_ids else {}
                 )
@@ -324,14 +311,10 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         item_fecha = parse_date(item_fecha) or fecha
 
                     # Buscar o instanciar desde el mapa en memoria
-                    reg = registros_existentes_map.get(
-                        (docente_obj.id, item_fecha)
-                    )
+                    reg = registros_existentes_map.get((docente_obj.id, item_fecha))
                     created = reg is None
                     if created:
-                        reg = RegistroAsistencia(
-                            docente=docente_obj, fecha=item_fecha
-                        )
+                        reg = RegistroAsistencia(docente=docente_obj, fecha=item_fecha)
 
                     estado = item.get("estado", "PRESENTE")
                     reg.estado = estado
@@ -350,17 +333,13 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     reg.marca_diaria = marca
 
                     # Licencia desde mapa en memoria
-                    lic_val = item.get("tipo_licencia_id") or item.get(
-                        "tipo_licencia"
-                    )
+                    lic_val = item.get("tipo_licencia_id") or item.get("tipo_licencia")
                     if lic_val and estado == "LICENCIA":
                         if isinstance(lic_val, TipoLicencia):
                             reg.tipo_licencia = lic_val
                         else:
                             try:
-                                reg.tipo_licencia = licencias_map.get(
-                                    int(lic_val)
-                                )
+                                reg.tipo_licencia = licencias_map.get(int(lic_val))
                             except (ValueError, TypeError):
                                 reg.tipo_licencia = None
                     else:
@@ -383,9 +362,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         reg.observaciones = item["observaciones"] or ""
 
                     justifica_val = item.get("justifica")
-                    if justifica_val is not None and str(
-                        justifica_val
-                    ).lower() in [
+                    if justifica_val is not None and str(justifica_val).lower() in [
                         "false",
                         "0",
                         "no",
@@ -445,9 +422,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     "guardada con éxito.",
                 )
 
-            return redirect(
-                f"{request.path}?fecha={fecha.strftime('%Y-%m-%d')}"
-            )
+            return redirect(f"{request.path}?fecha={fecha.strftime('%Y-%m-%d')}")
 
         except (ValidationError, IntegrityError, Exception) as exc:
             messages.error(
@@ -462,9 +437,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                 "es_feriado": es_feriado,
                 "error": True,
             }
-            return render(
-                request, "asistencia/carga_masiva.html", context, status=400
-            )
+            return render(request, "asistencia/carga_masiva.html", context, status=400)
 
 
 # Alias para retrocompatibilidad total con Ticket 3.8 y rutas existentes
@@ -504,18 +477,14 @@ class JustificacionesLoteView(BackendPermisoMixin, View):
     def post(self, request):
         lote_items = request.POST.getlist("items", [])
         if not lote_items:
-            messages.warning(
-                request, "No se recibieron registros para justificar."
-            )
+            messages.warning(request, "No se recibieron registros para justificar.")
             return redirect("asistencia:asistencia_list")
 
         try:
             justificar_lote_asistencias(
                 lote_items, usuario=request.user, request=request
             )
-            messages.success(
-                request, "Lote de justificaciones procesado exitosamente."
-            )
+            messages.success(request, "Lote de justificaciones procesado exitosamente.")
             return redirect("asistencia:asistencia_list")
         except (ValidationError, IntegrityError, Exception):
             return render(
@@ -576,9 +545,7 @@ class DiaNoLaborableCreateView(BackendPermisoMixin, AuditoriaFormMixin, CreateVi
         return context
 
     def form_valid(self, form):
-        messages.success(
-            self.request, "Día no laborable registrado con éxito."
-        )
+        messages.success(self.request, "Día no laborable registrado con éxito.")
         return super().form_valid(form)
 
 
@@ -614,9 +581,7 @@ class DiaNoLaborableUpdateView(BackendPermisoMixin, AuditoriaFormMixin, UpdateVi
         return context
 
     def form_valid(self, form):
-        messages.success(
-            self.request, "Día no laborable modificado con éxito."
-        )
+        messages.success(self.request, "Día no laborable modificado con éxito.")
         return super().form_valid(form)
 
 
@@ -634,8 +599,7 @@ class DiaNoLaborableDeleteView(BackendPermisoMixin, DeleteView):
         if not user.is_authenticated:
             return False
         return (
-            user.is_superuser
-            or user.groups.filter(name="Admin_Institucional").exists()
+            user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
         )
 
     model = DiaNoLaborable
@@ -649,7 +613,5 @@ class DiaNoLaborableDeleteView(BackendPermisoMixin, DeleteView):
         return context
 
     def form_valid(self, form):
-        messages.success(
-            self.request, "Día no laborable eliminado correctamente."
-        )
+        messages.success(self.request, "Día no laborable eliminado correctamente.")
         return super().form_valid(form)

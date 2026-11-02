@@ -78,9 +78,7 @@ class Command(BaseCommand):
                 users_to_delete = User.objects.filter(
                     username__in=self.MANAGED_USERS.keys()
                 )
-                groups_to_delete = Group.objects.filter(
-                    name__in=self.MANAGED_GROUPS
-                )
+                groups_to_delete = Group.objects.filter(name__in=self.MANAGED_GROUPS)
                 count_users = users_to_delete.count()
                 count_groups = groups_to_delete.count()
                 users_to_delete.delete()
@@ -94,9 +92,7 @@ class Command(BaseCommand):
 
             # 1. Configuración de Grupos y Permisos
             # Admin_Institucional: Permisos totales CRUD (add, change, delete, view)
-            admin_group, _ = Group.objects.get_or_create(
-                name="Admin_Institucional"
-            )
+            admin_group, _ = Group.objects.get_or_create(name="Admin_Institucional")
             admin_perms = Permission.objects.filter(
                 Q(codename__startswith="add_")
                 | Q(codename__startswith="change_")
@@ -106,9 +102,7 @@ class Command(BaseCommand):
             admin_group.permissions.set(admin_perms)
 
             # Bedelia_Operadoras: Agregar, cambiar y ver (PROHIBIDO delete)
-            bedelia_group, _ = Group.objects.get_or_create(
-                name="Bedelia_Operadoras"
-            )
+            bedelia_group, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
             bedelia_perms = Permission.objects.filter(
                 Q(codename__startswith="add_")
                 | Q(codename__startswith="change_")
@@ -117,12 +111,8 @@ class Command(BaseCommand):
             bedelia_group.permissions.set(bedelia_perms)
 
             # Consulta_Directiva: Solo lectura (view)
-            consulta_group, _ = Group.objects.get_or_create(
-                name="Consulta_Directiva"
-            )
-            consulta_perms = Permission.objects.filter(
-                codename__startswith="view_"
-            )
+            consulta_group, _ = Group.objects.get_or_create(name="Consulta_Directiva")
+            consulta_perms = Permission.objects.filter(codename__startswith="view_")
             consulta_group.permissions.set(consulta_perms)
 
             groups_map = {

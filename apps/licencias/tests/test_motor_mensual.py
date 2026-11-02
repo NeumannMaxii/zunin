@@ -74,17 +74,13 @@ class MotorMensualPlanillaTests(TestCase):
 
         # Primera ejecución
         renglones_1 = generar_planilla_mes(mes=10, anio=2026, usuario=self.user)
-        total_1 = RenglonPlanillaMensual.objects.filter(
-            mes=10, anio=2026
-        ).count()
+        total_1 = RenglonPlanillaMensual.objects.filter(mes=10, anio=2026).count()
         self.assertEqual(len(renglones_1), 1)
         self.assertEqual(total_1, 1)
 
         # Segunda ejecución (debe hacer SKIP y no duplicar)
         renglones_2 = generar_planilla_mes(mes=10, anio=2026, usuario=self.user)
-        total_2 = RenglonPlanillaMensual.objects.filter(
-            mes=10, anio=2026
-        ).count()
+        total_2 = RenglonPlanillaMensual.objects.filter(mes=10, anio=2026).count()
         self.assertEqual(total_1, total_2)
         self.assertEqual(len(renglones_2), 1)
 
@@ -134,9 +130,7 @@ class MotorMensualPlanillaTests(TestCase):
             tipo_licencia=self.tipo_lic,
             creado_por=self.user,
         )
-        renglones_2026 = generar_planilla_mes(
-            mes=12, anio=2026, usuario=self.user
-        )
+        renglones_2026 = generar_planilla_mes(mes=12, anio=2026, usuario=self.user)
         self.assertEqual(len(renglones_2026), 1)
         self.assertTrue(renglones_2026[0].numero_instrumento.endswith("/2026"))
 
@@ -150,9 +144,7 @@ class MotorMensualPlanillaTests(TestCase):
             tipo_licencia=self.tipo_lic,
             creado_por=self.user,
         )
-        renglones_2027 = generar_planilla_mes(
-            mes=1, anio=2027, usuario=self.user
-        )
+        renglones_2027 = generar_planilla_mes(mes=1, anio=2027, usuario=self.user)
         self.assertEqual(len(renglones_2027), 1)
         # El contador se reinicia a 001 para el nuevo año
         self.assertEqual(renglones_2027[0].numero_instrumento, "001/2027")

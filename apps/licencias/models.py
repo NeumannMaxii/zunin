@@ -34,9 +34,7 @@ class TipoLicencia(models.Model):
         ("DL-02", "DL-02 - Inasistencias y Permisos (Compatibilidad)"),
     ]
 
-    codigo = models.CharField(
-        max_length=20, unique=True, verbose_name="Código"
-    )
+    codigo = models.CharField(max_length=20, unique=True, verbose_name="Código")
     articulo = models.CharField(
         max_length=50,
         blank=True,
@@ -61,9 +59,7 @@ class TipoLicencia(models.Model):
         default="CON_GOCE",
         verbose_name="Forma de Pago",
     )
-    goce_haberes = models.BooleanField(
-        default=True, verbose_name="Goce de Haberes"
-    )
+    goce_haberes = models.BooleanField(default=True, verbose_name="Goce de Haberes")
     tope_anual = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
@@ -208,16 +204,12 @@ class TipoLicencia(models.Model):
             },
             "340-C": {
                 "codigo": "LIC-340C",
-                "descripcion": (
-                    "Accidente de Trabajo / Enfermedad Profesional"
-                ),
+                "descripcion": ("Accidente de Trabajo / Enfermedad Profesional"),
                 "cuadro": "IL-01",
             },
             "340C": {
                 "codigo": "LIC-340C",
-                "descripcion": (
-                    "Accidente de Trabajo / Enfermedad Profesional"
-                ),
+                "descripcion": ("Accidente de Trabajo / Enfermedad Profesional"),
                 "cuadro": "IL-01",
             },
             "340-D": {
@@ -300,9 +292,7 @@ class RenglonPlanillaQuerySet(models.QuerySet):
         return self.filter(desactualizada=True)
 
 
-class RenglonPlanillaManager(
-    models.Manager.from_queryset(RenglonPlanillaQuerySet)
-):
+class RenglonPlanillaManager(models.Manager.from_queryset(RenglonPlanillaQuerySet)):
     """
     Custom Manager para RenglonPlanillaMensual (Ticket 10.4).
     Permite filtrar renglones vigentes o desactualizados.

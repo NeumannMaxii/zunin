@@ -113,9 +113,7 @@ class CrearUsuariosCommandTests(TestCase):
         )
 
         # Permisos operativos de carga (add y change) pero NO delete
-        self.assertTrue(
-            usuario_mudarte.has_perm("asistencia.add_registroasistencia")
-        )
+        self.assertTrue(usuario_mudarte.has_perm("asistencia.add_registroasistencia"))
         self.assertTrue(
             usuario_mudarte.has_perm("asistencia.change_registroasistencia")
         )

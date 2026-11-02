@@ -346,8 +346,7 @@ def importar_legajos_csv(
             materia_nombre = get_val("materia")
             codigo_materia = get_val("codigo_materia")
             carrera_nombre = (
-                get_val("carrera")
-                or "Tecnicatura Superior en Desarrollo de Software"
+                get_val("carrera") or "Tecnicatura Superior en Desarrollo de Software"
             )
             anio_str = get_val("anio", "1")
             try:
@@ -372,14 +371,11 @@ def importar_legajos_csv(
                 ).first()
                 if not espacio:
                     slug_base = (
-                        re.sub(r"[^A-Z0-9]", "", materia_nombre.upper())[:10]
-                        or "ESP"
+                        re.sub(r"[^A-Z0-9]", "", materia_nombre.upper())[:10] or "ESP"
                     )
                     codigo_gen = f"{slug_base}-01"
                     idx_gen = 1
-                    while EspacioCurricular.objects.filter(
-                        codigo=codigo_gen
-                    ).exists():
+                    while EspacioCurricular.objects.filter(codigo=codigo_gen).exists():
                         idx_gen += 1
                         codigo_gen = f"{slug_base}-{idx_gen:02d}"
                     espacio = EspacioCurricular.objects.create(

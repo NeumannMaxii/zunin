@@ -2,14 +2,17 @@
 Pruebas automatizadas para el Ticket 12: Consultas y Panel de Alertas (RF-18).
 
 Especificación Técnica:
-- Cálculo de Alertas: Fórmula (Faltas 'I' / Límite Legal Anual) * 100 (límite fijo de 15 días).
-- Optimización: annotate(Count(..., filter=Q(marca='I'))) con ExpressionWrapper sin iterar en memoria.
+- Cálculo de Alertas: Fórmula (Faltas 'I' / Límite Legal) * 100
+  (límite fijo de 15 días).
+- Optimización: annotate(Count(..., filter=Q(marca='I'))) con ExpressionWrapper
+  sin iterar en memoria.
 - Umbrales Visuales:
   - Supera 70% -> Alerta naranja (Precaución).
   - Supera 100% -> Alerta roja (Crítico).
 
 Criterios de Aceptación:
-- Un test verifica que un docente con 11 faltas sobre un límite de 15 dispara el umbral del 73% (Precaución).
+- Un test verifica que un docente con 11 faltas sobre un límite de 15 dispara
+  el umbral del 73% (Precaución).
 """
 
 import datetime
@@ -26,7 +29,8 @@ User = get_user_model()
 
 class Ticket12PanelAlertasTests(TestCase):
     """
-    Suite de pruebas para el Ticket 12 (RF-18: Panel de Alertas Preventivas de Inasistencias).
+    Suite de pruebas para el Ticket 12:
+    RF-18: Panel de Alertas Preventivas de Inasistencias.
     """
 
     def setUp(self):
@@ -46,7 +50,7 @@ class Ticket12PanelAlertasTests(TestCase):
             activo=True,
         )
 
-    def test_criterio_aceptacion_docente_con_11_faltas_dispara_umbral_73_porciento_precaucion(
+    def test_criterio_aceptacion_docente_con_11_faltas_dispara_umbral_73_porciento(
         self,
     ):
         """
@@ -75,14 +79,12 @@ class Ticket12PanelAlertasTests(TestCase):
 
         # Verificaciones del cálculo
         self.assertEqual(docente_anotado.faltas_count, 11)
-        self.assertAlmostEqual(
-            docente_anotado.porcentaje, 73.33333333333333, places=2
-        )
+        self.assertAlmostEqual(docente_anotado.porcentaje, 73.33333333333333, places=2)
         self.assertEqual(round(docente_anotado.porcentaje), 73)
         self.assertEqual(
             docente_anotado.nivel_alerta,
             "PRECAUCION",
-            "Un docente con 11 faltas sobre 15 debe estar en estado PRECAUCION (alerta naranja).",
+            "Un docente con 11 faltas sobre 15 debe estar en estado PRECAUCION.",
         )
 
     def test_docente_con_mas_de_100_porciento_dispara_alerta_roja_critico(self):
@@ -117,8 +119,8 @@ class Ticket12PanelAlertasTests(TestCase):
 
     def test_docente_con_menos_del_70_porciento_permanece_en_estado_normal(self):
         """
-        Verifica que un docente con inasistencias por debajo del 70% (ej: 8 faltas sobre 15 = 53.33%)
-        permanezca en nivel NORMAL.
+        Verifica que un docente con inasistencias por debajo del 70%
+        (ej: 8 faltas sobre 15 = 53.33%) permanezca en nivel NORMAL.
         """
         limite_legal = 15
         anio_actual = datetime.date.today().year

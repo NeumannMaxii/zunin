@@ -2,9 +2,10 @@
 Pruebas para el Ticket 11: Permisos Estrictos en Vistas (403).
 
 Especificación Técnica:
-- Protección Global: Aplicar @login_required en todas las vistas operativas (302 a login para anónimos).
-- Permisos de Escritura (POST): Validar permisos con raise_exception=True para que Django
-  devuelva un 403 estricto cuando un usuario intente forzar una acción que no le corresponde.
+- Protección Global: Aplicar @login_required en todas las vistas operativas
+  (redirección 302 al login para usuarios anónimos).
+- Permisos de Escritura (POST): Validar permisos con raise_exception=True
+  para devolver 403 estricto cuando un usuario intente forzar una acción.
 
 Criterios de Aceptación:
 1. Un usuario Directivo (solo lectura) intenta hacer POST a Asistencia y recibe 403.
@@ -18,7 +19,6 @@ from django.db.models import Q
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.asistencia.models import RegistroAsistencia
 from apps.personal.models import CargoDocente, Docente, EspacioCurricular
 
 User = get_user_model()
@@ -31,17 +31,10 @@ class Ticket11PermisosEstrictosTests(TestCase):
 
     def setUp(self):
         # 1. Configuración de Grupos
-        self.grupo_admin, _ = Group.objects.get_or_create(
-            name="Admin_Institucional"
-        )
-        self.grupo_bedelia, _ = Group.objects.get_or_create(
-            name="Bedelia_Operadoras"
-        )
-        self.grupo_directivo, _ = Group.objects.get_or_create(
-            name="Consulta_Directiva"
-        )
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_directivo, _ = Group.objects.get_or_create(name="Consulta_Directiva")
 
-        # Asignación de permisos según especificación Zunin
         perms_admin = Permission.objects.filter(
             Q(codename__startswith="add_")
             | Q(codename__startswith="change_")
@@ -57,12 +50,9 @@ class Ticket11PermisosEstrictosTests(TestCase):
         ).exclude(codename__startswith="delete_")
         self.grupo_bedelia.permissions.set(perms_bedelia)
 
-        perms_directivo = Permission.objects.filter(
-            codename__startswith="view_"
-        )
+        perms_directivo = Permission.objects.filter(codename__startswith="view_")
         self.grupo_directivo.permissions.set(perms_directivo)
 
-        # 2. Creación de Usuarios por Rol
         self.user_directivo = User.objects.create_user(
             username="directivo_t11", password="password123", is_staff=True
         )
@@ -78,7 +68,6 @@ class Ticket11PermisosEstrictosTests(TestCase):
         )
         self.user_admin.groups.add(self.grupo_admin)
 
-        # 3. Datos base para pruebas
         self.docente = Docente.objects.create(
             dni="30111222",
             apellido="GUTIERREZ",
@@ -100,13 +89,12 @@ class Ticket11PermisosEstrictosTests(TestCase):
         )
 
     # --------------------------------------------------------------------------
-    # CRITERIO DE ACEPTACIÓN 1: Directivo (solo lectura) intenta POST a Asistencia -> 403
+    # CRITERIO 1: Directivo (solo lectura) intenta POST a Asistencia -> 403
     # --------------------------------------------------------------------------
 
     def test_criterio_1_directivo_recibe_403_al_hacer_post_a_asistencia_diaria(self):
         """
-        Criterio 1: Un usuario Directivo (solo lectura) intenta hacer POST
-        a Asistencia Diaria y recibe HTTP 403 Forbidden estricto (no 302).
+        Criterio 1: Directivo intenta POST a Asistencia Diaria y recibe HTTP 403.
         """
         self.client.login(username="directivo_t11", password="password123")
         url = reverse("asistencia:asistencia_diaria")
@@ -156,13 +144,12 @@ class Ticket11PermisosEstrictosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Directivo debe recibir HTTP 403 Forbidden al hacer POST a Justificaciones Lote.",
+            "Directivo debe recibir 403 al hacer POST a Justificaciones Lote.",
         )
 
     def test_directivo_puede_hacer_get_a_asistencia_solo_lectura(self):
         """
-        Verifica que el usuario Directivo SÍ tenga acceso de solo lectura (GET)
-        a la planilla de asistencia diaria.
+        Verifica que el usuario Directivo SÍ tenga acceso de solo lectura (GET).
         """
         self.client.login(username="directivo_t11", password="password123")
         url = reverse("asistencia:asistencia_diaria")
@@ -171,14 +158,12 @@ class Ticket11PermisosEstrictosTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     # --------------------------------------------------------------------------
-    # CRITERIO DE ACEPTACIÓN 2: Bedelía intenta POST al endpoint de Baja -> 403
+    # CRITERIO 2: Bedelía intenta POST al endpoint de Baja -> 403
     # --------------------------------------------------------------------------
 
     def test_criterio_2_bedelia_recibe_403_al_hacer_post_a_baja_docente(self):
         """
-        Criterio 2: Un usuario de Bedelía intenta hacer POST al endpoint de
-        Baja de Docente y recibe HTTP 403 Forbidden estricto.
-        El docente debe continuar activo.
+        Criterio 2: Bedelía intenta hacer POST a Baja de Docente y recibe HTTP 403.
         """
         self.client.login(username="bedelia_t11", password="password123")
         url_baja = reverse("personal:docente_baja", kwargs={"pk": self.docente.pk})
@@ -187,18 +172,22 @@ class Ticket11PermisosEstrictosTests(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Bedelía debe recibir HTTP 403 Forbidden al hacer POST a baja de docente.",
+            "Bedelía debe recibir 403 Forbidden al hacer POST a baja de docente.",
         )
 
         self.docente.refresh_from_db()
-        self.assertTrue(self.docente.activo, "El docente no debe haber sido dado de baja.")
+        self.assertTrue(
+            self.docente.activo, "El docente no debe haber sido dado de baja."
+        )
 
     def test_criterio_2_bedelia_recibe_403_al_hacer_post_a_baja_docente_alias(self):
         """
-        Criterio 2: Bedelía recibe 403 también en la ruta alias /personal/docentes/<pk>/baja/.
+        Criterio 2: Bedelía recibe 403 en ruta alias /personal/docentes/<pk>/baja/.
         """
         self.client.login(username="bedelia_t11", password="password123")
-        url_alias = reverse("personal:docente_baja_alias", kwargs={"pk": self.docente.pk})
+        url_alias = reverse(
+            "personal:docente_baja_alias", kwargs={"pk": self.docente.pk}
+        )
 
         response = self.client.post(url_alias)
         self.assertEqual(response.status_code, 403)
@@ -208,17 +197,18 @@ class Ticket11PermisosEstrictosTests(TestCase):
 
     def test_criterio_2_bedelia_recibe_403_al_hacer_post_a_baja_cargo(self):
         """
-        Criterio 2: Bedelía recibe 403 al hacer POST al endpoint de cese de CargoDocente.
-        El cargo debe continuar activo y sin fecha de baja.
+        Criterio 2: Bedelía recibe 403 al hacer POST al cese de CargoDocente.
         """
         self.client.login(username="bedelia_t11", password="password123")
-        url_cargo_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo.pk})
+        url_cargo_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo.pk}
+        )
 
         response = self.client.post(url_cargo_baja)
         self.assertEqual(
             response.status_code,
             403,
-            "Bedelía debe recibir HTTP 403 Forbidden al hacer POST al cese de cargo.",
+            "Bedelía debe recibir 403 Forbidden al hacer POST al cese de cargo.",
         )
 
         self.cargo.refresh_from_db()
@@ -227,20 +217,19 @@ class Ticket11PermisosEstrictosTests(TestCase):
 
     def test_admin_puede_hacer_post_a_baja_docente_y_cargo(self):
         """
-        Valida que el usuario Administrador sí tenga autorización para ejecutar
-        la baja lógica de docente y el cese de cargo puntual.
+        Valida que el Administrador sí tenga autorización para ejecutar bajas.
         """
         self.client.login(username="admin_t11", password="password123")
 
-        # Cese de cargo por admin
-        url_cargo_baja = reverse("personal:cargodocente_baja", kwargs={"pk": self.cargo.pk})
+        url_cargo_baja = reverse(
+            "personal:cargodocente_baja", kwargs={"pk": self.cargo.pk}
+        )
         resp_cargo = self.client.post(url_cargo_baja)
         self.assertEqual(resp_cargo.status_code, 302)
         self.cargo.refresh_from_db()
         self.assertFalse(self.cargo.activo)
         self.assertEqual(self.cargo.fecha_baja, datetime.date.today())
 
-        # Baja de docente por admin
         url_doc_baja = reverse("personal:docente_baja", kwargs={"pk": self.docente.pk})
         resp_doc = self.client.post(url_doc_baja)
         self.assertEqual(resp_doc.status_code, 302)
@@ -251,11 +240,12 @@ class Ticket11PermisosEstrictosTests(TestCase):
     # PROTECCIÓN GLOBAL (@login_required / LoginRequiredMixin)
     # --------------------------------------------------------------------------
 
-    def test_proteccion_global_anonimo_redirige_a_login_en_todas_vistas_operativas(self):
+    def test_proteccion_global_anonimo_redirige_a_login_en_todas_vistas_operativas(
+        self,
+    ):
         """
         Verifica que los intentos de acceso no autenticado a las rutas operativas
-        del sistema redirijan al formulario de login (HTTP 302 con ?next=...),
-        cumpliendo la protección global.
+        del sistema redirijan al formulario de login (HTTP 302 con ?next=...).
         """
         rutas_operativas = [
             reverse("core:dashboard_home"),
@@ -284,7 +274,7 @@ class Ticket11PermisosEstrictosTests(TestCase):
                 self.assertEqual(
                     resp.status_code,
                     302,
-                    f"Ruta {ruta} debe redirigir a login para usuarios no autenticados.",
+                    f"Ruta {ruta} debe redirigir a login para no autenticados.",
                 )
                 self.assertIn(
                     "/accounts/login/",
@@ -299,10 +289,13 @@ class Ticket11PermisosEstrictosTests(TestCase):
         """
         self.client.login(username="directivo_t11", password="password123")
 
-        # Intentos de POST o acceso prohibido
         rutas_restringidas = [
             ("POST", reverse("asistencia:asistencia_diaria"), {"fecha": "2026-11-04"}),
-            ("POST", reverse("personal:docente_baja", kwargs={"pk": self.docente.pk}), {}),
+            (
+                "POST",
+                reverse("personal:docente_baja", kwargs={"pk": self.docente.pk}),
+                {},
+            ),
             ("GET", reverse("personal:docente_create"), {}),
             ("GET", reverse("personal:catalogos_hub"), {}),
             ("GET", reverse("personal:importar_csv"), {}),
@@ -318,5 +311,5 @@ class Ticket11PermisosEstrictosTests(TestCase):
                 self.assertEqual(
                     resp.status_code,
                     403,
-                    f"{metodo} {ruta} debe devolver 403 Forbidden y no redirigir al login.",
+                    f"{metodo} {ruta} debe devolver 403 y no redirigir al login.",
                 )

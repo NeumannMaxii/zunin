@@ -40,9 +40,7 @@ def dashboard_home(request):
     total_precaucion = sum(
         1 for d in docentes_alertas if d.nivel_alerta == "PRECAUCION"
     )
-    total_critico = sum(
-        1 for d in docentes_alertas if d.nivel_alerta == "CRITICO"
-    )
+    total_critico = sum(1 for d in docentes_alertas if d.nivel_alerta == "CRITICO")
 
     context = {
         "titulo": "Dashboard Institucional",
@@ -55,4 +53,3 @@ def dashboard_home(request):
         "total_critico": total_critico,
     }
     return render(request, "core/dashboard.html", context)
-

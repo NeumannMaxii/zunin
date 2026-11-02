@@ -19,9 +19,7 @@ def audit_save(obj, user, created=False):
     - Finalmente ejecuta obj.full_clean() y obj.save().
     """
     audit_user = (
-        user
-        if (user is not None and getattr(user, "is_authenticated", True))
-        else None
+        user if (user is not None and getattr(user, "is_authenticated", True)) else None
     )
 
     if (

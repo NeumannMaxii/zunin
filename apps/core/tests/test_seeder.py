@@ -42,9 +42,7 @@ class SeederDemoTests(TestCase):
         self.assertTrue(TipoLicencia.objects.filter(codigo="LIC-340A").exists())
         self.assertTrue(TipoLicencia.objects.filter(codigo="LIC-344").exists())
         self.assertTrue(
-            DiaNoLaborable.objects.filter(
-                fecha=datetime.date(2026, 10, 12)
-            ).exists()
+            DiaNoLaborable.objects.filter(fecha=datetime.date(2026, 10, 12)).exists()
         )
 
     def test_seeder_puebla_mes_completo_octubre_2026_con_marcas_requeridas(self):
@@ -82,9 +80,7 @@ class SeederDemoTests(TestCase):
 
         # Validar que los feriados no tengan asistencias registradas
         self.assertFalse(
-            asistencias_octubre.filter(
-                fecha=datetime.date(2026, 10, 12)
-            ).exists()
+            asistencias_octubre.filter(fecha=datetime.date(2026, 10, 12)).exists()
         )
 
     def test_seeder_idempotencia_dos_ejecuciones_no_duplican(self):
@@ -134,9 +130,7 @@ class SeederDemoTests(TestCase):
 
         self.assertGreater(len(renglones), 0)
         self.assertEqual(
-            RenglonPlanillaMensual.objects.filter(
-                mes=10, anio=2026
-            ).count(),
+            RenglonPlanillaMensual.objects.filter(mes=10, anio=2026).count(),
             len(renglones),
         )
 
@@ -161,7 +155,5 @@ class SeederDemoTests(TestCase):
             ).exists()
         )
         self.assertTrue(
-            RenglonPlanillaMensual.objects.filter(
-                mes=10, anio=2026
-            ).exists()
+            RenglonPlanillaMensual.objects.filter(mes=10, anio=2026).exists()
         )

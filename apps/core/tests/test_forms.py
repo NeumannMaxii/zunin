@@ -21,9 +21,7 @@ class TailwindFormsCoreTests(SimpleTestCase):
         form = DummyForm()
 
         # Input texto
-        self.assertIn(
-            "border-slate-300", form.fields["nombre"].widget.attrs["class"]
-        )
+        self.assertIn("border-slate-300", form.fields["nombre"].widget.attrs["class"])
         self.assertIn(
             "focus:ring-institucional-600",
             form.fields["nombre"].widget.attrs["class"],
@@ -33,18 +31,14 @@ class TailwindFormsCoreTests(SimpleTestCase):
         self.assertEqual(form.fields["fecha"].widget.attrs.get("type"), "date")
 
         # Select
-        self.assertIn(
-            "border-slate-300", form.fields["opcion"].widget.attrs["class"]
-        )
+        self.assertIn("border-slate-300", form.fields["opcion"].widget.attrs["class"])
 
         # Textarea
         self.assertIn("rows", form.fields["descripcion"].widget.attrs)
         self.assertEqual(form.fields["descripcion"].widget.attrs["rows"], 3)
 
         # Checkbox
-        self.assertIn(
-            "cursor-pointer", form.fields["activo"].widget.attrs["class"]
-        )
+        self.assertIn("cursor-pointer", form.fields["activo"].widget.attrs["class"])
 
     def test_campos_con_error_reciben_clases_visuales_de_alerta(self):
         """Los campos con error incorporan clases de alerta roja."""

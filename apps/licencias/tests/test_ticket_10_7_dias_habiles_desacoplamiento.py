@@ -219,9 +219,7 @@ class Ticket10_7FlexibilizacionDiasHabilesTests(TestCase):
             self.assertEqual(reg.oficina, "8888")
 
             # 2. En generación de planilla mensual
-            renglones = generar_planilla_mes(
-                mes=9, anio=2026, usuario=self.user
-            )
+            renglones = generar_planilla_mes(mes=9, anio=2026, usuario=self.user)
             self.assertTrue(len(renglones) > 0)
             for r in renglones:
                 self.assertEqual(r.oficina, "8888")

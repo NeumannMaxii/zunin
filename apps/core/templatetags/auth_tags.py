@@ -23,10 +23,7 @@ def es_administrador(user):
     """
     if not user or not user.is_authenticated:
         return False
-    return (
-        user.is_superuser
-        or user.groups.filter(name="Admin_Institucional").exists()
-    )
+    return user.is_superuser or user.groups.filter(name="Admin_Institucional").exists()
 
 
 @register.filter(name="puede_gestionar_asistencia")
