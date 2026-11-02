@@ -6,6 +6,7 @@ Implementa el motor de generación mensual consolidada (RN-11).
 import datetime
 import unicodedata
 from django.apps import apps
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from apps.core.audit import audit_save
@@ -181,9 +182,19 @@ def generar_planilla_mes(mes, anio, usuario=None):
                             days=1
                         )
                         todos_no_habiles = True
+                        cargo_actual = (
+                            current_block.get("cargo_fijado") or reg.cargo
+                        )
                         while dia < r_desde:
+                            if cargo_actual:
+                                tiene_clases = (
+                                    cargo_actual.obtener_horas_en_fecha(dia) > 0
+                                )
+                            else:
+                                tiene_clases = dia.weekday() < 5
+
                             if (
-                                dia.weekday() < 5
+                                tiene_clases
                                 and dia not in dias_no_laborables
                             ):
                                 todos_no_habiles = False
@@ -312,7 +323,9 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         cuadro=bloque["cuadro"],
                         mes=mes,
                         anio=anio,
-                        oficina="1452",
+                        oficina=getattr(
+                            settings, "DEFAULT_OFICINA_CODE", "1452"
+                        ),
                         desde=bloque["desde"],
                         hasta=bloque["hasta"],
                         horas_afectadas=horas,
@@ -390,12 +403,28 @@ def procesar_justificacion_rango(
         ).values_list("fecha", flat=True)
     )
 
-    # Identificar días hábiles a justificar (omitiendo fines de semana y feriados)
+    # Identificar días con carga horaria a justificar (Ticket 10.7)
     dias_a_justificar = []
     dia_cursor = fecha_desde
     while dia_cursor <= fecha_hasta:
-        # Saltear fines de semana (5 = Sábado, 6 = Domingo) y feriados
-        if dia_cursor.weekday() < 5 and dia_cursor not in feriados_fechas:
+        # Evaluación dinámica: verificar si el cargo tiene clases en la fecha
+        if cargo:
+            tiene_clases = cargo.obtener_horas_en_fecha(dia_cursor) > 0
+        else:
+            cargos_activos = (
+                list(docente.cargos.filter(activo=True))
+                if hasattr(docente, "cargos")
+                else []
+            )
+            if cargos_activos:
+                tiene_clases = any(
+                    c.obtener_horas_en_fecha(dia_cursor) > 0
+                    for c in cargos_activos
+                )
+            else:
+                tiene_clases = dia_cursor.weekday() < 5
+
+        if tiene_clases and dia_cursor not in feriados_fechas:
             dias_a_justificar.append(dia_cursor)
         dia_cursor += datetime.timedelta(days=1)
 
@@ -464,6 +493,7 @@ def procesar_justificacion_rango(
                     justifica=True,
                     numero_disposicion=num_final,
                     observaciones=observaciones or "",
+                    oficina=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
                 )
                 audit_save(nuevo_reg, user=usuario, created=True)
                 registros_guardados.append(nuevo_reg)

@@ -21,6 +21,7 @@ env = environ.Env(
     DB_PASSWORD=(str, ""),
     DB_HOST=(str, "127.0.0.1"),
     DB_PORT=(str, "3306"),
+    DEFAULT_OFICINA_CODE=(str, "1452"),
 )
 
 # Read .env file if it exists
@@ -32,6 +33,9 @@ if env_file.exists():
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+
+# Institucional (RN-07, Ticket 10.7)
+DEFAULT_OFICINA_CODE = env("DEFAULT_OFICINA_CODE")
 
 # Application definition
 INSTALLED_APPS = [
