@@ -263,31 +263,21 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         return response
 
 
-class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
+from apps.core.mixins import PermisosEstrictosMixin
+
+
+class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
     """
     Ticket 9 y Ticket 10.3:
     Permite modificar el Tipo de Licencia / Artículo de un Renglón y/o
     conmutar su instrumento entre Disposición Interna y Resolución Ministerial externa
     con su correspondiente número oficial.
-    Blindaje de permisos backend (Ticket 10.6): Restringe el endpoint POST a
+    Blindaje de permisos backend (Ticket 10.6 y Ticket 11): Restringe el endpoint POST a
     roles operativos (Admin_Institucional o Bedelia_Operadoras). Consulta_Directiva
     recibe HTTP 403 Forbidden.
     """
 
     raise_exception = True
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
-
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-        from django.core.exceptions import PermissionDenied
-
-        raise PermissionDenied(self.get_permission_denied_message())
 
     def test_func(self):
         user = self.request.user
@@ -368,13 +358,12 @@ class CambiarLicenciaRenglonView(LoginRequiredMixin, UserPassesTestMixin, View):
 ActualizarInstrumentoRenglonView = CambiarLicenciaRenglonView
 
 
-class JustificacionDiferidaView(
-    LoginRequiredMixin, UserPassesTestMixin, FormView
-):
+class JustificacionDiferidaView(PermisosEstrictosMixin, FormView):
     """
-    Vista protegida para procesar justificaciones diferidas (Ticket 7 y RN-03).
+    Vista protegida para procesar justificaciones diferidas (Ticket 7, RN-03 y Ticket 11).
     Permisos: Solo accesible para Admin_Institucional y Bedelia_Operadoras.
-    Usuarios del grupo Consulta_Directiva o no autenticados reciben 403 Forbidden.
+    Usuarios no autenticados son redirigidos a login (302).
+    Usuarios del grupo Consulta_Directiva u otros sin privilegios reciben 403 Forbidden.
     """
 
     template_name = "licencias/justificacion_diferida.html"

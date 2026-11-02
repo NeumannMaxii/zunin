@@ -14,6 +14,7 @@ from django.views import View
 from django.views.generic import CreateView, ListView, TemplateView, UpdateView
 from django.views.generic.edit import FormView
 from apps.core.audit import AuditoriaFormMixin, audit_save
+from apps.core.mixins import PermisosEstrictosMixin
 from apps.personal.forms import (
     CargoCatalogoForm,
     CarreraForm,
@@ -46,7 +47,7 @@ class DocenteListView(LoginRequiredMixin, ListView):
 
 
 class DocenteCreateView(
-    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, CreateView
+    PermisosEstrictosMixin, AuditoriaFormMixin, CreateView
 ):
     """
     Vista para el alta de un nuevo legajo docente (Ticket 6).
@@ -110,7 +111,7 @@ class DocenteCreateView(
 
 
 class DocenteUpdateView(
-    LoginRequiredMixin, UserPassesTestMixin, AuditoriaFormMixin, UpdateView
+    PermisosEstrictosMixin, AuditoriaFormMixin, UpdateView
 ):
     """
     Vista de edición para actualizar datos filiatorios y legajo (Ticket 6).
@@ -176,7 +177,7 @@ class DocenteUpdateView(
         return response
 
 
-class DocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+class DocenteBajaView(PermisosEstrictosMixin, View):
     """
     Endpoint de baja lógica para Docentes (Ticket 6).
     Ruta protegida: POST /personal/<pk>/baja/.
@@ -232,7 +233,7 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
     ordering = ["docente__apellido", "docente__nombre"]
 
 
-class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
+class CargoDocenteBajaView(PermisosEstrictosMixin, View):
     """
     Endpoint de baja lógica / cese de designación puntual (Ticket 10.2).
     Ruta protegida: POST /personal/cargos/<pk>/baja/.
@@ -291,7 +292,7 @@ class CargoDocenteBajaView(LoginRequiredMixin, UserPassesTestMixin, View):
         return redirect(next_url)
 
 
-class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+class ImportarCSVView(PermisosEstrictosMixin, FormView):
     """
     Vista para importar docentes y cargos desde un archivo CSV.
     Acceso restringido exclusivamente a Superusuarios o usuarios
@@ -355,15 +356,15 @@ class ImportarCSVView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 # ==============================================================================
 
 
-class SoloAdminInstitucionalMixin(LoginRequiredMixin, UserPassesTestMixin):
+class SoloAdminInstitucionalMixin(PermisosEstrictosMixin):
     """
     Mixin para restringir el acceso exclusivamente a Superusuarios y
-    miembros del grupo Admin_Institucional (Ticket 10.1).
+    miembros del grupo Admin_Institucional (Ticket 10.1 y Ticket 11).
     Los usuarios no autenticados son redirigidos a la pantalla de login (302).
     Los usuarios autenticados sin el rol adecuado reciben HTTP 403 Forbidden.
     """
 
-    raise_exception = False
+    raise_exception = True
 
     def test_func(self):
         user = self.request.user
@@ -373,19 +374,6 @@ class SoloAdminInstitucionalMixin(LoginRequiredMixin, UserPassesTestMixin):
             user.is_superuser
             or user.groups.filter(name="Admin_Institucional").exists()
         )
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
-
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-        from django.core.exceptions import PermissionDenied
-
-        raise PermissionDenied(self.get_permission_denied_message())
 
 
 class CatalogosHubView(SoloAdminInstitucionalMixin, TemplateView):

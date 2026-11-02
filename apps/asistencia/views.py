@@ -28,27 +28,16 @@ from apps.licencias.models import TipoLicencia
 from apps.personal.models import CargoDocente, Docente
 
 
-class BackendPermisoMixin(LoginRequiredMixin, UserPassesTestMixin):
+from apps.core.mixins import PermisosEstrictosMixin
+
+
+class BackendPermisoMixin(PermisosEstrictosMixin):
     """
-    Mixin base para blindaje de permisos backend (Ticket 10.6).
+    Mixin base para blindaje de permisos backend (Ticket 10.6 y Ticket 11).
     Redirige usuarios anónimos al login (302) y rechaza con 403 Forbidden estricto
     a usuarios autenticados que no posean el rol o privilegios requeridos.
     """
 
-    raise_exception = True
-
-    def handle_no_permission(self):
-        if not self.request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
-
-            return redirect_to_login(
-                self.request.get_full_path(),
-                self.get_login_url(),
-                self.get_redirect_field_name(),
-            )
-        from django.core.exceptions import PermissionDenied
-
-        raise PermissionDenied(self.get_permission_denied_message())
 
 
 class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
