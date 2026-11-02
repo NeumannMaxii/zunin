@@ -466,16 +466,22 @@ class DiaNoLaborableABMTests(TestCase):
 
     def setUp(self):
         User = get_user_model()
+        from django.contrib.auth.models import Group
+
         self.user = User.objects.create_user(
             username="operador_bedelia",
             password="password123",
             email="operador@iesetyfp.edu.ar",
         )
+        admin_group, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.user.groups.add(admin_group)
         self.otro_user = User.objects.create_user(
             username="otro_operador",
             password="password123",
             email="otro@iesetyfp.edu.ar",
         )
+        bedelia_group, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.otro_user.groups.add(bedelia_group)
         self.feriado = DiaNoLaborable.objects.create(
             fecha=datetime.date(2026, 12, 8),
             tipo="FERIADO",
@@ -953,4 +959,250 @@ class Ticket10_5RendimientoTests(TestCase):
             len(select_range),
             1,
             "Debe existir al menos una consulta con fecha__range (BETWEEN).",
+        )
+
+
+class Ticket10_6BlindajePermisosTests(TestCase):
+    """
+    Pruebas para el Ticket 10.6:
+    Blindaje de Permisos Backend y Rechazo 403 Estricto en Asistencia y Feriados.
+    Criterios de Aceptación:
+    1. Un usuario Consulta_Directiva recibe error 403 al enviar POST a los
+       endpoints de asistencia y feriados.
+    2. Un usuario Bedelia_Operadoras recibe error 403 al intentar eliminar un feriado.
+    3. Bedelía y Admin pueden operar y crear/editar feriados y cargar asistencia.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        from django.contrib.auth.models import Group
+
+        self.grupo_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.grupo_bedelia, _ = Group.objects.get_or_create(
+            name="Bedelia_Operadoras"
+        )
+        self.grupo_consulta, _ = Group.objects.get_or_create(
+            name="Consulta_Directiva"
+        )
+
+        self.user_consulta = User.objects.create_user(
+            username="consulta_asist", password="password123"
+        )
+        self.user_consulta.groups.add(self.grupo_consulta)
+
+        self.user_bedelia = User.objects.create_user(
+            username="bedelia_asist", password="password123"
+        )
+        self.user_bedelia.groups.add(self.grupo_bedelia)
+
+        self.user_admin = User.objects.create_user(
+            username="admin_asist_perm", password="password123"
+        )
+        self.user_admin.groups.add(self.grupo_admin)
+
+        self.docente = Docente.objects.create(
+            dni="29000111",
+            apellido="FERRER",
+            nombre="Lucas",
+            sexo="M",
+            activo=True,
+        )
+        self.feriado = DiaNoLaborable.objects.create(
+            fecha=datetime.date(2026, 11, 20),
+            tipo="FERIADO",
+            descripcion="Día de la Soberanía",
+            creado_por=self.user_admin,
+        )
+
+    def test_criterio_consulta_directiva_recibe_403_post_asistencia_diaria(self):
+        """
+        Criterio de Aceptación:
+        Consulta_Directiva recibe HTTP 403 al enviar POST a AsistenciaDiariaView.
+        """
+        self.client.login(username="consulta_asist", password="password123")
+        url = reverse("asistencia:asistencia_diaria")
+        response = self.client.post(
+            url,
+            {
+                "fecha": "2026-11-03",
+                f"estado_{self.docente.id}": "PRESENTE",
+                f"marca_diaria_{self.docente.id}": "PR",
+            },
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            ("Consulta_Directiva debe recibir 403 Forbidden "
+             "al hacer POST a asistencia diaria."),
+        )
+
+    def test_criterio_consulta_directiva_recibe_403_post_carga_masiva(self):
+        """
+        Criterio de Aceptación:
+        Consulta_Directiva recibe HTTP 403 al enviar POST a CargaDiariaMasivaView.
+        """
+        self.client.login(username="consulta_asist", password="password123")
+        url = reverse("asistencia:carga_masiva")
+        response = self.client.post(
+            url,
+            {
+                "fecha": "2026-11-03",
+                f"estado_{self.docente.id}": "PRESENTE",
+                f"marca_diaria_{self.docente.id}": "PR",
+            },
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            ("Consulta_Directiva debe recibir 403 Forbidden "
+             "al hacer POST a carga masiva."),
+        )
+
+    def test_criterio_consulta_directiva_recibe_403_post_justificaciones_lote(
+        self,
+    ):
+        """
+        Criterio de Aceptación:
+        Consulta_Directiva recibe HTTP 403 al enviar POST a JustificacionesLoteView.
+        """
+        self.client.login(username="consulta_asist", password="password123")
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.post(url, {"items": ["item1"]})
+        self.assertEqual(
+            response.status_code,
+            403,
+            ("Consulta_Directiva debe recibir 403 Forbidden "
+             "al hacer POST a justificaciones lote."),
+        )
+
+    def test_criterio_consulta_directiva_recibe_403_en_feriados_create_update_delete(
+        self,
+    ):
+        """
+        Consulta_Directiva recibe HTTP 403 al intentar crear, editar
+        o eliminar feriados.
+        """
+        self.client.login(username="consulta_asist", password="password123")
+
+        # Create
+        resp_create = self.client.post(
+            reverse("asistencia:feriado_create"),
+            {
+                "fecha": "2026-12-25",
+                "tipo": "FERIADO",
+                "descripcion": "Navidad",
+            },
+        )
+        self.assertEqual(resp_create.status_code, 403)
+
+        # Update
+        resp_update = self.client.post(
+            reverse("asistencia:feriado_update", args=[self.feriado.pk]),
+            {
+                "fecha": "2026-11-20",
+                "tipo": "ASUETO",
+                "descripcion": "Modificado",
+            },
+        )
+        self.assertEqual(resp_update.status_code, 403)
+
+        # Delete
+        resp_delete = self.client.post(
+            reverse("asistencia:feriado_delete", args=[self.feriado.pk])
+        )
+        self.assertEqual(resp_delete.status_code, 403)
+
+    def test_criterio_bedelia_operadoras_recibe_403_eliminar_feriado(self):
+        """
+        Criterio de Aceptación:
+        Un usuario Bedelia_Operadoras recibe error 403 al intentar eliminar un feriado.
+        """
+        self.client.login(username="bedelia_asist", password="password123")
+        delete_url = reverse(
+            "asistencia:feriado_delete", args=[self.feriado.pk]
+        )
+
+        # GET confirmación debe dar 403
+        resp_get = self.client.get(delete_url)
+        self.assertEqual(
+            resp_get.status_code,
+            403,
+            "Bedelía debe recibir 403 en GET confirmación de eliminar feriado.",
+        )
+
+        # POST eliminación debe dar 403 y no borrar el registro
+        resp_post = self.client.post(delete_url)
+        self.assertEqual(
+            resp_post.status_code,
+            403,
+            "Bedelía debe recibir 403 al ejecutar POST para eliminar feriado.",
+        )
+        self.assertTrue(
+            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
+        )
+
+    def test_bedelia_operadoras_puede_cargar_asistencia_y_crear_editar_feriado(
+        self,
+    ):
+        """
+        Valida que Bedelia_Operadoras sí tenga acceso operativo a POST de asistencia
+        y a Crear / Editar feriados.
+        """
+        self.client.login(username="bedelia_asist", password="password123")
+
+        # Cargar asistencia
+        resp_asist = self.client.post(
+            reverse("asistencia:carga_masiva"),
+            {
+                "fecha": "2026-11-03",
+                f"estado_{self.docente.id}": "PRESENTE",
+                f"marca_diaria_{self.docente.id}": "PR",
+            },
+            follow=False,
+        )
+        self.assertEqual(resp_asist.status_code, 302)
+
+        # Crear feriado
+        resp_create = self.client.post(
+            reverse("asistencia:feriado_create"),
+            {
+                "fecha": "2026-12-25",
+                "tipo": "FERIADO",
+                "descripcion": "Navidad 2026",
+            },
+            follow=False,
+        )
+        self.assertEqual(resp_create.status_code, 302)
+
+        # Editar feriado
+        resp_update = self.client.post(
+            reverse("asistencia:feriado_update", args=[self.feriado.pk]),
+            {
+                "fecha": "2026-11-20",
+                "tipo": "ASUETO",
+                "descripcion": "Soberanía Nacional",
+            },
+            follow=False,
+        )
+        self.assertEqual(resp_update.status_code, 302)
+
+    def test_admin_institucional_puede_eliminar_feriado(self):
+        """
+        Valida que un usuario de Admin_Institucional pueda eliminar un
+        feriado con éxito.
+        """
+        self.client.login(username="admin_asist_perm", password="password123")
+        delete_url = reverse(
+            "asistencia:feriado_delete", args=[self.feriado.pk]
+        )
+
+        resp_get = self.client.get(delete_url)
+        self.assertEqual(resp_get.status_code, 200)
+
+        resp_post = self.client.post(delete_url, follow=False)
+        self.assertEqual(resp_post.status_code, 302)
+        self.assertFalse(
+            DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists()
         )
