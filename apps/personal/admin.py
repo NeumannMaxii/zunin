@@ -78,7 +78,14 @@ class EspacioCurricularAdmin(admin.ModelAdmin):
         "aula",
     )
     list_filter = ("carrera", "anio", "turno", "regimen", "comision")
-    search_fields = ("codigo", "nombre", "carrera", "plan_estudio", "aula")
+    search_fields = (
+        "codigo",
+        "nombre",
+        "carrera__nombre",
+        "carrera__codigo",
+        "plan_estudio",
+        "aula",
+    )
     ordering = ("carrera", "anio", "nombre")
 
 

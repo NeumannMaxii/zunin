@@ -309,7 +309,12 @@ class EspacioCurricular(models.Model):
         max_length=30, unique=True, verbose_name="Código de Espacio"
     )
     nombre = models.CharField(max_length=150, verbose_name="Nombre de la Asignatura")
-    carrera = models.CharField(max_length=150, verbose_name="Carrera")
+    carrera = models.ForeignKey(
+        Carrera,
+        on_delete=models.PROTECT,
+        related_name="espacios_curriculares",
+        verbose_name="Carrera",
+    )
     anio = models.PositiveSmallIntegerField(verbose_name="Año de la Carrera")
     comision = models.CharField(
         max_length=10,
@@ -351,8 +356,36 @@ class EspacioCurricular(models.Model):
         ordering = ["carrera", "anio", "nombre"]
         db_table = "gestion_asistencia_espaciocurricular"
 
+    def __init__(self, *args, **kwargs):
+        carrera_val = kwargs.get("carrera")
+        if isinstance(carrera_val, str):
+            carrera_val_limpio = carrera_val.strip()
+            carrera_obj = Carrera.objects.filter(
+                models.Q(nombre__iexact=carrera_val_limpio)
+                | models.Q(codigo__iexact=carrera_val_limpio)
+            ).first()
+            if not carrera_obj:
+                cod_base = (
+                    re.sub(r"[^A-Z0-9]", "", carrera_val_limpio.upper())[:6] or "CAR"
+                )
+                cod = cod_base
+                idx = 1
+                while Carrera.objects.filter(codigo=cod).exists():
+                    idx += 1
+                    cod = f"{cod_base}{idx}"
+                carrera_obj = Carrera.objects.create(
+                    codigo=cod,
+                    nombre=carrera_val_limpio,
+                    activo=True,
+                )
+            kwargs["carrera"] = carrera_obj
+        super().__init__(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.codigo} - {self.nombre} ({self.carrera} - {self.anio}° Año)"
+        carrera_nom = (
+            getattr(self.carrera, "nombre", str(self.carrera)) if self.carrera else ""
+        )
+        return f"{self.codigo} - {self.nombre} ({carrera_nom} - {self.anio}° Año)"
 
 
 class CargoDocenteQuerySet(models.QuerySet):
