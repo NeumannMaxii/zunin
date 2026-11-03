@@ -275,7 +275,7 @@ class AtomicidadAsistenciaTests(TestCase):
         Verifica que ante un fallo en el lote, si se provee el objeto request,
         se agregue un mensaje con nivel ERROR mediante django.contrib.messages.error().
         """
-        request = self.factory.post("/asistencia/carga-masiva/")
+        request = self.factory.post("/asistencia/diaria/")
         setattr(request, "session", "session")
         messages_storage = FallbackStorage(request)
         setattr(request, "_messages", messages_storage)
@@ -415,35 +415,39 @@ class AsistenciaPermisosVisualesTests(TestCase):
     def test_botones_carga_masiva_ocultos_para_consulta_directiva(self):
         """
         Valida que un usuario de Consulta_Directiva no vea los botones
-        de '+ Carga Masiva' ni 'Justificaciones por Lote'.
+        de '+ Cargar Asistencia Diaria' ni 'Justificaciones por Lote'.
         """
         from django.urls import reverse
 
         self.client.login(username="consulta_user", password="password123")
         response = self.client.get(reverse("asistencia:asistencia_list"))
         self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "+ Cargar Asistencia Diaria")
         self.assertNotContains(response, "+ Carga Masiva")
         self.assertNotContains(response, "Justificaciones por Lote")
-        self.assertNotContains(response, reverse("asistencia:carga_masiva"))
+        self.assertNotContains(response, reverse("asistencia:asistencia_diaria"))
         self.assertNotContains(response, reverse("asistencia:justificaciones_lote"))
 
     def test_botones_carga_masiva_visibles_para_bedelia_y_admin(self):
         """
         Valida que usuarios con privilegios operativos (Bedelía) o de administración
-        sí visualicen los botones de acción en el listado.
+        sí visualicen los botones de acción en el listado con la etiqueta
+        '+ Cargar Asistencia Diaria'.
         """
         from django.urls import reverse
 
         self.client.login(username="bedelia_user", password="password123")
         resp_bedelia = self.client.get(reverse("asistencia:asistencia_list"))
         self.assertEqual(resp_bedelia.status_code, 200)
-        self.assertContains(resp_bedelia, "+ Carga Masiva")
+        self.assertContains(resp_bedelia, "+ Cargar Asistencia Diaria")
+        self.assertContains(resp_bedelia, reverse("asistencia:asistencia_diaria"))
         self.assertContains(resp_bedelia, "Justificaciones por Lote")
 
         self.client.login(username="admin_asist", password="password123")
         resp_admin = self.client.get(reverse("asistencia:asistencia_list"))
         self.assertEqual(resp_admin.status_code, 200)
-        self.assertContains(resp_admin, "+ Carga Masiva")
+        self.assertContains(resp_admin, "+ Cargar Asistencia Diaria")
+        self.assertContains(resp_admin, reverse("asistencia:asistencia_diaria"))
         self.assertContains(resp_admin, "Justificaciones por Lote")
 
 
@@ -668,7 +672,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
         Criterio de Aceptación:
         Un docente inactivo (activo=False) no debe aparecer en la grilla.
         """
-        response = self.client.get("/asistencia/carga-masiva/")
+        response = self.client.get("/asistencia/diaria/")
         self.assertEqual(response.status_code, 200)
 
         docentes_en_contexto = response.context["docentes"]
@@ -693,7 +697,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
         )
 
         response = self.client.get(
-            f"/asistencia/carga-masiva/?fecha={fecha_feriado.isoformat()}"
+            f"/asistencia/diaria/?fecha={fecha_feriado.isoformat()}"
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["es_feriado"])
@@ -726,7 +730,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
             f"observaciones_{self.docente_activo.id}": "Actividad en feriado",
         }
 
-        response = self.client.post("/asistencia/carga-masiva/", post_data)
+        response = self.client.post("/asistencia/diaria/", post_data)
         # No debe devolver error 400
         self.assertNotEqual(response.status_code, 400)
         self.assertEqual(response.status_code, 302)
@@ -755,7 +759,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
             f"estado_{self.docente_activo.id}": "PRESENTE",
             f"marca_diaria_{self.docente_activo.id}": "PR",
         }
-        res_crear = self.client.post("/asistencia/carga-masiva/", post_data_crear)
+        res_crear = self.client.post("/asistencia/diaria/", post_data_crear)
         self.assertEqual(res_crear.status_code, 302)
 
         reg = RegistroAsistencia.objects.get(
@@ -772,7 +776,7 @@ class Ticket5AsistenciaDiariaTests(TestCase):
             f"marca_diaria_{self.docente_activo.id}": "I",
             f"observaciones_{self.docente_activo.id}": "Novedad rectificada",
         }
-        res_act = self.client.post("/asistencia/carga-masiva/", post_data_actualizar)
+        res_act = self.client.post("/asistencia/diaria/", post_data_actualizar)
         self.assertEqual(res_act.status_code, 302)
 
         # Sigue existiendo un único registro actualizado
@@ -842,7 +846,7 @@ class Ticket10_5RendimientoTests(TestCase):
 
         # 1. Medir queries SQL al crear masivamente 20 registros
         with CaptureQueriesContext(connection) as queries_context:
-            response = self.client.post("/asistencia/carga-masiva/", post_data)
+            response = self.client.post("/asistencia/diaria/", post_data)
 
         self.assertEqual(response.status_code, 302)
         total_queries = len(queries_context)
@@ -870,7 +874,7 @@ class Ticket10_5RendimientoTests(TestCase):
             post_data_act[f"observaciones_{d.id}"] = "Rectificación masiva"
 
         with CaptureQueriesContext(connection) as queries_act_context:
-            resp_act = self.client.post("/asistencia/carga-masiva/", post_data_act)
+            resp_act = self.client.post("/asistencia/diaria/", post_data_act)
 
         self.assertEqual(resp_act.status_code, 302)
         total_queries_act = len(queries_act_context)
@@ -1012,10 +1016,10 @@ class Ticket10_6BlindajePermisosTests(TestCase):
     def test_criterio_consulta_directiva_recibe_403_post_carga_masiva(self):
         """
         Criterio de Aceptación:
-        Consulta_Directiva recibe HTTP 403 al enviar POST a CargaDiariaMasivaView.
+        Consulta_Directiva recibe HTTP 403 al enviar POST a AsistenciaDiariaView.
         """
         self.client.login(username="consulta_asist", password="password123")
-        url = reverse("asistencia:carga_masiva")
+        url = reverse("asistencia:asistencia_diaria")
         response = self.client.post(
             url,
             {
@@ -1125,7 +1129,7 @@ class Ticket10_6BlindajePermisosTests(TestCase):
 
         # Cargar asistencia
         resp_asist = self.client.post(
-            reverse("asistencia:carga_masiva"),
+            reverse("asistencia:asistencia_diaria"),
             {
                 "fecha": "2026-11-03",
                 f"estado_{self.docente.id}": "PRESENTE",
@@ -1173,6 +1177,40 @@ class Ticket10_6BlindajePermisosTests(TestCase):
         resp_post = self.client.post(delete_url, follow=False)
         self.assertEqual(resp_post.status_code, 302)
         self.assertFalse(DiaNoLaborable.objects.filter(pk=self.feriado.pk).exists())
+
+
+class Ticket1210UnificacionAsistenciaDiariaTests(TestCase):
+    """
+    Ticket 12.10: Unificación Canónica de Asistencia Diaria y Redirección 301.
+    """
+
+    def test_redireccion_301_carga_masiva_a_asistencia_diaria(self):
+        """
+        Una petición a /asistencia/carga-masiva/ responde con HTTP 301 permanente
+        apuntando a /asistencia/diaria/.
+        """
+        response = self.client.get("/asistencia/carga-masiva/")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, reverse("asistencia:asistencia_diaria"))
+
+    def test_redireccion_301_carga_masiva_por_reverse(self):
+        """
+        reverse('asistencia:carga_masiva') resuelve a /asistencia/carga-masiva/
+        y redirige 301 a /asistencia/diaria/.
+        """
+        url = reverse("asistencia:carga_masiva")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, reverse("asistencia:asistencia_diaria"))
+
+    def test_redireccion_301_consultar_a_consulta_asistencia(self):
+        """
+        Una petición a /asistencia/consultar/ responde con HTTP 301 permanente
+        apuntando a /asistencia/consulta/.
+        """
+        response = self.client.get("/asistencia/consultar/")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, reverse("asistencia:consulta_asistencia"))
 
 
 # Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)

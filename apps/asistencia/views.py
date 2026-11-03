@@ -82,9 +82,6 @@ class ConsultaAsistenciaView(RegistroAsistenciaListView):
     pass
 
 
-ConsultaAsistenciaAvanzadaView = ConsultaAsistenciaView
-
-
 class AsistenciaDiariaView(BackendPermisoMixin, View):
     """
     Pantalla 3: Asistencia Diaria y Carga de Novedades (RF-10, Ticket 5 y 3.8).
@@ -473,10 +470,6 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                 "error": True,
             }
             return render(request, "asistencia/carga_masiva.html", context, status=400)
-
-
-# Alias para retrocompatibilidad total con Ticket 3.8 y rutas existentes
-CargaDiariaMasivaView = AsistenciaDiariaView
 
 
 class JustificacionesLoteView(BackendPermisoMixin, View):
