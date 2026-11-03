@@ -1,7 +1,0 @@
-from django.apps import AppConfig
-
-
-class GestionAsistenciaConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
-    name = "gestion_asistencia"
-    verbose_name = "Gestión de Asistencia y Licencias"
