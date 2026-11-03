@@ -3,6 +3,7 @@ Rutas URL para apps.asistencia.
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 app_name = "asistencia"
@@ -20,8 +21,9 @@ urlpatterns = [
     ),
     path(
         "consultar/",
-        views.ConsultaAsistenciaView.as_view(),
-        name="asistencia_consulta",
+        RedirectView.as_view(
+            pattern_name="asistencia:consulta_asistencia", permanent=True
+        ),
     ),
     path(
         "diaria/",
@@ -30,7 +32,9 @@ urlpatterns = [
     ),
     path(
         "carga-masiva/",
-        views.CargaDiariaMasivaView.as_view(),
+        RedirectView.as_view(
+            pattern_name="asistencia:asistencia_diaria", permanent=True
+        ),
         name="carga_masiva",
     ),
     path(

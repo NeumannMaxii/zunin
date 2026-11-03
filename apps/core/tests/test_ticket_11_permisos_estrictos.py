@@ -113,25 +113,14 @@ class Ticket11PermisosEstrictosTests(TestCase):
             "Directivo debe recibir HTTP 403 Forbidden al hacer POST a Asistencia.",
         )
 
-    def test_criterio_1_directivo_recibe_403_al_hacer_post_a_carga_masiva(self):
+    def test_carga_masiva_redirecciona_301_permanentemente(self):
         """
-        Criterio 1: Directivo recibe 403 al hacer POST al endpoint de carga masiva.
+        Ticket 12.10: Valida que /asistencia/carga-masiva/ responda con HTTP 301
+        redireccionando permanentemente a /asistencia/diaria/.
         """
-        self.client.login(username="directivo_t11", password="password123")
-        url = reverse("asistencia:carga_masiva")
-
-        response = self.client.post(
-            url,
-            {
-                "fecha": "2026-11-04",
-                f"estado_{self.docente.id}": "PRESENTE",
-            },
-        )
-        self.assertEqual(
-            response.status_code,
-            403,
-            "Directivo debe recibir HTTP 403 Forbidden al hacer POST a Carga Masiva.",
-        )
+        response = self.client.get(reverse("asistencia:carga_masiva"))
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, reverse("asistencia:asistencia_diaria"))
 
     def test_criterio_1_directivo_recibe_403_al_hacer_post_a_justificaciones_lote(self):
         """
@@ -260,7 +249,6 @@ class Ticket11PermisosEstrictosTests(TestCase):
             reverse("personal:carrera_list"),
             reverse("asistencia:asistencia_list"),
             reverse("asistencia:asistencia_diaria"),
-            reverse("asistencia:carga_masiva"),
             reverse("asistencia:justificaciones_lote"),
             reverse("asistencia:feriado_list"),
             reverse("licencias:tipolicencia_list"),
