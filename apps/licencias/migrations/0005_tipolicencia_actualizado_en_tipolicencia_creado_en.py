@@ -7,7 +7,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("licencias", "0003_renglonplanillamensual_desactualizada"),
+        (
+            "licencias",
+            "0004_renglonplanillamensual_unique_renglon_docente_cargo_periodo_fechas",
+        ),
     ]
 
     operations = [
@@ -30,4 +33,3 @@ class Migration(migrations.Migration):
             preserve_default=False,
         ),
     ]
-
