@@ -59,7 +59,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "personal",
-            "0002_cargodocente_dia_domingo_cargodocente_dia_sabado_and_more",
+            "0003_cargodocente_actualizado_en_cargodocente_creado_en",
         ),
     ]
 
