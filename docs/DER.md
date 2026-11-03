@@ -20,6 +20,7 @@ El siguiente diagrama modela la estructura relacional completa, incorporando los
 erDiagram
     DOCENTE ||--o{ CARGO_DOCENTE : "designado_en (RN-01, RN-02)"
     DOCENTE |o--o{ CARGO_DOCENTE : "reemplazado_en (DP-01)"
+    CARRERA ||--o{ ESPACIO_CURRICULAR : "pertenece_a"
     ESPACIO_CURRICULAR |o--o{ CARGO_DOCENTE : "asignatura_dictada"
     CARRERA |o--o{ CARGO_DOCENTE : "carrera_ref (RN-03)"
     CARGO_CATALOGO |o--o{ CARGO_DOCENTE : "cargo_catalogo (RN-03)"
@@ -80,7 +81,7 @@ erDiagram
         bigint id PK
         string codigo UK "Identificador de materia o código de plan"
         string nombre "Denominación de la asignatura"
-        string carrera "Tecnicatura o profesorado"
+        bigint carrera_id FK "Carrera vinculada (3FN)"
         smallint anio "1 a 4 año lectivo"
         string comision "UNICA - A - B - C"
         string turno "MANANA - TARDE - NOCHE"
@@ -237,7 +238,7 @@ Representa asignaturas, materias, talleres o módulos de las carreras formativas
 | `id` | `BigAutoField` | `BIGINT AUTO_INCREMENT` | **PK**, NOT NULL | Clave primaria. |
 | `codigo` | `CharField(max_length=30)` | `VARCHAR(30)` | **UNIQUE**, NOT NULL | Código institucional (ej: `DS-301`). |
 | `nombre` | `CharField(max_length=150)` | `VARCHAR(150)` | NOT NULL | Nombre de la asignatura. |
-| `carrera` | `CharField(max_length=150)` | `VARCHAR(150)` | NOT NULL | Denominación textual de carrera. |
+| `carrera_id` | `ForeignKey(Carrera)` | `BIGINT` | **FK**, NOT NULL, `ON DELETE PROTECT` | Carrera institucional vinculada (3FN). |
 | `anio` | `PositiveSmallIntegerField()` | `SMALLINT UNSIGNED` | NOT NULL | Año de cursado (1 a 4). |
 | `comision` | `CharField(max_length=10)` | `VARCHAR(10)` | NOT NULL, DEFAULT 'UNICA' | Comisión: `UNICA`, `A`, `B`, `C`. |
 | `turno` | `CharField(max_length=10)` | `VARCHAR(10)` | NOT NULL, DEFAULT 'NOCHE' | Turno: `MANANA`, `TARDE`, `NOCHE`. |
@@ -476,7 +477,7 @@ Desglose mensualizado por materia, horas cátedra y asignación de instrumentos 
 | Requerimiento | Denominación y Alcance | Entidades y Métodos Involucrados | Implementación y Tests |
 | :--- | :--- | :--- | :--- |
 | **RF-01** | **Filiación de Docente y Legajo Digital Único** | `Docente` (DNI único, datos Form. 1 Chaco). | `test_docente_campos_oficiales_formulario_1` |
-| **RF-02** | **Espacios Curriculares y Distribución Académica** | `EspacioCurricular` (código, comision, turno, carrera). | `test_espacio_curricular_campos_oficiales` |
+| **RF-02** | **Espacios Curriculares y Distribución Académica** | `EspacioCurricular` (código, comision, turno, carrera FK 3FN). | `test_espacio_curricular_campos_oficiales` |
 | **RF-03** | **Cargos Docentes y Designaciones Normativas** | `CargoDocente` (carrera_ref, cargo_catalogo, tipo_autorizacion). | `test_catalogos_administrables_y_autorizacion_cargo` |
 | **RF-04** | **Gestión de Suplencias (Form. DP-01)** | `CargoDocente.docente_reemplazado` (validación en `clean()`). | `test_cargo_suplente_requiere_docente_reemplazado` |
 | **RF-05** | **Catálogos Institucionales Administrables** | `Carrera`, `CargoCatalogo`, `TipoAutorizacion`. | `test_catalogos_administrables_y_autorizacion_cargo` |
@@ -544,7 +545,7 @@ class Docente(models.Model):
 class EspacioCurricular(models.Model):
     codigo = models.CharField(max_length=30, unique=True, verbose_name="Código de Espacio")
     nombre = models.CharField(max_length=150, verbose_name="Nombre de la Asignatura")
-    carrera = models.CharField(max_length=150, verbose_name="Carrera")
+    carrera = models.ForeignKey(Carrera, on_delete=models.PROTECT, related_name="espacios_curriculares", verbose_name="Carrera")
     anio = models.PositiveSmallIntegerField(verbose_name="Año de la Carrera")
 
 
