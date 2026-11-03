@@ -3,6 +3,7 @@ Rutas URL para apps.personal.
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 app_name = "personal"
@@ -11,7 +12,7 @@ urlpatterns = [
     # Listado de personal docente
     path("", views.DocenteListView.as_view(), name="docente_list_root"),
     path("docentes/", views.DocenteListView.as_view(), name="docente_list"),
-    # Alta de personal docente (Ticket 6)
+    # Alta de personal docente (Ticket 6 / 12.11)
     path(
         "docentes/crear/",
         views.DocenteCreateView.as_view(),
@@ -19,10 +20,11 @@ urlpatterns = [
     ),
     path(
         "crear/",
-        views.DocenteCreateView.as_view(),
-        name="docente_create_alias",
+        RedirectView.as_view(
+            pattern_name="personal:docente_create", permanent=True
+        ),
     ),
-    # Edición de personal docente (Ticket 6)
+    # Edición de personal docente (Ticket 6 / 12.11)
     path(
         "docentes/<int:pk>/editar/",
         views.DocenteUpdateView.as_view(),
@@ -30,19 +32,21 @@ urlpatterns = [
     ),
     path(
         "<int:pk>/editar/",
-        views.DocenteUpdateView.as_view(),
-        name="docente_update_alias",
+        RedirectView.as_view(
+            pattern_name="personal:docente_update", permanent=True
+        ),
     ),
-    # Baja lógica de docente: POST /personal/<pk>/baja/ (Ticket 6)
+    # Baja lógica de docente: POST /personal/docentes/<pk>/baja/ (Ticket 6 / 12.11)
     path(
-        "<int:pk>/baja/",
+        "docentes/<int:pk>/baja/",
         views.DocenteBajaView.as_view(),
         name="docente_baja",
     ),
     path(
-        "docentes/<int:pk>/baja/",
-        views.DocenteBajaView.as_view(),
-        name="docente_baja_alias",
+        "<int:pk>/baja/",
+        RedirectView.as_view(
+            pattern_name="personal:docente_baja", permanent=True
+        ),
     ),
     # Demás vistas existentes
     path(

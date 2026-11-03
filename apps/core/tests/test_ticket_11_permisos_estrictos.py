@@ -175,7 +175,7 @@ class Ticket11PermisosEstrictosTests(TestCase):
         """
         self.client.login(username="bedelia_t11", password="password123")
         url_alias = reverse(
-            "personal:docente_baja_alias", kwargs={"pk": self.docente.pk}
+            "personal:docente_baja", kwargs={"pk": self.docente.pk}
         )
 
         response = self.client.post(url_alias)

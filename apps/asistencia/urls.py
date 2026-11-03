@@ -63,25 +63,29 @@ urlpatterns = [
         views.DiaNoLaborableDeleteView.as_view(),
         name="feriado_delete",
     ),
-    # Alias compatibles con dianolaborable_*
+    # Redirecciones 301 para rutas legadas dias-no-laborables/* (Ticket 12.11)
     path(
         "dias-no-laborables/",
-        views.DiaNoLaborableListView.as_view(),
-        name="dianolaborable_list",
+        RedirectView.as_view(
+            pattern_name="asistencia:feriado_list", permanent=True
+        ),
     ),
     path(
         "dias-no-laborables/crear/",
-        views.DiaNoLaborableCreateView.as_view(),
-        name="dianolaborable_create",
+        RedirectView.as_view(
+            pattern_name="asistencia:feriado_create", permanent=True
+        ),
     ),
     path(
         "dias-no-laborables/<int:pk>/editar/",
-        views.DiaNoLaborableUpdateView.as_view(),
-        name="dianolaborable_update",
+        RedirectView.as_view(
+            pattern_name="asistencia:feriado_update", permanent=True
+        ),
     ),
     path(
         "dias-no-laborables/<int:pk>/eliminar/",
-        views.DiaNoLaborableDeleteView.as_view(),
-        name="dianolaborable_delete",
+        RedirectView.as_view(
+            pattern_name="asistencia:feriado_delete", permanent=True
+        ),
     ),
 ]
