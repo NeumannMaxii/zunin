@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.audit import AuditoriaFormMixin, audit_save
-from apps.personal.models import CargoDocente, Docente
+from apps.personal.models import CargoDocente, Carrera, Docente
 
 
 class AuditSavePolymorphicTests(TestCase):
@@ -91,8 +91,9 @@ class AuditSavePolymorphicTests(TestCase):
 
     def test_audit_save_cargo_docente_sin_attribute_error(self):
         """
-        Verifica que procesar CargoDocente (modelo sin actualizado_en ni
-        fecha_modificacion) no lance AttributeError por ausencia de campos.
+        Verifica que procesar CargoDocente (con auditoría temporal Ticket 12.8)
+        mediante audit_save persista creado_por, modificado_por y actualizado_en
+        sin levantar ningún error.
         """
         docente = Docente.objects.create(
             dni="40777666",
@@ -110,9 +111,6 @@ class AuditSavePolymorphicTests(TestCase):
             horas_lunes=5,
         )
 
-        # Confirmamos la asimetría del modelo: no posee actualizado_en
-        self.assertFalse(hasattr(cargo, "actualizado_en"))
-
         try:
             audit_save(cargo, self.user1, created=True)
         except AttributeError as e:
@@ -122,6 +120,24 @@ class AuditSavePolymorphicTests(TestCase):
         self.assertEqual(cargo.creado_por, self.user1)
         self.assertEqual(cargo.modificado_por, self.user1)
         self.assertEqual(cargo.situacion_revista, "TIT")
+        self.assertIsNotNone(cargo.creado_en)
+        self.assertIsNotNone(cargo.actualizado_en)
+
+    def test_audit_save_modelo_sin_actualizado_en_sin_attribute_error(self):
+        """
+        Verifica que procesar un modelo sin actualizado_en (ej: Carrera)
+        mediante audit_save no lance AttributeError por ausencia de campos.
+        """
+        carrera = Carrera(
+            codigo="TS-SIST",
+            nombre="Tecnicatura Superior en Sistemas",
+        )
+        self.assertFalse(hasattr(carrera, "actualizado_en"))
+        try:
+            audit_save(carrera, self.user1, created=True)
+        except AttributeError as e:
+            self.fail(f"audit_save levantó AttributeError en Carrera: {e}")
+        self.assertIsNotNone(carrera.pk)
 
     def test_audit_save_no_sobreescribe_creado_por_existente(self):
         """
