@@ -115,6 +115,24 @@ class TipoLicencia(models.Model):
         related_name="tipos_licencia_modificados",
         verbose_name="Modificado por",
     )
+    creado_en = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Creado en",
+    )
+    actualizado_en = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Actualizado en",
+    )
+
+    @property
+    def creado_el(self):
+        """Compatibilidad con referencias previas a creado_el."""
+        return self.creado_en
+
+    @property
+    def modificado_el(self):
+        """Compatibilidad con referencias previas a modificado_el."""
+        return self.actualizado_en
 
     class Meta:
         verbose_name = "Tipo de Licencia"
