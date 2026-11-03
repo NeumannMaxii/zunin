@@ -144,8 +144,7 @@ class RegistroAsistenciaForm(TailwindModelForm):
                     or marca_diaria in ["I", "INA"]
                     or (
                         tipo_licencia
-                        and getattr(tipo_licencia, "categoria", None)
-                        == "INASISTENCIA"
+                        and getattr(tipo_licencia, "categoria", None) == "INASISTENCIA"
                     )
                 )
                 if es_inasistencia:
@@ -193,9 +192,7 @@ class ConsultaAsistenciaForm(TailwindForm):
     dni_o_apellido = forms.CharField(
         required=False,
         label="DNI o Apellido",
-        widget=forms.TextInput(
-            attrs={"placeholder": "Buscar por DNI o Apellido..."}
-        ),
+        widget=forms.TextInput(attrs={"placeholder": "Buscar por DNI o Apellido..."}),
     )
     dni = forms.CharField(
         required=False,
@@ -208,8 +205,7 @@ class ConsultaAsistenciaForm(TailwindForm):
         widget=forms.TextInput(attrs={"placeholder": "Apellido..."}),
     )
     estado = forms.ChoiceField(
-        choices=[("", "Todos los estados")]
-        + list(RegistroAsistencia.ESTADO_CHOICES),
+        choices=[("", "Todos los estados")] + list(RegistroAsistencia.ESTADO_CHOICES),
         required=False,
         label="Estado",
     )
@@ -274,8 +270,7 @@ class ConsultaAsistenciaForm(TailwindForm):
             estado=self.cleaned_data.get("estado"),
             marca=self.cleaned_data.get("marca"),
             marca_diaria=(
-                self.cleaned_data.get("marca_diaria")
-                or self.data.get("marca_diaria")
+                self.cleaned_data.get("marca_diaria") or self.data.get("marca_diaria")
             ),
             estado_marca=(
                 self.cleaned_data.get("estado_marca")
@@ -284,8 +279,7 @@ class ConsultaAsistenciaForm(TailwindForm):
             ),
             materia=materia_val,
             materia_id=(
-                self.cleaned_data.get("materia_id")
-                or self.data.get("materia_id")
+                self.cleaned_data.get("materia_id") or self.data.get("materia_id")
             ),
         )
 

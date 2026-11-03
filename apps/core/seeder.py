@@ -209,35 +209,48 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
         # -------------------------------------------------------------
         # 2. Espacios Curriculares
         # -------------------------------------------------------------
+        carrera_ds = (
+            Carrera.objects.filter(codigo="TSDS").first()
+            or Carrera.objects.filter(
+                nombre__icontains="Desarrollo de Software"
+            ).first()
+        )
+        carrera_ia = (
+            Carrera.objects.filter(codigo="TSIA").first()
+            or Carrera.objects.filter(
+                nombre__icontains="Inteligencia Artificial"
+            ).first()
+        )
+
         espacios_data = [
             {
                 "codigo": "DS-101",
                 "nombre": "Programación I",
-                "carrera": "Tecnicatura Superior en Desarrollo de Software",
+                "carrera": carrera_ds,
                 "anio": 1,
             },
             {
                 "codigo": "DS-201",
                 "nombre": "Programación II",
-                "carrera": "Tecnicatura Superior en Desarrollo de Software",
+                "carrera": carrera_ds,
                 "anio": 2,
             },
             {
                 "codigo": "DS-202",
                 "nombre": "Bases de Datos",
-                "carrera": "Tecnicatura Superior en Desarrollo de Software",
+                "carrera": carrera_ds,
                 "anio": 2,
             },
             {
                 "codigo": "DS-301",
                 "nombre": "Práctica Profesionalizante III",
-                "carrera": "Tecnicatura Superior en Desarrollo de Software",
+                "carrera": carrera_ds,
                 "anio": 3,
             },
             {
                 "codigo": "IA-101",
                 "nombre": "Matemática Aplicada a IA",
-                "carrera": "Tecnicatura Superior en Inteligencia Artificial",
+                "carrera": carrera_ia,
                 "anio": 1,
             },
         ]

@@ -50,8 +50,10 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
     ordering = ["-fecha", "docente__apellido"]
 
     def get_queryset(self):
-        queryset = super().get_queryset().select_related(
-            "docente", "cargo__materia", "tipo_licencia"
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related("docente", "cargo__materia", "tipo_licencia")
         )
         self.form = ConsultaAsistenciaForm(self.request.GET or None)
         if self.form.is_valid():
