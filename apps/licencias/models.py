@@ -414,6 +414,13 @@ class RenglonPlanillaMensual(AuditoriaModel):
         indexes = [
             models.Index(fields=["anio", "mes"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["docente", "cargo", "mes", "anio", "desde", "hasta"],
+                condition=models.Q(desactualizada=False),
+                name="unique_renglon_docente_cargo_periodo_fechas",
+            )
+        ]
 
     def __str__(self):
         return (
