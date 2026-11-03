@@ -607,27 +607,39 @@ class DiaNoLaborableABMTests(TestCase):
             "Ya existe un día no laborable registrado para esta fecha.",
         )
 
-    def test_alias_urls_dianolaborable(self):
+    def test_alias_compatibles_dianolaborable(self):
         """
-        Verifica que los alias con prefijo dianolaborable_* resuelvan
-        correctamente.
+        Ticket 12.11: Valida que al consultar las rutas dias-no-laborables/*,
+        el servidor responda con HTTP 301 permanente y cabecera Location
+        apuntando a la URL canónica de feriados/.
         """
-        self.assertEqual(
-            reverse("asistencia:dianolaborable_list"),
-            "/asistencia/dias-no-laborables/",
+        resp_list = self.client.get("/asistencia/dias-no-laborables/")
+        self.assertEqual(resp_list.status_code, 301)
+        self.assertEqual(resp_list.url, reverse("asistencia:feriado_list"))
+
+        resp_create = self.client.get("/asistencia/dias-no-laborables/crear/")
+        self.assertEqual(resp_create.status_code, 301)
+        self.assertEqual(resp_create.url, reverse("asistencia:feriado_create"))
+
+        resp_update = self.client.get(
+            f"/asistencia/dias-no-laborables/{self.feriado.pk}/editar/"
         )
+        self.assertEqual(resp_update.status_code, 301)
         self.assertEqual(
-            reverse("asistencia:dianolaborable_create"),
-            "/asistencia/dias-no-laborables/crear/",
+            resp_update.url,
+            reverse("asistencia:feriado_update", args=[self.feriado.pk]),
         )
+
+        resp_delete = self.client.get(
+            f"/asistencia/dias-no-laborables/{self.feriado.pk}/eliminar/"
+        )
+        self.assertEqual(resp_delete.status_code, 301)
         self.assertEqual(
-            reverse("asistencia:dianolaborable_update", args=[1]),
-            "/asistencia/dias-no-laborables/1/editar/",
+            resp_delete.url,
+            reverse("asistencia:feriado_delete", args=[self.feriado.pk]),
         )
-        self.assertEqual(
-            reverse("asistencia:dianolaborable_delete", args=[1]),
-            "/asistencia/dias-no-laborables/1/eliminar/",
-        )
+
+    test_alias_urls_dianolaborable = test_alias_compatibles_dianolaborable
 
 
 class Ticket5AsistenciaDiariaTests(TestCase):

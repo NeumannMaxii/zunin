@@ -332,9 +332,6 @@ class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
         return redirect(next_url)
 
 
-ActualizarInstrumentoRenglonView = CambiarLicenciaRenglonView
-
-
 class JustificacionDiferidaView(PermisosEstrictosMixin, FormView):
     """
     Vista protegida para justificaciones diferidas (Ticket 7, RN-03 y Ticket 11).

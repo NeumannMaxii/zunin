@@ -3,6 +3,7 @@ Rutas URL para apps.licencias.
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 app_name = "licencias"
@@ -25,13 +26,15 @@ urlpatterns = [
     ),
     path(
         "planillas/exportar/",
-        views.ExportarPlanillaCSVView.as_view(),
-        name="planilla_export_csv",
+        RedirectView.as_view(
+            pattern_name="licencias:exportar_planilla_csv", permanent=True
+        ),
     ),
     path(
         "planillas/csv/",
-        views.ExportarPlanillaCSVView.as_view(),
-        name="planilla_csv",
+        RedirectView.as_view(
+            pattern_name="licencias:exportar_planilla_csv", permanent=True
+        ),
     ),
     path(
         "planillas/<int:pk>/cambiar-licencia/",
@@ -40,12 +43,13 @@ urlpatterns = [
     ),
     path(
         "planillas/<int:pk>/editar-articulo/",
-        views.CambiarLicenciaRenglonView.as_view(),
-        name="renglon_editar_articulo",
+        RedirectView.as_view(
+            pattern_name="licencias:renglon_cambiar_licencia", permanent=True
+        ),
     ),
     path(
         "planillas/<int:pk>/instrumento/",
-        views.ActualizarInstrumentoRenglonView.as_view(),
+        views.CambiarLicenciaRenglonView.as_view(),
         name="renglon_actualizar_instrumento",
     ),
     path(
@@ -55,8 +59,9 @@ urlpatterns = [
     ),
     path(
         "justificar/",
-        views.JustificacionDiferidaView.as_view(),
-        name="justificar_alias",
+        RedirectView.as_view(
+            pattern_name="licencias:justificacion_diferida", permanent=True
+        ),
     ),
     # API Autocompletado de Licencias (Ticket 10)
     path(
