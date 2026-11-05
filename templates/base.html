@@ -1,4 +1,4 @@
-{% load auth_tags %}
+{% load static auth_tags %}
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-50">
 <head>
@@ -44,10 +44,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Zunin">
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="{% static 'icons/icon.svg' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'icons/icon-192.png' %}">
+    <link rel="shortcut icon" href="{% static 'icons/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,7 +87,7 @@
                 <div class="flex items-center space-x-8">
                     <a href="{% url 'core:dashboard_home' %}" class="flex items-center space-x-3 group">
                         <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-xs overflow-hidden group-hover:border-institucional-300 transition-colors p-0.5">
-                            <img src="/static/icons/icon-192.png" alt="Logo Zunin" class="w-full h-full object-contain">
+                            <img src="{% static 'icons/icon-192.png' %}" alt="Logo Zunin" class="w-full h-full object-contain">
                         </div>
                         <div>
                             <span class="text-base font-bold text-slate-900 tracking-tight block">Proyecto Zunin</span>

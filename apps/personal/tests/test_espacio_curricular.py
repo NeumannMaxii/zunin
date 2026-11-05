@@ -1,15 +1,7 @@
 """
-Pruebas automatizadas para el Ticket 12.9:
-Normalización Relacional de EspacioCurricular.
-
-Especificación Técnica:
-- Modificación del campo 'carrera' en EspacioCurricular para que pase de
-  CharField a ForeignKey apuntando a Carrera con on_delete=models.PROTECT.
-- Migración de datos con RunPython para mapear strings existentes a IDs de Carrera.
-
-Criterios de Aceptación:
-- Pruebas validan que las instancias de EspacioCurricular resuelven correctamente
-  su relación de clave foránea.
+Pruebas automatizadas para el modelo EspacioCurricular y sus relaciones.
+Valida la normalización relacional de la clave foránea hacia Carrera
+y las restricciones de integridad referencial (on_delete=models.PROTECT).
 """
 
 from django.db.models import ProtectedError
@@ -18,7 +10,7 @@ from django.test import TestCase
 from apps.personal.models import Carrera, EspacioCurricular
 
 
-class Ticket129NormalizacionRelacionalEspacioCurricularTests(TestCase):
+class EspacioCurricularRelacionesTests(TestCase):
     """
     Suite de pruebas para validar la clave foránea entre EspacioCurricular y Carrera.
     """
@@ -122,3 +114,10 @@ class Ticket129NormalizacionRelacionalEspacioCurricularTests(TestCase):
             "(Tecnicatura Superior en Desarrollo de Software - 3° Año)"
         )
         self.assertEqual(str(espacio), expected_str)
+
+
+# Alias para retrocompatibilidad
+Ticket129NormalizacionRelacionalEspacioCurricularTests = (
+    EspacioCurricularRelacionesTests
+)
+

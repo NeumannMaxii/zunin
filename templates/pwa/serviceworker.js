@@ -6,7 +6,6 @@
 const CACHE_NAME = 'zunin-pwa-v1';
 const STATIC_ASSETS = [
   '/manifest.json',
-  '/static/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/icon.svg',

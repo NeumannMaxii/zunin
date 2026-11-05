@@ -67,7 +67,8 @@ class NumberedCanvas(canvas.Canvas):
             self.drawString(
                 2 * cm,
                 1.3 * cm,
-                "IESETyFP - Instituto de Educación Superior &bull; Versión 2.0 (Sprint 3)",
+                "IESETyFP - Instituto de Educación Superior "
+                "&bull; Versión 2.0 (Sprint 3)",
             )
             page_text = f"Página {self._pageNumber} de {page_count}"
             self.drawRightString(A4[0] - 2 * cm, 1.3 * cm, page_text)
@@ -485,4 +486,3 @@ def build_pdf():
 if __name__ == "__main__":
     success = build_pdf()
     exit(0 if success else 1)
-
