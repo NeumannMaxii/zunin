@@ -120,4 +120,3 @@ class EspacioCurricularRelacionesTests(TestCase):
 Ticket129NormalizacionRelacionalEspacioCurricularTests = (
     EspacioCurricularRelacionesTests
 )
-
