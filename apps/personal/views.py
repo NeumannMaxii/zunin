@@ -17,9 +17,11 @@ from apps.core.audit import AuditoriaFormMixin, audit_save
 from apps.core.mixins import PermisosEstrictosMixin
 from apps.personal.forms import (
     CargoCatalogoForm,
+    CargoDocenteForm,
     CarreraForm,
     DocenteBedeliaForm,
     DocenteForm,
+    EspacioCurricularForm,
     ImportarCSVForm,
     TipoAutorizacionForm,
 )
@@ -29,6 +31,7 @@ from apps.personal.models import (
     CargoDocente,
     Carrera,
     Docente,
+    EspacioCurricular,
     TipoAutorizacion,
 )
 
@@ -207,6 +210,132 @@ class DocenteBajaView(PermisosEstrictosMixin, View):
         return redirect("personal:docente_list")
 
 
+class CargoDocenteCreateView(PermisosEstrictosMixin, AuditoriaFormMixin, CreateView):
+    """
+    Vista para crear una nueva designación / CargoDocente (Ticket 10.2 / UX Fix).
+    Recibe opcionalmente docente_id por URL para asociarlo automáticamente.
+    Restringido a usuarios con permisos operativos
+    (Admin_Institucional o Bedelia_Operadoras).
+    """
+
+    model = CargoDocente
+    form_class = CargoDocenteForm
+    template_name = "personal/cargodocente_form.html"
+    success_url = reverse_lazy("personal:cargodocente_list")
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("personal.add_cargodocente")
+        )
+
+    def get_docente(self):
+        docente_id = self.kwargs.get("docente_id") or self.request.GET.get(
+            "docente_id"
+        )
+        if docente_id:
+            return get_object_or_404(Docente, pk=docente_id)
+        return None
+
+    def get_initial(self):
+        initial = super().get_initial()
+        docente = self.get_docente()
+        if docente:
+            initial["docente"] = docente
+        return initial
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        docente = self.get_docente()
+        if docente:
+            form.fields["docente"].initial = docente
+            form.fields["docente"].queryset = Docente.objects.filter(pk=docente.pk)
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        docente = self.get_docente()
+        context["docente"] = docente
+        if docente:
+            context["titulo"] = (
+                f"Nueva Designación: {docente.apellido}, {docente.nombre}"
+            )
+        else:
+            context["titulo"] = "Nueva Designación de Cargo"
+        context["accion"] = "Registrar Cargo"
+        return context
+
+    def form_valid(self, form):
+        docente = self.get_docente()
+        if docente:
+            form.instance.docente = docente
+        if not form.instance.pk:
+            form.instance.activo = True
+        response = super().form_valid(form)
+        docente_nombre = (
+            form.instance.docente.nombre_completo
+            if form.instance.docente
+            else "el docente"
+        )
+        messages.success(
+            self.request,
+            f"Cargo/Designación registrada exitosamente para {docente_nombre}.",
+        )
+        return response
+
+
+class CargoDocenteUpdateView(PermisosEstrictosMixin, AuditoriaFormMixin, UpdateView):
+    """
+    Vista de edición para actualizar una designación / CargoDocente.
+    Restringido a usuarios con permisos operativos
+    (Admin_Institucional o Bedelia_Operadoras).
+    """
+
+    model = CargoDocente
+    form_class = CargoDocenteForm
+    template_name = "personal/cargodocente_form.html"
+    success_url = reverse_lazy("personal:cargodocente_list")
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("personal.change_cargodocente")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["docente"] = self.object.docente
+        context["titulo"] = (
+            f"Editar Designación: {self.object.docente.apellido}, "
+            f"{self.object.docente.nombre}"
+        )
+        context["accion"] = "Guardar Cambios"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Designación de {self.object.docente.nombre_completo} "
+            "actualizada con éxito.",
+        )
+        return response
+
+
 class CargoDocenteListView(LoginRequiredMixin, ListView):
     """
     Vista de listado de cargos y designaciones docentes.
@@ -372,6 +501,7 @@ class CatalogosHubView(SoloAdminInstitucionalMixin, TemplateView):
         context["autorizaciones_activas"] = TipoAutorizacion.objects.filter(
             activo=True
         ).count()
+        context["total_espacios"] = EspacioCurricular.objects.count()
         return context
 
 
@@ -654,6 +784,109 @@ class TipoAutorizacionUpdateView(
         response = super().form_valid(form)
         messages.success(
             self.request,
-            f"Tipo de autorización '{self.object.nombre}' " "actualizado con éxito.",
+            f"Tipo de autorización '{self.object.nombre}' actualizado con éxito.",
+        )
+        return response
+
+
+# ==============================================================================
+# Catálogo de Espacios Curriculares / Materias (Ticket 10.1 / UI Audit)
+# ==============================================================================
+
+
+class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
+    """
+    Vista de listado para el catálogo de espacios curriculares / materias.
+    Paginación obligatoria de 25 registros por página.
+    """
+
+    model = EspacioCurricular
+    template_name = "personal/catalogos/espaciocurricular_list.html"
+    context_object_name = "espacios"
+    paginate_by = 25
+    ordering = ["carrera__codigo", "anio", "codigo"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("carrera")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            queryset = queryset.filter(
+                Q(codigo__icontains=q)
+                | Q(nombre__icontains=q)
+                | Q(carrera__nombre__icontains=q)
+                | Q(carrera__codigo__icontains=q)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Catálogo de Espacios Curriculares"
+        context["q"] = self.request.GET.get("q", "").strip()
+        context["total_encontrados"] = (
+            context["paginator"].count
+            if "paginator" in context
+            else context["espacios"].count()
+        )
+        return context
+
+
+class EspacioCurricularCreateView(
+    SoloAdminInstitucionalMixin, AuditoriaFormMixin, CreateView
+):
+    """
+    Vista para dar de alta un nuevo Espacio Curricular / Materia.
+    """
+
+    model = EspacioCurricular
+    form_class = EspacioCurricularForm
+    template_name = "personal/catalogos/catalogo_form.html"
+    success_url = reverse_lazy("personal:espaciocurricular_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Nuevo Espacio Curricular"
+        context["catalogo_nombre"] = "Espacio Curricular"
+        context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
+        context["accion"] = "Registrar Materia"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Espacio curricular '{self.object.codigo} - "
+            f"{self.object.nombre}' registrado con éxito.",
+        )
+        return response
+
+
+class EspacioCurricularUpdateView(
+    SoloAdminInstitucionalMixin, AuditoriaFormMixin, UpdateView
+):
+    """
+    Vista para actualizar un Espacio Curricular / Materia existente.
+    """
+
+    model = EspacioCurricular
+    form_class = EspacioCurricularForm
+    template_name = "personal/catalogos/catalogo_form.html"
+    success_url = reverse_lazy("personal:espaciocurricular_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = (
+            f"Editar Espacio Curricular: {self.object.codigo}"
+        )
+        context["catalogo_nombre"] = "Espacio Curricular"
+        context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
+        context["accion"] = "Guardar Cambios"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Espacio curricular '{self.object.codigo} - "
+            f"{self.object.nombre}' actualizado con éxito.",
         )
         return response

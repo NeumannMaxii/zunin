@@ -80,9 +80,7 @@ class RegistroAsistencia(AuditoriaModel):
     )
     cargo = models.ForeignKey(
         "personal.CargoDocente",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
         related_name="asistencias",
         verbose_name="Cargo / Materia",
     )
@@ -157,14 +155,78 @@ class RegistroAsistencia(AuditoriaModel):
         db_table = "gestion_asistencia_registroasistencia"
         constraints = [
             models.UniqueConstraint(
-                fields=["docente", "fecha"],
-                name="unique_docente_asistencia_diaria",
+                fields=["docente", "cargo", "fecha"],
+                name="unique_asistencia_diaria_por_cargo",
             )
         ]
         ordering = ["-fecha", "docente__apellido"]
 
+    def clean_fields(self, exclude=None):
+        if not self.cargo_id and self.docente_id:
+            first_cargo = (
+                self.docente.cargos.filter(activo=True).first()
+                or self.docente.cargos.first()
+            )
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.filter(
+                    docente_id=self.docente_id
+                ).first()
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.create(
+                    docente=self.docente,
+                    situacion_revista="TIT",
+                    activo=True,
+                )
+            self.cargo = first_cargo
+        super().clean_fields(exclude=exclude)
+
+    def save(self, *args, **kwargs):
+        if not self.cargo_id and self.docente_id:
+            first_cargo = (
+                self.docente.cargos.filter(activo=True).first()
+                or self.docente.cargos.first()
+            )
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.filter(
+                    docente_id=self.docente_id
+                ).first()
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.create(
+                    docente=self.docente,
+                    situacion_revista="TIT",
+                    activo=True,
+                )
+            self.cargo = first_cargo
+        super().save(*args, **kwargs)
+
     def clean(self):
         super().clean()
+        if not self.cargo_id and self.docente_id:
+            first_cargo = (
+                self.docente.cargos.filter(activo=True).first()
+                or self.docente.cargos.first()
+            )
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.filter(
+                    docente_id=self.docente_id
+                ).first()
+            if not first_cargo:
+                from apps.personal.models import CargoDocente
+                first_cargo = CargoDocente.objects.create(
+                    docente=self.docente,
+                    situacion_revista="TIT",
+                    activo=True,
+                )
+            self.cargo = first_cargo
+        if not self.cargo_id:
+            raise ValidationError(
+                {"cargo": "Debe especificar el Cargo / Materia del docente."}
+            )
         if self.estado == "LICENCIA" and not self.tipo_licencia:
             raise ValidationError(
                 {

@@ -1225,6 +1225,228 @@ class Ticket1210UnificacionAsistenciaDiariaTests(TestCase):
         self.assertEqual(response.url, reverse("asistencia:consulta_asistencia"))
 
 
+class GranularidadMultiTurnoAsistenciaTests(TestCase):
+    """
+    Auditoría de Compliance: Reglas de Negocio y Granularidad Multi-Turno.
+    Valida el Requerimiento Operativo Crítico (SIE / Bedelía):
+    "Un docente debe poder registrar diferentes estados de asistencia
+    (ej. Presente y Ausente) el mismo día, siempre que correspondan
+    a materias/turnos (Cargos) distintos".
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from apps.personal.models import CargoDocente, Carrera, EspacioCurricular
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username="admin_multiturno",
+            password="password123",
+            email="admin_multiturno@test.com",
+        )
+        self.client.login(username="admin_multiturno", password="password123")
+
+        self.carrera = Carrera.objects.create(
+            codigo="TSDS",
+            nombre="Tecnicatura Superior en Desarrollo de Software",
+        )
+
+        self.docente = Docente.objects.create(
+            dni="28999888",
+            apellido="Gómez",
+            nombre="Carlos",
+            sexo="M",
+            activo=True,
+        )
+
+        self.espacio_matematica = EspacioCurricular.objects.create(
+            codigo="MAT-101",
+            nombre="Matemática I",
+            carrera=self.carrera,
+            anio=1,
+            turno="MANANA",
+        )
+        self.espacio_programacion = EspacioCurricular.objects.create(
+            codigo="PROG-102",
+            nombre="Programación Web",
+            carrera=self.carrera,
+            anio=2,
+            turno="TARDE",
+        )
+
+        self.cargo_manana = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.espacio_matematica,
+            turno="M",
+            situacion_revista="TIT",
+            activo=True,
+        )
+        self.cargo_tarde = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.espacio_programacion,
+            turno="T",
+            situacion_revista="INT",
+            activo=True,
+        )
+
+    def test_docente_mismo_dia_dos_cargos_distintos_estados_diferentes_orm(self):
+        """
+        ORM / Base de Datos: Un docente puede tener un registro 'PRESENTE'
+        a la mañana en un cargo y un 'AUSENTE' a la tarde en otro cargo el mismo día.
+        """
+        fecha = datetime.date(2026, 6, 15)
+
+        reg_manana = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=fecha,
+            estado="PRESENTE",
+            marca_diaria="PR",
+            justifica=True,
+        )
+
+        reg_tarde = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_tarde,
+            fecha=fecha,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+
+        registros = RegistroAsistencia.objects.filter(
+            docente=self.docente, fecha=fecha
+        ).order_by("cargo__turno")
+
+        self.assertEqual(registros.count(), 2)
+        self.assertEqual(reg_manana.estado, "PRESENTE")
+        self.assertEqual(reg_manana.marca_diaria, "PR")
+        self.assertEqual(reg_tarde.estado, "AUSENTE")
+        self.assertEqual(reg_tarde.marca_diaria, "I")
+
+    def test_docente_mismo_dia_mismo_cargo_duplicado_bloqueado_por_constraint(self):
+        """
+        Integridad SQL: Intentar guardar dos registros para el mismo docente,
+        fecha y CARGO idéntico debe ser rechazado por UniqueConstraint.
+        """
+        from django.db import IntegrityError
+
+        fecha = datetime.date(2026, 6, 15)
+
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=fecha,
+            estado="PRESENTE",
+            marca_diaria="PR",
+        )
+
+        with self.assertRaises(IntegrityError):
+            RegistroAsistencia.objects.create(
+                docente=self.docente,
+                cargo=self.cargo_manana,
+                fecha=fecha,
+                estado="AUSENTE",
+                marca_diaria="I",
+            )
+
+    def test_asistencia_diaria_view_get_renderiza_ambos_cargos(self):
+        """
+        Vista AsistenciaDiariaView (GET): La grilla diaria contiene una fila
+        por cada CargoDocente vigente del docente, no solo una por docente.
+        """
+        fecha = datetime.date(2026, 6, 15)
+        url = f"{reverse('asistencia:asistencia_diaria')}?fecha={fecha.isoformat()}"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        grilla = response.context["grilla"]
+        cargos_en_grilla = [fila["cargo"].id for fila in grilla]
+        self.assertIn(self.cargo_manana.id, cargos_en_grilla)
+        self.assertIn(self.cargo_tarde.id, cargos_en_grilla)
+
+    def test_asistencia_diaria_view_post_guarda_estados_distintos_por_cargo(self):
+        """
+        Vista AsistenciaDiariaView (POST): Permite enviar en el mismo formulario
+        'PRESENTE' para el cargo de la mañana y 'AUSENTE' para el de la tarde.
+        """
+        fecha = datetime.date(2026, 6, 15)
+        post_data = {
+            "fecha": fecha.isoformat(),
+            f"estado_{self.cargo_manana.id}": "PRESENTE",
+            f"marca_diaria_{self.cargo_manana.id}": "PR",
+            f"estado_{self.cargo_tarde.id}": "AUSENTE",
+            f"marca_diaria_{self.cargo_tarde.id}": "I",
+        }
+
+        response = self.client.post(
+            reverse("asistencia:asistencia_diaria"), post_data
+        )
+        self.assertEqual(response.status_code, 302)
+
+        reg_m = RegistroAsistencia.objects.get(
+            docente=self.docente, cargo=self.cargo_manana, fecha=fecha
+        )
+        reg_t = RegistroAsistencia.objects.get(
+            docente=self.docente, cargo=self.cargo_tarde, fecha=fecha
+        )
+
+        self.assertEqual(reg_m.estado, "PRESENTE")
+        self.assertEqual(reg_m.marca_diaria, "PR")
+        self.assertEqual(reg_t.estado, "AUSENTE")
+        self.assertEqual(reg_t.marca_diaria, "I")
+
+    def test_registro_asistencia_form_permite_cargos_distintos_mismo_dia(self):
+        """
+        Formulario RegistroAsistenciaForm: Permite registrar asistencia para
+        un segundo cargo del docente en la misma fecha, y rechaza duplicados
+        si el cargo coincide.
+        """
+        fecha = datetime.date(2026, 6, 15)
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=fecha,
+            estado="PRESENTE",
+            marca_diaria="PR",
+        )
+
+        # Formulario para el segundo cargo (Tarde): Debe ser VÁLIDO
+        form_segundo_cargo = RegistroAsistenciaForm(
+            data={
+                "docente": self.docente.pk,
+                "cargo": self.cargo_tarde.pk,
+                "fecha": fecha.isoformat(),
+                "estado": "AUSENTE",
+                "marca_diaria": "I",
+                "oficina": "1452",
+                "anio_planilla": 2026,
+            }
+        )
+        self.assertTrue(
+            form_segundo_cargo.is_valid(),
+            form_segundo_cargo.errors,
+        )
+
+        # Formulario para el MISMO cargo (Mañana): Debe ser INVÁLIDO
+        form_mismo_cargo = RegistroAsistenciaForm(
+            data={
+                "docente": self.docente.pk,
+                "cargo": self.cargo_manana.pk,
+                "fecha": fecha.isoformat(),
+                "estado": "AUSENTE",
+                "marca_diaria": "I",
+                "oficina": "1452",
+                "anio_planilla": 2026,
+            }
+        )
+        self.assertFalse(form_mismo_cargo.is_valid())
+        self.assertIn("fecha", form_mismo_cargo.errors)
+        self.assertIn(
+            "Ya existe un registro", form_mismo_cargo.errors["fecha"][0]
+        )
+
+
 # Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)
 from apps.asistencia.tests_ticket_12_6 import (  # noqa: F401, E402
     ConsultaAvanzadaMulticriterioTests,

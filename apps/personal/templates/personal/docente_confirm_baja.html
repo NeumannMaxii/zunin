@@ -26,7 +26,7 @@
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">DNI:</span>
-                <span class="font-mono font-medium text-slate-900">{{ docente.dni }}</span>
+                <span class="font-mono font-medium text-slate-900">{{ docente.dni|default:"-" }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Contacto:</span>

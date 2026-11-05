@@ -160,10 +160,20 @@ class ConsultaAvanzadaMulticriterioTests(TestCase):
             anio_planilla=2026,
             justifica=True,
         )
-        # R6: En rango (2026-04-12), Sin Cargo, Docente 2, AUSENTE / I
+        # Cargo sin materia para Docente 2
+        self.cargo_sin_materia = CargoDocente.objects.create(
+            docente=self.docente2,
+            tipo_cargo="CARGO_ADM",
+            materia=None,
+            situacion_revista="INT",
+            activo=True,
+            hasta_texto="SIN TERMINO",
+        )
+        # R6: En rango (2026-04-12), Cargo Administrativo (Sin Materia),
+        # Docente 2, AUSENTE / I
         self.asist6 = RegistroAsistencia.objects.create(
             docente=self.docente2,
-            cargo=None,
+            cargo=self.cargo_sin_materia,
             fecha=datetime.date(2026, 4, 12),
             estado="AUSENTE",
             marca_diaria="I",

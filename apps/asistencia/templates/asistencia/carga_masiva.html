@@ -56,7 +56,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
-                Mostrando docentes con designaciones activas y vigentes para la fecha <strong>{{ fecha|date:"d/m/Y" }}</strong>. Las modificaciones quedan trazadas mediante el subsistema de auditoría polimórfico.
+                Mostrando cargos con designaciones activas y vigentes para la fecha <strong>{{ fecha|date:"d/m/Y" }}</strong>. Las modificaciones quedan trazadas mediante el subsistema de auditoría polimórfico.
             </span>
         </div>
         {% endif %}
@@ -73,7 +73,7 @@
                     <thead class="{% if es_feriado %}bg-red-50 text-red-900{% else %}bg-slate-50 text-slate-700{% endif %} text-left text-xs font-semibold uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3.5">Docente</th>
-                            <th class="px-4 py-3.5">Cargos Vigentes</th>
+                            <th class="px-4 py-3.5">Materia / Cargo</th>
                             <th class="px-4 py-3.5">Estado</th>
                             <th class="px-4 py-3.5">Marca Diaria</th>
                             <th class="px-4 py-3.5">Tipo Licencia</th>
@@ -82,61 +82,55 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y {% if es_feriado %}divide-red-100{% else %}divide-slate-200{% endif %} text-sm">
-                        {% for doc in docentes %}
+                        {% for fila in grilla %}
                         <tr class="{% if es_feriado %}hover:bg-red-50/40{% else %}hover:bg-slate-50/75{% endif %} transition-colors">
-                            <input type="hidden" name="docente_ids" value="{{ doc.id }}">
                             <!-- Docente -->
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <div class="font-semibold text-slate-900">{{ doc.apellido }}, {{ doc.nombre }}</div>
-                                <div class="text-xs text-slate-500 font-mono">DNI: {{ doc.dni }}</div>
+                                <div class="font-semibold text-slate-900">{{ fila.docente.apellido }}, {{ fila.docente.nombre }}</div>
+                                <div class="text-xs text-slate-500 font-mono">DNI: {{ fila.docente.dni }}</div>
                             </td>
 
-                            <!-- Cargos -->
-                            <td class="px-4 py-3 text-xs text-slate-600 max-w-xs">
-                                {% if doc.cargos.all %}
-                                    <ul class="list-disc list-inside space-y-0.5">
-                                        {% for c in doc.cargos.all %}
-                                        <li>
-                                            {{ c.materia.nombre|default:c.get_tipo_cargo_display }}
-                                            <span class="text-slate-400">({{ c.get_situacion_revista_display }})</span>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <span class="text-slate-400 italic">Personal sin cargo fijado</span>
-                                {% endif %}
+                            <!-- Materia / Cargo -->
+                            <td class="px-4 py-3 text-sm text-slate-600">
+                                <span class="font-bold text-slate-800">
+                                    {{ fila.cargo.espacio_curricular.nombre|default:fila.cargo.situacion_revista }}
+                                </span>
+                                <br>
+                                <span class="text-xs text-slate-500">
+                                    Turno: {{ fila.cargo.get_turno_display|default:fila.cargo.turno|default:"N/A" }} | Disp: {{ fila.cargo.disposicion }}
+                                </span>
                             </td>
 
                             <!-- Estado -->
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="estado_{{ doc.id }}" 
+                                <select name="estado_{{ fila.cargo.id }}" 
                                         class="text-xs font-semibold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                    <option value="PRESENTE" {% if doc.registro_actual.estado == 'PRESENTE' or not doc.registro_actual %}selected{% endif %}>Presente</option>
-                                    <option value="AUSENTE" {% if doc.registro_actual.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
-                                    <option value="LICENCIA" {% if doc.registro_actual.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
-                                    <option value="JUSTIFICADO" {% if doc.registro_actual.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
+                                    <option value="PRESENTE" {% if fila.registro.estado == 'PRESENTE' or not fila.registro %}selected{% endif %}>Presente</option>
+                                    <option value="AUSENTE" {% if fila.registro.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
+                                    <option value="LICENCIA" {% if fila.registro.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
+                                    <option value="JUSTIFICADO" {% if fila.registro.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
                                 </select>
                             </td>
 
                             <!-- Marca Diaria -->
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="marca_diaria_{{ doc.id }}" 
+                                <select name="marca_diaria_{{ fila.cargo.id }}" 
                                         class="text-xs font-mono font-bold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                    <option value="PR" {% if doc.registro_actual.marca_diaria == 'PR' or not doc.registro_actual %}selected{% endif %}>PR (Presente)</option>
-                                    <option value="P" {% if doc.registro_actual.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
-                                    <option value="I" {% if doc.registro_actual.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
-                                    <option value="LIC" {% if doc.registro_actual.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
-                                    <option value="LT" {% if doc.registro_actual.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
+                                    <option value="PR" {% if fila.registro.marca_diaria == 'PR' or not fila.registro %}selected{% endif %}>PR (Presente)</option>
+                                    <option value="P" {% if fila.registro.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
+                                    <option value="I" {% if fila.registro.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
+                                    <option value="LIC" {% if fila.registro.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
+                                    <option value="LT" {% if fila.registro.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
                                 </select>
                             </td>
 
                             <!-- Tipo Licencia -->
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="tipo_licencia_{{ doc.id }}" 
+                                <select name="licencia_{{ fila.cargo.id }}" 
                                         class="text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
                                     <option value="">-- Sin licencia --</option>
                                     {% for tl in tipos_licencia %}
-                                    <option value="{{ tl.id }}" {% if doc.registro_actual.tipo_licencia_id == tl.id %}selected{% endif %}>
+                                    <option value="{{ tl.id }}" {% if fila.registro.tipo_licencia_id == tl.id %}selected{% endif %}>
                                         {{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
                                     </option>
                                     {% endfor %}
@@ -145,17 +139,17 @@
 
                             <!-- Observaciones -->
                             <td class="px-4 py-3">
-                                <input type="text" name="observaciones_{{ doc.id }}" 
-                                       value="{{ doc.registro_actual.observaciones|default:'' }}" 
+                                <input type="text" name="observaciones_{{ fila.cargo.id }}" 
+                                       value="{{ fila.registro.observaciones|default:'' }}" 
                                        placeholder="Opcional..." 
                                        class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2">
                             </td>
 
                             <!-- Estado Previo -->
                             <td class="px-4 py-3 text-center whitespace-nowrap">
-                                {% if doc.registro_actual %}
+                                {% if fila.registro %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                        &check; Registrado ({{ doc.registro_actual.marca_diaria }})
+                                        &check; Registrado ({{ fila.registro.marca_diaria }})
                                     </span>
                                 {% else %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
@@ -167,7 +161,7 @@
                         {% empty %}
                         <tr>
                             <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">
-                                No se encontraron docentes activos y vigentes para la fecha seleccionada.
+                                No se encontraron cargos activos y vigentes para la fecha seleccionada.
                             </td>
                         </tr>
                         {% endfor %}
@@ -178,7 +172,7 @@
             <!-- Botones de Acción -->
             <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <span class="text-xs text-slate-500">
-                    Total de docentes en grilla: <strong>{{ docentes|length }}</strong>
+                    Total de cargos en grilla: <strong>{{ grilla|length }}</strong>
                 </span>
                 <div class="flex items-center space-x-3">
                     <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">

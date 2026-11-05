@@ -388,14 +388,44 @@ class EspacioCurricular(models.Model):
         return f"{self.codigo} - {self.nombre} ({carrera_nom} - {self.anio}° Año)"
 
 
+TURNO_CHOICES = EspacioCurricular.TURNO_CHOICES
+
+
 class CargoDocenteQuerySet(models.QuerySet):
     """QuerySet personalizado para CargoDocente (Ticket 10.4)."""
 
-    def vigentes(self, fecha_referencia=None):
+    def select_related(self, *fields):
+        mapped = []
+        for f in fields:
+            if f == "espacio_curricular":
+                mapped.append("materia")
+            elif f.startswith("espacio_curricular__"):
+                mapped.append("materia__" + f[len("espacio_curricular__"):])
+            else:
+                mapped.append(f)
+        return super().select_related(*mapped)
+
+    def order_by(self, *field_names):
+        mapped = []
+        for f in field_names:
+            if f == "espacio_curricular":
+                mapped.append("materia")
+            elif f.startswith("espacio_curricular__"):
+                mapped.append("materia__" + f[len("espacio_curricular__"):])
+            elif f.startswith("-espacio_curricular__"):
+                mapped.append("-materia__" + f[len("-espacio_curricular__"):])
+            else:
+                mapped.append(f)
+        return super().order_by(*mapped)
+
+    def vigentes(self, fecha_referencia=None, fecha=None):
         """
         Retorna las designaciones activas cuya fecha_baja sea nula o
         mayor o igual a la fecha de referencia (por defecto, hoy).
+        Acepta 'fecha_referencia' o 'fecha'.
         """
+        if fecha is not None and fecha_referencia is None:
+            fecha_referencia = fecha
         if fecha_referencia is None:
             fecha_referencia = timezone.now().date()
         elif isinstance(fecha_referencia, datetime.datetime):
@@ -413,8 +443,10 @@ class CargoDocenteQuerySet(models.QuerySet):
 class CargoDocenteManager(models.Manager.from_queryset(CargoDocenteQuerySet)):
     """Custom Manager para CargoDocente con método vigentes() (Ticket 10.4)."""
 
-    def vigentes(self, fecha_referencia=None):
-        return self.get_queryset().vigentes(fecha_referencia=fecha_referencia)
+    def vigentes(self, fecha_referencia=None, fecha=None):
+        return self.get_queryset().vigentes(
+            fecha_referencia=fecha_referencia, fecha=fecha
+        )
 
 
 class CargoDocente(models.Model):
@@ -637,6 +669,47 @@ class CargoDocente(models.Model):
     def modificado_el(self):
         """Compatibilidad con referencias previas a modificado_el."""
         return self.actualizado_en
+
+    @property
+    def espacio_curricular(self):
+        """Alias de compatibilidad para espacio_curricular -> materia."""
+        return self.materia
+
+    @property
+    def disposicion(self):
+        """Retorna la disposición o resolución legal del cargo."""
+        return self.resolucion or self.numero_autorizacion or ""
+
+    @property
+    def nombre_mostrar(self):
+        """Retorna el nombre o descripción más representativa del cargo."""
+        if self.materia:
+            return self.materia.nombre
+        if self.cargo_catalogo:
+            return self.cargo_catalogo.descripcion
+        return self.get_tipo_cargo_display() or "Cargo Docente"
+
+    @property
+    def turno(self):
+        """Retorna el turno de la materia o el valor asignado."""
+        if hasattr(self, "_turno_val") and self._turno_val:
+            return self._turno_val
+        if self.materia and getattr(self.materia, "turno", None):
+            return self.materia.turno
+        return ""
+
+    @turno.setter
+    def turno(self, value):
+        self._turno_val = value or ""
+
+    def get_turno_display(self):
+        """Retorna la etiqueta legible del turno de la materia."""
+        if hasattr(self, "_turno_val") and self._turno_val:
+            from apps.personal.models import TURNO_CHOICES
+            return dict(TURNO_CHOICES).get(self._turno_val, self._turno_val)
+        if self.materia and hasattr(self.materia, "get_turno_display"):
+            return self.materia.get_turno_display()
+        return ""
 
     class Meta:
         verbose_name = "Cargo Docente"

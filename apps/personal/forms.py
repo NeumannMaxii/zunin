@@ -7,10 +7,12 @@ from datetime import date
 from django import forms
 from apps.core.forms import TailwindForm, TailwindModelForm
 from apps.personal.models import (
+    TURNO_CHOICES,
     CargoCatalogo,
     CargoDocente,
     Carrera,
     Docente,
+    EspacioCurricular,
     TipoAutorizacion,
 )
 
@@ -131,6 +133,32 @@ class CargoDocenteForm(TailwindModelForm):
         "horas_viernes",
     ]
 
+    espacio_curricular = forms.ModelChoiceField(
+        queryset=EspacioCurricular.objects.all(),
+        required=False,
+        label="Espacio Curricular / Materia",
+    )
+    disposicion = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Disposición / Resolución",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej: Disp. 145/26 o Res. 102/20"}
+        ),
+    )
+    horas_semanales = forms.IntegerField(
+        min_value=0,
+        required=False,
+        initial=0,
+        label="Horas Semanales",
+        widget=forms.NumberInput(attrs={"placeholder": "Ej: 4"}),
+    )
+    turno = forms.ChoiceField(
+        choices=[("", "-- Seleccionar Turno --")] + list(TURNO_CHOICES),
+        required=False,
+        label="Turno",
+    )
+
     class Meta:
         model = CargoDocente
         fields = [
@@ -176,21 +204,84 @@ class CargoDocenteForm(TailwindModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["materia"].required = False
+        self.fields["tipo_cargo"].required = False
+        self.fields["tipo_cargo"].initial = "HORAS_CATEDRA"
         self.fields["cargo_catalogo"].required = False
         self.fields["carrera_ref"].required = False
         self.fields["tipo_autorizacion"].required = False
         self.fields["docente_reemplazado"].required = False
+        self.fields["espacio_curricular"].queryset = (
+            EspacioCurricular.objects.select_related("carrera").order_by("nombre")
+        )
+
+        # Si ya existe instancia, inicializar campos de conveniencia
+        if self.instance and self.instance.pk:
+            if self.instance.materia:
+                self.fields["espacio_curricular"].initial = self.instance.materia
+                if (
+                    hasattr(self.instance.materia, "turno")
+                    and self.instance.materia.turno
+                ):
+                    self.fields["turno"].initial = self.instance.materia.turno
+            if hasattr(self.instance, "disposicion") and self.instance.disposicion:
+                self.fields["disposicion"].initial = self.instance.disposicion
+            if hasattr(self.instance, "total_horas_semanales"):
+                self.fields["horas_semanales"].initial = (
+                    self.instance.total_horas_semanales
+                )
+            if hasattr(self.instance, "turno") and self.instance.turno:
+                self.fields["turno"].initial = self.instance.turno
 
         # Las horas de cada día son opcionales y por defecto 0
         for dia in self.DIAS_CAMPOS:
             self.fields[dia].required = False
-            self.fields[dia].initial = 0
+            if not (self.instance and self.instance.pk):
+                self.fields[dia].initial = 0
+
+        # Asegurar que activo tenga initial=True en nuevas designaciones
+        if "activo" in self.fields and not (self.instance and self.instance.pk):
+            self.fields["activo"].initial = True
 
     def clean(self):
         cleaned_data = super().clean()
         for dia in self.DIAS_CAMPOS:
             if cleaned_data.get(dia) is None:
                 cleaned_data[dia] = 0
+
+        # Asegurar que un nuevo cargo sea activo por defecto
+        if not self.instance.pk:
+            if "activo" not in self.data:
+                cleaned_data["activo"] = True
+            else:
+                val = self.data.get("activo")
+                cleaned_data["activo"] = val in ("on", "true", "True", "1", True)
+
+        if not cleaned_data.get("tipo_cargo"):
+            cleaned_data["tipo_cargo"] = "HORAS_CATEDRA"
+
+        # Sincronizar espacio_curricular con materia
+        espacio = cleaned_data.get("espacio_curricular")
+        if espacio and not cleaned_data.get("materia"):
+            cleaned_data["materia"] = espacio
+        elif cleaned_data.get("materia") and not espacio:
+            cleaned_data["espacio_curricular"] = cleaned_data["materia"]
+
+        # Sincronizar disposicion con resolucion / numero_autorizacion
+        disp = cleaned_data.get("disposicion")
+        if disp:
+            if not cleaned_data.get("resolucion"):
+                cleaned_data["resolucion"] = disp
+            if not cleaned_data.get("numero_autorizacion"):
+                cleaned_data["numero_autorizacion"] = disp
+        elif cleaned_data.get("resolucion"):
+            cleaned_data["disposicion"] = cleaned_data["resolucion"]
+
+        # Sincronizar horas_semanales con horas_lunes si los días están en 0
+        hs = cleaned_data.get("horas_semanales")
+        total_dias = sum(cleaned_data.get(d, 0) for d in self.DIAS_CAMPOS)
+        if hs and hs > 0 and total_dias == 0:
+            cleaned_data["horas_lunes"] = hs
+
         situacion = cleaned_data.get("situacion_revista")
         docente_reemplazado = cleaned_data.get("docente_reemplazado")
         fecha_alta = cleaned_data.get("fecha_alta")
@@ -229,6 +320,35 @@ class CargoDocenteForm(TailwindModelForm):
                 )
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.pk and (
+            "activo" not in self.data or self.data.get("activo")
+        ):
+            instance.activo = True
+        if self.cleaned_data.get("espacio_curricular"):
+            instance.materia = self.cleaned_data["espacio_curricular"]
+        if self.cleaned_data.get("disposicion"):
+            instance.resolucion = self.cleaned_data["disposicion"]
+            instance.numero_autorizacion = self.cleaned_data["disposicion"]
+        if self.cleaned_data.get("turno"):
+            instance.turno = self.cleaned_data["turno"]
+        hs = self.cleaned_data.get("horas_semanales")
+        if hs and hs > 0 and instance.total_horas_semanales == 0:
+            instance.horas_lunes = hs
+        if instance.fecha_alta and (
+            not instance.desde_texto or instance.desde_texto == "SIN INICIO"
+        ):
+            instance.desde_texto = instance.fecha_alta.strftime("%d/%m/%Y")
+        if not instance.fecha_alta:
+            from django.utils import timezone
+            instance.fecha_alta = timezone.localdate()
+            if not instance.desde_texto or instance.desde_texto == "SIN INICIO":
+                instance.desde_texto = instance.fecha_alta.strftime("%d/%m/%Y")
+        if commit:
+            instance.save()
+        return instance
 
 
 class ImportarCSVForm(TailwindForm):
@@ -366,5 +486,75 @@ class TipoAutorizacionForm(TailwindModelForm):
         if qs.exists():
             raise forms.ValidationError(
                 "Ya existe un tipo de autorización con este nombre."
+            )
+        return nombre
+
+
+class EspacioCurricularForm(TailwindModelForm):
+    """
+    Formulario para el catálogo de espacios curriculares / materias.
+    """
+
+    class Meta:
+        model = EspacioCurricular
+        fields = [
+            "codigo",
+            "nombre",
+            "carrera",
+            "anio",
+            "comision",
+            "turno",
+            "regimen",
+            "aula",
+            "plan_estudio",
+        ]
+        widgets = {
+            "codigo": forms.TextInput(attrs={"placeholder": "Ej: DS-101"}),
+            "nombre": forms.TextInput(
+                attrs={"placeholder": "Ej: Programación I"}
+            ),
+            "anio": forms.NumberInput(attrs={"min": 1, "max": 6}),
+            "comision": forms.TextInput(attrs={"placeholder": "Ej: 1° A"}),
+            "aula": forms.TextInput(
+                attrs={"placeholder": "Ej: Laboratorio 1"}
+            ),
+            "plan_estudio": forms.TextInput(
+                attrs={"placeholder": "Ej: Res. 125/20"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["comision"].required = False
+        self.fields["comision"].initial = "UNICA"
+        self.fields["regimen"].initial = "ANUAL"
+        self.fields["turno"].initial = "MANANA"
+        self.fields["aula"].required = False
+        self.fields["plan_estudio"].required = False
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data.get("codigo", "").strip().upper()
+        if not codigo:
+            raise forms.ValidationError(
+                "El código del espacio curricular es obligatorio."
+            )
+        qs = EspacioCurricular.objects.filter(codigo__iexact=codigo)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                "Ya existe un espacio curricular registrado con este código."
+            )
+        return codigo
+
+    def clean_comision(self):
+        comision = self.cleaned_data.get("comision", "").strip()
+        return comision or "UNICA"
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre", "").strip()
+        if not nombre:
+            raise forms.ValidationError(
+                "El nombre de la materia es obligatorio."
             )
         return nombre
