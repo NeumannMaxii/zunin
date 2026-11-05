@@ -191,6 +191,9 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         filename = f"planillas_{cuadro.lower() if cuadro else 'mensuales'}.csv"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
+        # Inyectar BOM de UTF-8 (\ufeff) para compatibilidad con Microsoft Excel
+        response.write("\ufeff")
+
         writer = csv.writer(response)
         headers = [
             "Cuadro",
