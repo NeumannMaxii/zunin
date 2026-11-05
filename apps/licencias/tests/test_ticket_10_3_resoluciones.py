@@ -191,7 +191,8 @@ class Ticket103ResolucionesMinisterialesTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-        content = response.content.decode("utf-8")
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        content = response.content.decode("utf-8-sig")
         reader = csv.reader(io.StringIO(content))
         rows = list(reader)
 

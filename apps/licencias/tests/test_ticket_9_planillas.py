@@ -216,7 +216,8 @@ class Ticket9PantallaMensualPlanillasTests(TestCase):
         self.assertIn("text/csv", response.headers.get("Content-Type", ""))
         self.assertIn("attachment;", response.headers.get("Content-Disposition", ""))
 
-        contenido = response.content.decode("utf-8")
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        contenido = response.content.decode("utf-8-sig")
         reader = csv.reader(io.StringIO(contenido))
         filas = list(reader)
 
@@ -255,7 +256,8 @@ class Ticket9PantallaMensualPlanillasTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/csv", response.headers.get("Content-Type", ""))
 
-        reader = csv.reader(io.StringIO(response.content.decode("utf-8")))
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        reader = csv.reader(io.StringIO(response.content.decode("utf-8-sig")))
         encabezados = next(reader)
         self.assertEqual(
             encabezados,

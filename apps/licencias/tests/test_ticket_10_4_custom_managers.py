@@ -300,7 +300,8 @@ class Ticket10_4CustomManagersTests(TestCase):
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
 
         # Parsear el CSV resultante
-        csv_content = response.content.decode("utf-8")
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        csv_content = response.content.decode("utf-8-sig")
         reader = list(csv.reader(io.StringIO(csv_content)))
 
         # Encabezado (1 fila)
