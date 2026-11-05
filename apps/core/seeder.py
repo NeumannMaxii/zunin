@@ -228,35 +228,40 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "nombre": "Programación I",
                 "carrera": carrera_ds,
                 "anio": 1,
+                "turno": "MANANA",
             },
             {
                 "codigo": "DS-201",
                 "nombre": "Programación II",
                 "carrera": carrera_ds,
                 "anio": 2,
+                "turno": "MANANA",
             },
             {
                 "codigo": "DS-202",
                 "nombre": "Bases de Datos",
                 "carrera": carrera_ds,
                 "anio": 2,
+                "turno": "TARDE",
             },
             {
                 "codigo": "DS-301",
                 "nombre": "Práctica Profesionalizante III",
                 "carrera": carrera_ds,
                 "anio": 3,
+                "turno": "TARDE",
             },
             {
                 "codigo": "IA-101",
                 "nombre": "Matemática Aplicada a IA",
                 "carrera": carrera_ia,
                 "anio": 1,
+                "turno": "NOCHE",
             },
         ]
         espacio_objs = {}
         for edata in espacios_data:
-            esp, created = EspacioCurricular.objects.get_or_create(
+            esp, created = EspacioCurricular.objects.update_or_create(
                 codigo=edata["codigo"],
                 defaults=edata,
             )
@@ -284,7 +289,17 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                         "horas_miercoles": 4,
                         "dia_miercoles": "4 hs",
                         "resolucion": "Res. 101/24",
-                    }
+                    },
+                    {
+                        "codigo_cargo": "CARGO-20111222-DS301",
+                        "materia": espacio_objs["DS-301"],
+                        "situacion_revista": "INT",
+                        "horas_martes": 4,
+                        "dia_martes": "4 hs",
+                        "horas_jueves": 4,
+                        "dia_jueves": "4 hs",
+                        "resolucion": "Res. 102/24",
+                    },
                 ],
             },
             {
@@ -303,7 +318,17 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                         "horas_jueves": 3,
                         "dia_jueves": "3 hs",
                         "resolucion": "Res. 202/24",
-                    }
+                    },
+                    {
+                        "codigo_cargo": "CARGO-21222333-DS301",
+                        "materia": espacio_objs["DS-301"],
+                        "situacion_revista": "TIT",
+                        "horas_lunes": 3,
+                        "dia_lunes": "3 hs",
+                        "horas_miercoles": 3,
+                        "dia_miercoles": "3 hs",
+                        "resolucion": "Res. 203/24",
+                    },
                 ],
             },
             {
@@ -314,15 +339,25 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "contacto": "mariana.castillo@iesetyfp.edu.ar",
                 "cargos": [
                     {
-                        "codigo_cargo": "CARGO-22333444-DS202",
-                        "materia": espacio_objs["DS-202"],
+                        "codigo_cargo": "CARGO-22333444-DS101",
+                        "materia": espacio_objs["DS-101"],
                         "situacion_revista": "TIT",
                         "horas_lunes": 3,
                         "dia_lunes": "3 hs",
                         "horas_viernes": 3,
                         "dia_viernes": "3 hs",
                         "resolucion": "Res. 303/24",
-                    }
+                    },
+                    {
+                        "codigo_cargo": "CARGO-22333444-DS202",
+                        "materia": espacio_objs["DS-202"],
+                        "situacion_revista": "INT",
+                        "horas_martes": 3,
+                        "dia_martes": "3 hs",
+                        "horas_jueves": 3,
+                        "dia_jueves": "3 hs",
+                        "resolucion": "Res. 304/24",
+                    },
                 ],
             },
             {
@@ -398,7 +433,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                     "dia_jueves": cdata.get("dia_jueves", ""),
                     "dia_viernes": cdata.get("dia_viernes", ""),
                     "resolucion": cdata.get("resolucion", ""),
-                    "desde_texto": "SIN INICIO",
+                    "fecha_alta": datetime.date(2026, 3, 1),
+                    "desde_texto": "01/03/2026",
                     "hasta_texto": "SIN TERMINO",
                     "activo": True,
                 }
@@ -430,63 +466,71 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
 
         for fecha_actual in dias_mes:
             for dni, docente in docente_map.items():
-                estado = "PRESENTE"
-                marca = "P"
-                tipo_lic = None
-                justifica = True
+                cargos_activos = list(docente.cargos.filter(activo=True))
+                if not cargos_activos:
+                    continue
 
-                if dni == "20111222":  # Acosta
-                    f_ini = datetime.date(2026, 10, 19)
-                    f_fin = datetime.date(2026, 10, 21)
-                    if f_ini <= fecha_actual <= f_fin:
-                        estado = "LICENCIA"
-                        marca = "LIC"
-                        tipo_lic = lic_objs["LIC-340A"]
-                elif dni == "21222333":  # Benítez
-                    if fecha_actual in [
-                        datetime.date(2026, 10, 8),
-                        datetime.date(2026, 10, 27),
-                    ]:
-                        estado = "AUSENTE"
-                        marca = "I"
-                        justifica = False
-                elif dni == "22333444":  # Castillo
-                    f_ini = datetime.date(2026, 10, 14)
-                    f_fin = datetime.date(2026, 10, 16)
-                    if f_ini <= fecha_actual <= f_fin:
-                        estado = "LICENCIA"
-                        marca = "LIC"
-                        tipo_lic = lic_objs["LIC-344"]
-                elif dni == "24555666":  # Espínola
-                    if fecha_actual == datetime.date(2026, 10, 6):
-                        estado = "JUSTIFICADO"
-                        marca = "P"
-                        tipo_lic = lic_objs["LIC-345"]
-                    elif fecha_actual == datetime.date(2026, 10, 22):
-                        estado = "AUSENTE"
-                        marca = "I"
-                        justifica = False
+                for cargo in cargos_activos:
+                    estado = "PRESENTE"
+                    marca = "P"
+                    tipo_lic = None
+                    justifica = True
 
-                asistencia_defaults = {
-                    "estado": estado,
-                    "marca_diaria": marca,
-                    "tipo_licencia": tipo_lic,
-                    "justifica": justifica,
-                    "oficina": "1452",
-                    "anio_planilla": 2026,
-                }
-                if usuario:
-                    asistencia_defaults["modificado_por"] = usuario
+                    if dni == "20111222":  # Acosta
+                        f_ini = datetime.date(2026, 10, 19)
+                        f_fin = datetime.date(2026, 10, 21)
+                        if f_ini <= fecha_actual <= f_fin:
+                            estado = "LICENCIA"
+                            marca = "LIC"
+                            tipo_lic = lic_objs["LIC-340A"]
+                    elif dni == "21222333":  # Benítez
+                        if fecha_actual == datetime.date(2026, 10, 8):
+                            if cargo.turno in ["TARDE", "T"]:
+                                estado = "AUSENTE"
+                                marca = "I"
+                                justifica = False
+                        elif fecha_actual == datetime.date(2026, 10, 27):
+                            estado = "AUSENTE"
+                            marca = "I"
+                            justifica = False
+                    elif dni == "22333444":  # Castillo
+                        f_ini = datetime.date(2026, 10, 14)
+                        f_fin = datetime.date(2026, 10, 16)
+                        if f_ini <= fecha_actual <= f_fin:
+                            estado = "LICENCIA"
+                            marca = "LIC"
+                            tipo_lic = lic_objs["LIC-344"]
+                    elif dni == "24555666":  # Espínola
+                        if fecha_actual == datetime.date(2026, 10, 6):
+                            estado = "JUSTIFICADO"
+                            marca = "P"
+                            tipo_lic = lic_objs["LIC-345"]
+                        elif fecha_actual == datetime.date(2026, 10, 22):
+                            estado = "AUSENTE"
+                            marca = "I"
+                            justifica = False
 
-                _, a_created = RegistroAsistencia.objects.update_or_create(
-                    docente=docente,
-                    fecha=fecha_actual,
-                    defaults=asistencia_defaults,
-                )
-                if a_created:
-                    resumen["asistencias_creadas"] += 1
-                else:
-                    resumen["asistencias_actualizadas"] += 1
+                    asistencia_defaults = {
+                        "estado": estado,
+                        "marca_diaria": marca,
+                        "tipo_licencia": tipo_lic,
+                        "justifica": justifica,
+                        "oficina": "1452",
+                        "anio_planilla": 2026,
+                    }
+                    if usuario:
+                        asistencia_defaults["modificado_por"] = usuario
+
+                    _, a_created = RegistroAsistencia.objects.update_or_create(
+                        docente=docente,
+                        cargo=cargo,
+                        fecha=fecha_actual,
+                        defaults=asistencia_defaults,
+                    )
+                    if a_created:
+                        resumen["asistencias_creadas"] += 1
+                    else:
+                        resumen["asistencias_actualizadas"] += 1
 
         # 5. Opcional: Generar planilla mensual para demo
         if generar_planilla:

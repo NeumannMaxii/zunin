@@ -88,29 +88,53 @@
                     <tr>
                         <th class="px-6 py-3">Fecha</th>
                         <th class="px-6 py-3">Docente</th>
-                        <th class="px-6 py-3">Cargo / Materia</th>
-                        <th class="px-6 py-3">Marca</th>
-                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3">Materia / Cargo</th>
+                        <th class="px-6 py-3">Estado / Marca</th>
                         <th class="px-6 py-3">Justifica</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for a in asistencias %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
-                        <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ a.fecha|date:"d/m/Y" }}</td>
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ a.docente.apellido }}, {{ a.docente.nombre }}</td>
-                        <td class="px-6 py-4 text-slate-600 text-xs">{{ a.cargo|default:"Jornada Completa" }}</td>
-                        <td class="px-6 py-4 font-bold font-mono text-institucional-700">{{ a.marca_diaria }}</td>
-                        <td class="px-6 py-4">
-                            {% if a.estado == 'PRESENTE' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span>
-                            {% elif a.estado == 'LICENCIA' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Licencia</span>
-                            {% elif a.estado == 'JUSTIFICADO' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Justificado</span>
+                        <td class="px-6 py-4 font-mono font-medium text-slate-900 whitespace-nowrap">{{ a.fecha|date:"d/m/Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="font-medium text-slate-900">{{ a.docente.apellido }}, {{ a.docente.nombre }}</div>
+                            <div class="text-xs text-slate-500 font-mono">DNI: {{ a.docente.dni|default:"-" }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-700">
+                            {% if a.cargo %}
+                                <div class="font-medium text-slate-900">
+                                    {% if a.cargo.materia %}
+                                        {{ a.cargo.materia.nombre }}
+                                    {% elif a.cargo.cargo_catalogo %}
+                                        {{ a.cargo.cargo_catalogo.descripcion }}
+                                    {% else %}
+                                        {{ a.cargo.situacion_revista|default:"Cargo Docente" }}
+                                    {% endif %}
+                                </div>
+                                <div class="text-[11px] text-slate-500">
+                                    Turno: {{ a.cargo.get_turno_display|default:a.cargo.turno|default:"-" }}
+                                    {% if a.cargo.disposicion %} | Disp: {{ a.cargo.disposicion }}{% endif %}
+                                </div>
                             {% else %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Ausente</span>
+                                <span class="text-slate-500 italic">Jornada Completa</span>
                             {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold font-mono text-xs text-institucional-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{{ a.marca_diaria|default:"-" }}</span>
+                                {% if a.estado == 'PRESENTE' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span>
+                                {% elif a.estado == 'LICENCIA' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">
+                                        Licencia{% if a.tipo_licencia %} ({{ a.tipo_licencia.codigo }}){% endif %}
+                                    </span>
+                                {% elif a.estado == 'JUSTIFICADO' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Justificado</span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Ausente</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="px-6 py-4">
                             {% if a.justifica %}
@@ -122,7 +146,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">No se encontraron registros de asistencia.</td>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">No se encontraron registros de asistencia.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

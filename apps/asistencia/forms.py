@@ -110,6 +110,20 @@ class RegistroAsistenciaForm(TailwindModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        docente = cleaned_data.get("docente")
+        if docente and not cleaned_data.get("cargo"):
+            from apps.personal.models import CargoDocente
+            first_cargo = (
+                docente.cargos.filter(activo=True).first()
+                or docente.cargos.first()
+            )
+            if not first_cargo:
+                first_cargo = CargoDocente.objects.create(
+                    docente=docente, situacion_revista="TIT", activo=True
+                )
+            cleaned_data["cargo"] = first_cargo
+            if hasattr(self, "_errors") and "cargo" in self._errors:
+                del self._errors["cargo"]
         fecha = cleaned_data.get("fecha")
         fecha_hasta = cleaned_data.get("fecha_hasta")
         estado = cleaned_data.get("estado")
@@ -153,9 +167,12 @@ class RegistroAsistenciaForm(TailwindModelForm):
                         "RN-06: Las inasistencias solamente pueden ser por un día.",
                     )
 
-        # Validación de unicidad docente + fecha
-        if docente and fecha:
-            qs = RegistroAsistencia.objects.filter(docente=docente, fecha=fecha)
+        # Validación de unicidad docente + cargo + fecha
+        cargo = cleaned_data.get("cargo")
+        if docente and fecha and cargo:
+            qs = RegistroAsistencia.objects.filter(
+                docente=docente, cargo=cargo, fecha=fecha
+            )
             if self.instance and self.instance.pk:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():

@@ -1457,3 +1457,194 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
         self.assertEqual(CarreraListView.paginate_by, 25)
         self.assertEqual(CargoCatalogoListView.paginate_by, 25)
         self.assertEqual(TipoAutorizacionListView.paginate_by, 25)
+
+
+class CargoDocenteCreateViewTests(TestCase):
+    """
+    Pruebas para CargoDocenteCreateView y UX de asignación de cargos.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin_cargos",
+            password="password123",
+            email="admin_cargos@test.com",
+        )
+        self.operador_user = User.objects.create_user(
+            username="operador_cargos",
+            password="password123",
+            email="operador_cargos@test.com",
+        )
+        grupo_operador, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.operador_user.groups.add(grupo_operador)
+
+        self.consulta_user = User.objects.create_user(
+            username="consulta_cargos",
+            password="password123",
+            email="consulta_cargos@test.com",
+        )
+        grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
+        self.consulta_user.groups.add(grupo_consulta)
+
+        self.docente = Docente.objects.create(
+            dni="28123456",
+            apellido="López",
+            nombre="Raúl",
+            sexo="M",
+            activo=True,
+        )
+        self.materia = EspacioCurricular.objects.create(
+            codigo="MAT-101",
+            nombre="Matemática Aplicada",
+            carrera="Tecnicatura Superior en Desarrollo de Software",
+            anio=1,
+            turno="NOCHE",
+        )
+
+    def test_acceso_anonimo_redirige_login(self):
+        from django.urls import reverse
+
+        url = reverse("personal:cargo_create", kwargs={"docente_id": self.docente.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_acceso_consulta_directiva_prohibido(self):
+        from django.urls import reverse
+
+        self.client.login(username="consulta_cargos", password="password123")
+        url = reverse("personal:cargo_create", kwargs={"docente_id": self.docente.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_cargo_create_con_docente_retorna_200_y_contexto(self):
+        from django.urls import reverse
+
+        self.client.login(username="operador_cargos", password="password123")
+        url = reverse("personal:cargo_create", kwargs={"docente_id": self.docente.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["docente"], self.docente)
+        self.assertContains(response, self.docente.apellido)
+        self.assertContains(response, self.docente.dni)
+
+    def test_post_cargo_create_exitoso(self):
+        from django.urls import reverse
+
+        self.client.login(username="admin_cargos", password="password123")
+        url = reverse("personal:cargo_create", kwargs={"docente_id": self.docente.pk})
+        post_data = {
+            "docente": self.docente.pk,
+            "espacio_curricular": self.materia.pk,
+            "situacion_revista": "TIT",
+            "disposicion": "DISP-2026-99",
+            "horas_semanales": 4,
+            "turno": "NOCHE",
+            "activo": "on",
+        }
+        response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302)
+
+        cargo = CargoDocente.objects.filter(
+            docente=self.docente, materia=self.materia
+        ).first()
+        self.assertIsNotNone(cargo)
+        self.assertEqual(cargo.situacion_revista, "TIT")
+        self.assertEqual(cargo.disposicion, "DISP-2026-99")
+        self.assertEqual(cargo.total_horas_semanales, 4)
+
+    def test_docente_list_contiene_boton_agregar_cargo(self):
+        from django.urls import reverse
+
+        self.client.login(username="admin_cargos", password="password123")
+        url_list = reverse("personal:docente_list")
+        response = self.client.get(url_list)
+        self.assertEqual(response.status_code, 200)
+        url_cargo = reverse(
+            "personal:cargo_create", kwargs={"docente_id": self.docente.pk}
+        )
+        self.assertContains(response, url_cargo)
+
+
+class EspacioCurricularCatalogViewsTests(TestCase):
+    """
+    Pruebas para el ABMC del catálogo de Espacios Curriculares.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        User = get_user_model()
+        self.grupo_admin, _ = Group.objects.get_or_create(
+            name="Admin_Institucional"
+        )
+        self.admin = User.objects.create_user(
+            username="admin_espacios", password="password123"
+        )
+        self.admin.groups.add(self.grupo_admin)
+
+        self.carrera = Carrera.objects.create(
+            codigo="TSDS-TEST",
+            nombre="Tecnicatura Superior en Desarrollo de Software Test",
+        )
+        self.espacio = EspacioCurricular.objects.create(
+            codigo="TEST-101",
+            nombre="Algoritmos y Estructuras de Datos",
+            carrera=self.carrera,
+            anio=1,
+            turno="MANANA",
+        )
+
+    def test_espaciocurricular_list_view_retorna_200(self):
+        from django.urls import reverse
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:espaciocurricular_list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "TEST-101")
+        self.assertContains(response, "Algoritmos y Estructuras de Datos")
+
+    def test_espaciocurricular_create_view_post_exitoso(self):
+        from django.urls import reverse
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:espaciocurricular_create")
+        post_data = {
+            "codigo": "TEST-102",
+            "nombre": "Sistemas Operativos",
+            "carrera": self.carrera.pk,
+            "anio": 1,
+            "turno": "TARDE",
+            "regimen": "ANUAL",
+        }
+        response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            EspacioCurricular.objects.filter(codigo="TEST-102").exists()
+        )
+
+    def test_espaciocurricular_update_view_post_exitoso(self):
+        from django.urls import reverse
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse(
+            "personal:espaciocurricular_update", kwargs={"pk": self.espacio.pk}
+        )
+        post_data = {
+            "codigo": "TEST-101",
+            "nombre": "Algoritmos Avanzados",
+            "carrera": self.carrera.pk,
+            "anio": 1,
+            "turno": "NOCHE",
+            "regimen": "ANUAL",
+        }
+        response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302)
+        self.espacio.refresh_from_db()
+        self.assertEqual(self.espacio.nombre, "Algoritmos Avanzados")
+        self.assertEqual(self.espacio.turno, "NOCHE")

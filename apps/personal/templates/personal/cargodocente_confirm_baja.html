@@ -30,19 +30,31 @@
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Materia / Espacio Curricular:</span>
-                <span class="font-medium text-slate-800">{{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"Sin materia asignada" }}</span>
+                <span class="font-medium text-slate-800">
+                    {{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"Sin materia asignada" }}
+                    <span class="text-xs text-slate-500 font-normal">(Turno: {{ cargo.get_turno_display|default:cargo.turno|default:"-" }})</span>
+                </span>
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Situación de Revista:</span>
-                <span class="text-slate-700">{{ cargo.get_situacion_revista_display }}</span>
+                <span class="text-slate-700">{{ cargo.get_situacion_revista_display|default:"-" }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Horas Semanales:</span>
-                <span class="font-semibold text-slate-800">{{ cargo.total_horas_semanales }} hs</span>
+                <span class="font-semibold text-slate-800">{{ cargo.total_horas_semanales|default:0 }} hs</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Período de Designación:</span>
-                <span class="font-mono text-xs text-slate-600">{{ cargo.desde_texto }} &rarr; {{ cargo.hasta_texto }}</span>
+                <span class="font-mono text-xs text-slate-600">
+                    {{ cargo.fecha_alta|date:"d/m/Y"|default:cargo.desde_texto|default:"-" }} &rarr; 
+                    {% if cargo.fecha_baja %}
+                        {{ cargo.fecha_baja|date:"d/m/Y" }}
+                    {% elif cargo.hasta_texto and cargo.hasta_texto != "SIN TERMINO" and cargo.hasta_texto != "SIN TÉRMINO" %}
+                        {{ cargo.hasta_texto }}
+                    {% else %}
+                        {{ cargo.hasta_texto|default:"SIN TÉRMINO" }}
+                    {% endif %}
+                </span>
             </div>
             <div class="flex justify-between items-center pt-1 border-t border-slate-200/60">
                 <span class="text-slate-500">Estado actual del Cargo:</span>

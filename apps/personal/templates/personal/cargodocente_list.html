@@ -9,7 +9,10 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cargos y Designaciones</h1>
             <p class="text-sm text-slate-500">Distribución de horas, situaciones de revista, vigencias y cese puntual.</p>
         </div>
-        <div>
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'personal:cargodocente_nuevo' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                + Nueva Designación
+            </a>
             <a href="{% url 'personal:docente_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 &larr; Ver Docentes
             </a>
@@ -24,9 +27,7 @@
                         <th class="px-6 py-3">Docente</th>
                         <th class="px-6 py-3">Materia / Cargo</th>
                         <th class="px-6 py-3">Revista</th>
-                        <th class="px-6 py-3">Desde (Texto)</th>
-                        <th class="px-6 py-3">Hasta (Texto)</th>
-                        <th class="px-6 py-3">Horas Sem.</th>
+                        <th class="px-6 py-3">Período</th>
                         <th class="px-6 py-3">Estado</th>
                         <th class="px-6 py-3 text-right">Acciones</th>
                     </tr>
@@ -34,13 +35,41 @@
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for cargo in cargos %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ cargo.docente.apellido }}, {{ cargo.docente.nombre }}</td>
-                        <td class="px-6 py-4 text-slate-700">{{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"-" }}</td>
-                        <td class="px-6 py-4 text-slate-600">{{ cargo.get_situacion_revista_display }}</td>
-                        <td class="px-6 py-4 font-mono text-xs text-slate-500">{{ cargo.desde_texto }}</td>
-                        <td class="px-6 py-4 font-mono text-xs text-slate-500">{{ cargo.hasta_texto }}</td>
-                        <td class="px-6 py-4 font-semibold text-slate-800">{{ cargo.total_horas_semanales }} hs</td>
-                        <td class="px-6 py-4">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="font-medium text-slate-900">{{ cargo.docente.apellido }}, {{ cargo.docente.nombre }}</div>
+                            <div class="text-xs text-slate-500 font-mono">DNI: {{ cargo.docente.dni|default:"-" }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-slate-700">
+                            <div class="flex items-center space-x-1.5 mb-0.5">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                    {{ cargo.total_horas_semanales }} hs
+                                </span>
+                                <span class="font-semibold text-slate-900 truncate">
+                                    {{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"-" }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-500">
+                                Turno: {{ cargo.get_turno_display|default:cargo.turno|default:"-" }}
+                                {% if cargo.disposicion %} | Disp: {{ cargo.disposicion }}{% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{{ cargo.get_situacion_revista_display|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-600">
+                            <div>
+                                <span class="font-semibold text-slate-800">{{ cargo.fecha_alta|date:"d/m/Y"|default:cargo.desde_texto|default:"-" }}</span>
+                                <span class="text-slate-400 mx-1">&ndash;</span>
+                                <span>
+                                    {% if cargo.fecha_baja %}
+                                        {{ cargo.fecha_baja|date:"d/m/Y" }}
+                                    {% elif cargo.hasta_texto and cargo.hasta_texto != "SIN TERMINO" and cargo.hasta_texto != "SIN TÉRMINO" %}
+                                        {{ cargo.hasta_texto }}
+                                    {% else %}
+                                        {{ cargo.hasta_texto|default:"SIN TÉRMINO" }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
                             {% if cargo.activo %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
                             {% else %}
@@ -49,19 +78,20 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right">
+                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                            <a href="{% url 'personal:cargodocente_update' cargo.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
+                                Editar
+                            </a>
                             {% if cargo.activo %}
                             <a href="{% url 'personal:cargodocente_baja' cargo.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors">
                                 Cesar Cargo
                             </a>
-                            {% else %}
-                            <span class="text-xs text-slate-400">Cesado</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="px-6 py-8 text-center text-slate-400">No se encontraron cargos registrados.</td>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">No se encontraron cargos registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

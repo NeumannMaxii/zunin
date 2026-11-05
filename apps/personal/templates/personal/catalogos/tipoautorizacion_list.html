@@ -74,7 +74,7 @@
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for tipo in tipos_autorizacion %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ tipo.nombre }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">{{ tipo.nombre|default:"-" }}</td>
                         <td class="px-6 py-4">
                             {% if tipo.activo %}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
@@ -83,7 +83,7 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                            <a href="{% url 'personal:tipoautorizacion_update' tipo.pk %}" class="inline-flex items-center px-2.5 py-1.5 border border-slate-200 text-xs font-medium rounded-md text-institucional-600 hover:text-institucional-800 hover:bg-institucional-50 transition-colors">
+                            <a href="{% url 'personal:tipoautorizacion_update' tipo.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
                                 Editar
                             </a>
                         </td>

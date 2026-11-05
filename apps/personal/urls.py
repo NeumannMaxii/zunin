@@ -50,6 +50,36 @@ urlpatterns = [
     ),
     # Demás vistas existentes
     path(
+        "docentes/<int:docente_id>/cargos/nuevo/",
+        views.CargoDocenteCreateView.as_view(),
+        name="cargo_create",
+    ),
+    path(
+        "docentes/<int:docente_id>/cargos/crear/",
+        views.CargoDocenteCreateView.as_view(),
+        name="cargodocente_create",
+    ),
+    path(
+        "cargos/nuevo/",
+        views.CargoDocenteCreateView.as_view(),
+        name="cargodocente_nuevo",
+    ),
+    path(
+        "cargos/crear/",
+        views.CargoDocenteCreateView.as_view(),
+        name="cargodocente_crear",
+    ),
+    path(
+        "cargos/<int:pk>/editar/",
+        views.CargoDocenteUpdateView.as_view(),
+        name="cargodocente_update",
+    ),
+    path(
+        "cargos/<int:pk>/modificar/",
+        views.CargoDocenteUpdateView.as_view(),
+        name="cargo_update",
+    ),
+    path(
         "cargos/",
         views.CargoDocenteListView.as_view(),
         name="cargodocente_list",
@@ -115,5 +145,20 @@ urlpatterns = [
         "catalogos/autorizaciones/<int:pk>/editar/",
         views.TipoAutorizacionUpdateView.as_view(),
         name="tipoautorizacion_update",
+    ),
+    path(
+        "catalogos/espacios/",
+        views.EspacioCurricularListView.as_view(),
+        name="espaciocurricular_list",
+    ),
+    path(
+        "catalogos/espacios/crear/",
+        views.EspacioCurricularCreateView.as_view(),
+        name="espaciocurricular_create",
+    ),
+    path(
+        "catalogos/espacios/<int:pk>/editar/",
+        views.EspacioCurricularUpdateView.as_view(),
+        name="espaciocurricular_update",
     ),
 ]
