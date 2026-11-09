@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -173,12 +174,31 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
         docentes = Docente.objects.activos()
 
+        # Agrupar cargos por docente único para evitar duplicaciones en la interfaz
+        docentes_map = {}
+        for cargo in cargos_vigentes:
+            d_id = cargo.docente_id
+            if d_id not in docentes_map:
+                docentes_map[d_id] = {
+                    "docente": cargo.docente,
+                    "cargos": [],
+                }
+            reg = registros_map.get(cargo.id)
+            docentes_map[d_id]["cargos"].append({
+                "cargo": cargo,
+                "registro": reg,
+            })
+
+        docentes_grilla = list(docentes_map.values())
+
         context = {
             "titulo": "Asistencia Diaria",
             "fecha": fecha,
             "feriado": feriado,
             "es_feriado": feriado is not None,
             "grilla": grilla,
+            "docentes_grilla": docentes_grilla,
+            "total_docentes": len(docentes_grilla),
             "cargos": cargos_vigentes,
             "docentes": docentes,
             "tipos_licencia": tipos_licencia,
@@ -483,10 +503,24 @@ class JustificacionesLoteView(BackendPermisoMixin, View):
         )
 
     def get(self, request):
+        inasistencias_pendientes = (
+            RegistroAsistencia.objects.filter(
+                Q(marca_diaria__in=["I", "INA"])
+                | Q(estado="AUSENTE", justifica=False)
+            )
+            .select_related("docente", "cargo__espacio_curricular", "tipo_licencia")
+            .order_by("-fecha", "docente__apellido")
+        )
+        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
         return render(
             request,
             "asistencia/justificaciones_lote.html",
-            {"titulo": "Justificaciones por Lote"},
+            {
+                "titulo": "Justificaciones por Lote",
+                "inasistencias": inasistencias_pendientes,
+                "tipos_licencia": tipos_licencia,
+                "total_pendientes": inasistencias_pendientes.count(),
+            },
         )
 
     def post(self, request):
@@ -495,17 +529,57 @@ class JustificacionesLoteView(BackendPermisoMixin, View):
             messages.warning(request, "No se recibieron registros para justificar.")
             return redirect("asistencia:asistencia_list")
 
+        nueva_marca = request.POST.get("nueva_marca", "P")
+        tipo_licencia_id = request.POST.get("tipo_licencia")
+        tipo_licencia = (
+            TipoLicencia.objects.filter(pk=tipo_licencia_id).first()
+            if tipo_licencia_id
+            else None
+        )
+
+        items_lote = []
+        for it in lote_items:
+            if isinstance(it, str) and it.isdigit():
+                items_lote.append({
+                    "asistencia": int(it),
+                    "nueva_marca": nueva_marca,
+                    "tipo_licencia": tipo_licencia,
+                })
+            elif isinstance(it, str):
+                try:
+                    parsed = json.loads(it)
+                    items_lote.append(parsed)
+                except Exception:
+                    items_lote.append(it)
+            else:
+                items_lote.append(it)
+
         try:
             justificar_lote_asistencias(
-                lote_items, usuario=request.user, request=request
+                items_lote, usuario=request.user, request=request
             )
             messages.success(request, "Lote de justificaciones procesado exitosamente.")
             return redirect("asistencia:asistencia_list")
         except (ValidationError, IntegrityError, Exception):
+            inasistencias_pendientes = (
+                RegistroAsistencia.objects.filter(
+                    Q(marca_diaria__in=["I", "INA"])
+                    | Q(estado="AUSENTE", justifica=False)
+                )
+                .select_related("docente", "cargo__espacio_curricular", "tipo_licencia")
+                .order_by("-fecha", "docente__apellido")
+            )
+            tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
             return render(
                 request,
                 "asistencia/justificaciones_lote.html",
-                {"titulo": "Justificaciones por Lote", "error": True},
+                {
+                    "titulo": "Justificaciones por Lote",
+                    "inasistencias": inasistencias_pendientes,
+                    "tipos_licencia": tipos_licencia,
+                    "total_pendientes": inasistencias_pendientes.count(),
+                    "error": True,
+                },
                 status=400,
             )
 

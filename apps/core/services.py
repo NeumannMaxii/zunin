@@ -38,7 +38,9 @@ def obtener_panel_alertas_docentes(limite_legal=15, anio=None, solo_alertas=Fals
     if limite_legal is None or limite_legal <= 0:
         limite_legal = 15
 
-    filtro_asistencias = Q(asistencias__marca_diaria__in=["I", "INA"])
+    filtro_asistencias = Q(asistencias__marca_diaria__in=["I", "INA"]) | Q(
+        asistencias__estado="AUSENTE", asistencias__justifica=False
+    )
     if anio is not None:
         filtro_asistencias &= Q(asistencias__fecha__year=anio)
 

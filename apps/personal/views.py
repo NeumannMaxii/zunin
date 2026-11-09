@@ -48,6 +48,23 @@ class DocenteListView(LoginRequiredMixin, ListView):
     paginate_by = 25
     ordering = ["apellido", "nombre"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(apellido__icontains=q)
+                | Q(nombre__icontains=q)
+                | Q(dni__icontains=q)
+                | Q(cuil_dgi__icontains=q)
+            )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["q"] = self.request.GET.get("q", "").strip()
+        return context
+
 
 class DocenteCreateView(PermisosEstrictosMixin, AuditoriaFormMixin, CreateView):
     """
@@ -347,6 +364,24 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
     context_object_name = "cargos"
     paginate_by = 25
     ordering = ["docente__apellido", "docente__nombre"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(docente__apellido__icontains=q)
+                | Q(docente__nombre__icontains=q)
+                | Q(docente__dni__icontains=q)
+                | Q(materia__nombre__icontains=q)
+                | Q(codigo_cargo__icontains=q)
+            )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["q"] = self.request.GET.get("q", "").strip()
+        return context
 
 
 class CargoDocenteBajaView(PermisosEstrictosMixin, View):
