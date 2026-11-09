@@ -1,127 +1,190 @@
-# Sistema de Gestión de Asistencia y Licencias Docentes - IESETyFP
+# Sistema Zunin - Gestión de Asistencia y Licencias Docentes (IESETyFP)
 
-Sistema web institucional desarrollado para el **IESETyFP (Instituto de Educación Superior de Educación Técnica y Formación Profesional)**. Su objetivo principal es modernizar, centralizar y automatizar los procesos de bedelía vinculados al registro diario de asistencia docente y la gestión integral de licencias, reemplazando las planillas administrativas en hojas de cálculo (Excel) con un sistema robusto, auditable y escalable.
-
----
-
-## 🚀 Tecnologías Principales
-
-- **Lenguaje:** Python 3.11+
-- **Framework Web:** Django 5.x
-- **Bases de Datos:** MySQL (soporte vía `PyMySQL` o `mysqlclient`) con fallback inteligente a SQLite para desarrollo local ágil.
-- **Frontend:** Django Templates estilizados con Tailwind CSS.
-- **Procesamiento de Datos:** Pandas & OpenPyXL (para importación/exportación de planillas históricas).
-- **Control de Calidad & CI:** Flake8, Black, pruebas unitarias con `django.test` y GitHub Actions.
+Plataforma web integral desarrollada para el **IESETyFP (Instituto de Educación Superior de Educación Técnica y Formación Profesional)**. Su propósito es centralizar, digitalizar y automatizar los procesos de Bedelía: registro diario de asistencia docente, justificación diferida de inasistencias y emisión consolidada de planillas mensuales (cuadros IL-01 e IL-02), reemplazando planillas en hojas de cálculo por un sistema seguro, auditable y escalable.
 
 ---
 
-## 🛠️ Guía de Instalación y Puesta en Marcha Local
+## 🏛️ Arquitectura del Sistema
 
-Sigue estos pasos para configurar y ejecutar el entorno de desarrollo en tu máquina:
+El proyecto sigue una arquitectura modular y desacoplada en Django 5:
 
-### 1. Clonar el Repositorio
+- **`apps.personal`**: Gestión integral del legajo docente, catálogo de cargos, carreras, espacios curriculares y designaciones horarias semanales.
+- **`apps.asistencia`**: Registro de partes diarios unificados por docente y cargo, control de Días No Laborables/Feriados y carga masiva.
+- **`apps.licencias`**: Catálogo estatutario de licencias docentes, motor de consolidación mensual de horas afectadas y conmutación de instrumentos (Disposición Interna / Resolución Ministerial).
+- **`apps.core`**: Módulo transversal con control de accesos basado en roles (RBAC), auditoría automática (`audit_save`), Dashboard gerencial y Panel de Alertas en tiempo real.
+
+---
+
+## 🚀 Puesta en Marcha Rápida (Entorno Local y Demo)
+
+### 1. Clonar el repositorio
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd Zunin
+git clone https://github.com/NeumannMaxii/zunin.git
+cd zunin
 ```
 
-### 2. Crear y Activar el Entorno Virtual
-
+### 2. Crear y activar el entorno virtual
+En Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 En Linux / macOS:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-En Windows (PowerShell):
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-*(Si encuentras restricciones de ejecución en PowerShell, ejecuta `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`)*
-
-### 3. Instalar Dependencias
+### 3. Instalar dependencias
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configurar Variables de Entorno
-Copia el archivo de ejemplo para generar tu archivo `.env`:
-
-En Linux / macOS:
-```bash
-cp .env.example .env
-```
-En Windows:
+### 4. Configurar variables de entorno
+Copiar el archivo `.env.example` como `.env`:
 ```powershell
 copy .env.example .env
 ```
+*(Por defecto, si `DB_NAME` está vacío, el sistema utilizará SQLite local `db.sqlite3` para máxima agilidad).*
 
-> **Nota sobre Base de Datos:**
-> Por defecto, si dejas `DB_NAME=` vacío en el archivo `.env`, el sistema usará automáticamente **SQLite** (`db.sqlite3`), permitiendo comenzar a trabajar inmediatamente sin configurar un servidor MySQL local. Si deseas conectar a MySQL, completa los valores de `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` y `DB_PORT`.
-
-### 5. Ejecutar Migraciones y Crear Superusuario
+### 5. Ejecutar migraciones e inicializar base de datos
 ```bash
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py crear_usuarios
+python manage.py poblar_datos --reset --generar-planilla
 ```
 
-### 6. Iniciar el Servidor de Desarrollo
+### 6. Iniciar el servidor
 ```bash
 python manage.py runserver
 ```
-
-El sistema estará disponible en `http://127.0.0.1:8000/`.
+Acceder en el navegador a: `http://127.0.0.1:8000/`.
 
 ---
 
-## 🧪 Pruebas y Validación de Código
+## ⚠️ Nota de Ejecución para la Demostración / Defensa
 
-Para verificar que la configuración sea correcta y ejecutar los tests:
+> **IMPORTANTE:** Por practicidad operativa para la defensa final y evaluación ante la cátedra, la demostración interactiva del sistema se ejecuta con **`DEBUG=True`** en el archivo `.env`. Esto garantiza el servicio inmediato de archivos estáticos (Tailwind CSS, iconos PWA, tipografías Inter) y la visualización detallada de cualquier traza sin necesidad de configurar un servidor web inverso adicional en la máquina local.
+
+---
+
+## 🔐 Usuarios y Roles de Demostración
+
+| Usuario | Contraseña | Rol / Grupo | Permisos Principales |
+| :--- | :--- | :--- | :--- |
+| `admin` | `admin123` | **Superusuario** | Acceso total al panel administrativo de Django y auditoría. |
+| `director` | `Director123!` | **Admin_Institucional** | Gestión completa de personal, licencias y bajas lógicas. |
+| `zaquino` | `Bedelia123!` | **Bedelia_Operadoras** | Carga de asistencia diaria, justificación diferida y emisión mensual (sin borrado). |
+| `mudarte` | `Bedelia123!` | **Bedelia_Operadoras** | Operadora de Bedelía para pruebas de concurrencia. |
+| `msosa` | `Consulta123!` | **Consulta_Directiva** | Acceso de solo lectura al dashboard e informes ejecutivos. |
+
+---
+
+## 🌐 Guía de Despliegue en Servidor de Producción (Linux / Ubuntu VPS)
+
+Para el despliegue permanente en servidores Linux, seguir la siguiente arquitectura recomendada:
+
+### 1. Variables de Entorno de Producción (`.env`)
+```ini
+DEBUG=False
+SECRET_KEY=clave_segura_de_produccion_generada_aleatoriamente
+ALLOWED_HOSTS=zunin.iesetyfp.edu.ar,127.0.0.1
+
+# Base de Datos MySQL
+DB_ENGINE=mysql
+DB_NAME=zunin_prod
+DB_USER=zunin_user
+DB_PASSWORD=PasswordSeguraMySQL123!
+DB_HOST=127.0.0.1
+DB_PORT=3306
+```
+
+### 2. Recolección de Archivos Estáticos
 ```bash
-python manage.py check
+python manage.py collectstatic --noinput
+```
+
+### 3. Servicio Systemd para Gunicorn (`/etc/systemd/system/zunin.service`)
+```ini
+[Unit]
+Description=Gunicorn daemon para Sistema Zunin IESETyFP
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/zunin
+ExecStart=/var/www/zunin/.venv/bin/gunicorn \
+          --access-logfile - \
+          --workers 3 \
+          --bind unix:/run/zunin.sock \
+          config.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+```
+Activar y arrancar el servicio:
+```bash
+sudo systemctl start zunin
+sudo systemctl enable zunin
+```
+
+### 4. Configuración de Servidor Web Inverso Nginx (`/etc/nginx/sites-available/zunin`)
+```nginx
+server {
+    listen 80;
+    server_name zunin.iesetyfp.edu.ar;
+
+    location /static/ {
+        alias /var/www/zunin/staticfiles/;
+    }
+
+    location /media/ {
+        alias /var/www/zunin/media/;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/zunin.sock;
+    }
+}
+```
+Habilitar el sitio y reiniciar Nginx:
+```bash
+sudo ln -s /etc/nginx/sites-available/zunin /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 5. Certificado SSL con Let's Encrypt (HTTPS)
+```bash
+sudo certbot --nginx -d zunin.iesetyfp.edu.ar
+```
+
+---
+
+## 🧪 Pruebas Automatizadas y Calidad de Código
+
+El proyecto cuenta con una cobertura integral de pruebas unitarias, de integración y End-to-End:
+
+```bash
+# Ejecutar la suite completa de pruebas (242 tests)
 python manage.py test
-```
 
-Para análisis de formato y linting:
-```bash
-flake8
-black --check .
+# Ejecutar el test E2E con simulación temporal (Ticket 14)
+python manage.py test apps.core.tests.test_ticket_14_e2e_tiempo
+
+# Verificación de estilo y conformidad PEP8 (Linter)
+flake8 .
 ```
 
 ---
 
-## 🌿 Flujo de Trabajo Git Flow
+## 📚 Documentación Adicional
 
-Para garantizar la estabilidad del proyecto y el trabajo en equipo, se establecen las siguientes reglas obligatorias:
-
-1. **Ramas Principales:**
-   - `main`: Contiene únicamente código estable y listo para producción. **Queda terminantemente prohibido hacer commits directos a `main`**.
-   - `develop` (o branch base de integración): Rama de integración para las nuevas funcionalidades.
-
-2. **Convenciones de Nombres para Ramas de Trabajo:**
-   - Nuevas funcionalidades: `feature/nombre-de-la-funcionalidad` (ej. `feature/carga-asistencia-diaria`).
-   - Corrección de errores: `bugfix/descripcion-del-error` (ej. `bugfix/calculo-dias-licencia`).
-   - Correcciones críticas en producción: `hotfix/descripcion-urgente`.
-
-3. **Ciclo de Contribución:**
-   - Crear una nueva rama desde `main` (o `develop` según la etapa):
-     ```bash
-     git checkout -b feature/nueva-funcionalidad
-     ```
-   - Realizar commits atómicos y descriptivos.
-   - Subir la rama y abrir un **Pull Request (PR)** hacia la rama correspondiente.
-   - Todo PR debe pasar la integración continua (CI de GitHub Actions) y contar con la revisión de al menos un miembro del equipo antes del merge.
-
----
-
-## 📌 Flujo de Pull Requests y Entregas
-
-Para mantener la trazabilidad, control de calidad y visibilidad en las entregas, **todo Pull Request (PR) debe utilizar la plantilla oficial (`.github/pull_request_template.md`) e incluir obligatoriamente**:
-
-1. **Descripción concisa de los cambios:** Explicación técnica y funcional de la solución implementada.
-2. **Enlace al Ticket de Trello asociado:** Vínculo o nombre de la tarjeta en el tablero del IESETyFP.
-3. **Evidencia visual (Obligatorio):** Captura de pantalla o GIF demostrativo arrastrado en el cuerpo del PR que valide el funcionamiento de la interfaz (Tailwind CSS) o de los procesos en terminal.
-4. **Checklist de verificación:** Confirmación de que las pruebas (`python manage.py test`) pasaron en verde y no se versionaron credenciales ni archivos `.env`.
-
+- [Matriz de Trazabilidad de Requerimientos y Reglas de Negocio](docs/MATRIZ_TRAZABILIDAD.md)
+- [Guión Oficial para Demostración y Defensa ante Cátedra](docs/DEMO_SCRIPT.md)
+- [Decisiones de Arquitectura y Diseño](docs/DECISIONES_ARQUITECTURA.md)
+- [Diagrama Entidad-Relación y Estructura de Datos](docs/DER.md)
+- [Manual de Usuario del Sistema](docs/manual_usuario.md)
