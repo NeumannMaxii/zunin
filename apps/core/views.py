@@ -28,14 +28,18 @@ def dashboard_home(request):
     except (ValueError, TypeError):
         anio = timezone.now().year
 
-    # QuerySet optimizado de docentes con alertas (precaución o crítico)
-    docentes_alertas = list(
+    # QuerySet optimizado de todos los docentes activos con métricas de inasistencias
+    todos_docentes = list(
         obtener_panel_alertas_docentes(
             limite_legal=limite_legal,
             anio=anio,
-            solo_alertas=True,
+            solo_alertas=False,
         )
     )
+
+    docentes_alertas = [
+        d for d in todos_docentes if d.nivel_alerta in ("PRECAUCION", "CRITICO")
+    ]
 
     total_precaucion = sum(
         1 for d in docentes_alertas if d.nivel_alerta == "PRECAUCION"
@@ -48,6 +52,8 @@ def dashboard_home(request):
         "limite_legal": limite_legal,
         "anio_alerta": anio,
         "docentes_alertas": docentes_alertas,
+        "todos_docentes": todos_docentes,
+        "total_docentes_seguimiento": len(todos_docentes),
         "total_alertas": len(docentes_alertas),
         "total_precaucion": total_precaucion,
         "total_critico": total_critico,

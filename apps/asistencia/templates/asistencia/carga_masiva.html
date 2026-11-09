@@ -7,7 +7,7 @@
     <!-- Encabezado y Filtro de Fecha -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Asistencia Diaria (RF-10)</h1>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Asistencia Diaria</h1>
             <p class="text-sm text-slate-500">Grilla operativa de control de novedades y asistencia docente para Bedelía.</p>
         </div>
         <div class="flex items-center space-x-3">
@@ -62,128 +62,341 @@
         {% endif %}
     </div>
 
-    <!-- Grilla de Asistencia Diaria -->
-    <form method="post" class="space-y-6">
+    <!-- Barra de búsqueda y acciones rápidas -->
+    <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+        <div class="relative flex-1 max-w-md">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input type="text" id="filtro-docente-asistencia" 
+                   placeholder="Buscar docente por apellido, nombre, DNI o materia..." 
+                   class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+            <button type="button" id="btn-limpiar-filtro-asistencia" class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-sm">
+                &times;
+            </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <span id="contador-docentes" class="font-medium bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                Mostrando {{ total_docentes }} docentes
+            </span>
+            <button type="button" id="btn-todos-presentes" class="inline-flex items-center px-3 py-1.5 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-lg font-semibold hover:bg-emerald-100 transition-colors shadow-2xs">
+                &check; Marcar todos Presente
+            </button>
+        </div>
+    </div>
+
+    <!-- Grilla de Asistencia Diaria (Agrupada por Docente) -->
+    <form method="post" class="space-y-4">
         {% csrf_token %}
         <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
 
-        <div class="bg-white rounded-2xl border {% if es_feriado %}border-red-300 ring-1 ring-red-300{% else %}border-slate-200{% endif %} shadow-xs overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y {% if es_feriado %}divide-red-200{% else %}divide-slate-200{% endif %}">
-                    <thead class="{% if es_feriado %}bg-red-50 text-red-900{% else %}bg-slate-50 text-slate-700{% endif %} text-left text-xs font-semibold uppercase tracking-wider">
-                        <tr>
-                            <th class="px-4 py-3.5">Docente</th>
-                            <th class="px-4 py-3.5">Materia / Cargo</th>
-                            <th class="px-4 py-3.5">Estado</th>
-                            <th class="px-4 py-3.5">Marca Diaria</th>
-                            <th class="px-4 py-3.5">Tipo Licencia</th>
-                            <th class="px-4 py-3.5">Observaciones</th>
-                            <th class="px-4 py-3.5 text-center">Registro Previo</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y {% if es_feriado %}divide-red-100{% else %}divide-slate-200{% endif %} text-sm">
-                        {% for fila in grilla %}
-                        <tr class="{% if es_feriado %}hover:bg-red-50/40{% else %}hover:bg-slate-50/75{% endif %} transition-colors">
-                            <!-- Docente -->
-                            <td class="px-4 py-3 whitespace-nowrap">
-                                <div class="font-semibold text-slate-900">{{ fila.docente.apellido }}, {{ fila.docente.nombre }}</div>
-                                <div class="text-xs text-slate-500 font-mono">DNI: {{ fila.docente.dni }}</div>
-                            </td>
-
-                            <!-- Materia / Cargo -->
-                            <td class="px-4 py-3 text-sm text-slate-600">
-                                <span class="font-bold text-slate-800">
-                                    {{ fila.cargo.espacio_curricular.nombre|default:fila.cargo.situacion_revista }}
+        <div class="space-y-4" id="contenedor-docentes">
+            {% for fila in docentes_grilla %}
+            <div class="docente-bloque bg-white rounded-2xl border {% if es_feriado %}border-red-300 ring-1 ring-red-300{% else %}border-slate-200{% endif %} shadow-xs overflow-hidden transition-all"
+                 data-docente="{{ fila.docente.apellido|lower }} {{ fila.docente.nombre|lower }} {{ fila.docente.dni }} {% for item in fila.cargos %}{{ item.cargo.espacio_curricular.nombre|default:''|lower }} {% endfor %}">
+                
+                <!-- Encabezado del Docente (Aparece una sola vez) -->
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-institucional-100 text-institucional-700 font-bold flex items-center justify-center shrink-0">
+                            {{ fila.docente.apellido|slice:":1" }}{{ fila.docente.nombre|slice:":1" }}
+                        </div>
+                        <div>
+                            <div class="font-bold text-slate-900 text-base">
+                                {{ fila.docente.apellido }}, {{ fila.docente.nombre }}
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs text-slate-500">
+                                <span class="font-mono">DNI: {{ fila.docente.dni }}</span>
+                                <span>&bull;</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
+                                    {{ fila.cargos|length }} {% if fila.cargos|length == 1 %}materia{% else %}materias{% endif %}
                                 </span>
-                                <br>
-                                <span class="text-xs text-slate-500">
-                                    Turno: {{ fila.cargo.get_turno_display|default:fila.cargo.turno|default:"N/A" }} | Disp: {{ fila.cargo.disposicion }}
-                                </span>
-                            </td>
+                            </div>
+                        </div>
+                    </div>
 
-                            <!-- Estado -->
-                            <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="estado_{{ fila.cargo.id }}" 
-                                        class="text-xs font-semibold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                    <option value="PRESENTE" {% if fila.registro.estado == 'PRESENTE' or not fila.registro %}selected{% endif %}>Presente</option>
-                                    <option value="AUSENTE" {% if fila.registro.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
-                                    <option value="LICENCIA" {% if fila.registro.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
-                                    <option value="JUSTIFICADO" {% if fila.registro.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
-                                </select>
-                            </td>
-
-                            <!-- Marca Diaria -->
-                            <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="marca_diaria_{{ fila.cargo.id }}" 
-                                        class="text-xs font-mono font-bold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                    <option value="PR" {% if fila.registro.marca_diaria == 'PR' or not fila.registro %}selected{% endif %}>PR (Presente)</option>
-                                    <option value="P" {% if fila.registro.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
-                                    <option value="I" {% if fila.registro.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
-                                    <option value="LIC" {% if fila.registro.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
-                                    <option value="LT" {% if fila.registro.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
-                                </select>
-                            </td>
-
-                            <!-- Tipo Licencia -->
-                            <td class="px-4 py-3 whitespace-nowrap">
-                                <select name="licencia_{{ fila.cargo.id }}" 
-                                        class="text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
-                                    <option value="">-- Sin licencia --</option>
-                                    {% for tl in tipos_licencia %}
-                                    <option value="{{ tl.id }}" {% if fila.registro.tipo_licencia_id == tl.id %}selected{% endif %}>
-                                        {{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-
-                            <!-- Observaciones -->
-                            <td class="px-4 py-3">
-                                <input type="text" name="observaciones_{{ fila.cargo.id }}" 
-                                       value="{{ fila.registro.observaciones|default:'' }}" 
-                                       placeholder="Opcional..." 
-                                       class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2">
-                            </td>
-
-                            <!-- Estado Previo -->
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
-                                {% if fila.registro %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                        &check; Registrado ({{ fila.registro.marca_diaria }})
-                                    </span>
-                                {% else %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
-                                        Pendiente
-                                    </span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">
-                                No se encontraron cargos activos y vigentes para la fecha seleccionada.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Botones de Acción -->
-            <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <span class="text-xs text-slate-500">
-                    Total de cargos en grilla: <strong>{{ grilla|length }}</strong>
-                </span>
-                <div class="flex items-center space-x-3">
-                    <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                        Cancelar
-                    </a>
-                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors">
-                        Guardar Asistencia Diaria
-                    </button>
+                    <!-- Selector rápido si faltó a una materia específica -->
+                    {% if fila.cargos|length > 1 %}
+                    <div class="flex items-center space-x-2 w-full sm:w-auto">
+                        <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Novedad rápida:</label>
+                        <select class="selector-falta-materia text-xs font-semibold rounded-lg border-amber-300 bg-amber-50/70 text-amber-900 focus:ring-amber-500 focus:border-amber-500 py-1.5 px-2.5 shadow-2xs w-full sm:w-auto">
+                            <option value="">-- Seleccionar si faltó a una materia --</option>
+                            <option value="TODAS_PR">&check; Presente en todas</option>
+                            {% for item in fila.cargos %}
+                            <option value="SOLO_{{ item.cargo.id }}">
+                                &#9888; Faltó solo a: {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }} ({{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }})
+                            </option>
+                            {% endfor %}
+                            <option value="TODAS_I">&#10006; Faltó a todas las materias</option>
+                            <option value="TODAS_LIC">&#128196; Licencia en todas</option>
+                        </select>
+                    </div>
+                    {% endif %}
                 </div>
+
+                <!-- Lista de Materias / Cargos del Docente -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-100 text-sm">
+                        <thead class="bg-slate-50/50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-2.5">Materia / Espacio Curricular</th>
+                                <th class="px-4 py-2.5">Estado</th>
+                                <th class="px-4 py-2.5">Marca Diaria</th>
+                                <th class="px-4 py-2.5">Tipo Licencia</th>
+                                <th class="px-4 py-2.5">Observaciones</th>
+                                <th class="px-4 py-2.5 text-center">Registro Previo</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in fila.cargos %}
+                            <tr class="fila-cargo transition-colors hover:bg-slate-50/50" data-cargo-id="{{ item.cargo.id }}">
+                                <!-- Materia / Cargo -->
+                                <td class="px-4 py-3 text-slate-700">
+                                    <div class="font-semibold text-slate-900">
+                                        {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
+                                    </div>
+                                    <div class="text-xs text-slate-500">
+                                        Turno: {{ item.cargo.get_turno_display|default:item.cargo.turno|default:"N/A" }}
+                                        {% if item.cargo.total_horas_semanales %}| {{ item.cargo.total_horas_semanales }} hs{% endif %}
+                                        {% if item.cargo.disposicion %}| Disp: {{ item.cargo.disposicion }}{% endif %}
+                                    </div>
+                                </td>
+
+                                <!-- Estado -->
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <select name="estado_{{ item.cargo.id }}" 
+                                            class="select-estado text-xs font-semibold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
+                                        <option value="PRESENTE" {% if item.registro.estado == 'PRESENTE' or not item.registro %}selected{% endif %}>Presente</option>
+                                        <option value="AUSENTE" {% if item.registro.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
+                                        <option value="LICENCIA" {% if item.registro.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
+                                        <option value="JUSTIFICADO" {% if item.registro.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
+                                    </select>
+                                </td>
+
+                                <!-- Marca Diaria -->
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <select name="marca_diaria_{{ item.cargo.id }}" 
+                                            class="select-marca text-xs font-mono font-bold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
+                                        <option value="PR" {% if item.registro.marca_diaria == 'PR' or not item.registro %}selected{% endif %}>PR (Presente)</option>
+                                        <option value="P" {% if item.registro.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
+                                        <option value="I" {% if item.registro.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
+                                        <option value="LIC" {% if item.registro.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
+                                        <option value="LT" {% if item.registro.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
+                                    </select>
+                                </td>
+
+                                <!-- Tipo Licencia -->
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <select name="licencia_{{ item.cargo.id }}" 
+                                            class="select-licencia text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
+                                        <option value="">-- Sin licencia --</option>
+                                        {% for tl in tipos_licencia %}
+                                        <option value="{{ tl.id }}" {% if item.registro.tipo_licencia_id == tl.id %}selected{% endif %}>
+                                            {{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+
+                                <!-- Observaciones -->
+                                <td class="px-4 py-3">
+                                    <input type="text" name="observaciones_{{ item.cargo.id }}" 
+                                           value="{{ item.registro.observaciones|default:'' }}" 
+                                           placeholder="Opcional..." 
+                                           class="input-observaciones w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2">
+                                </td>
+
+                                <!-- Estado Previo -->
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    {% if item.registro %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            &check; Registrado ({{ item.registro.marca_diaria }})
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                                            Pendiente
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-sm text-slate-500">
+                No se encontraron docentes con cargos activos y vigentes para la fecha seleccionada.
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-3">
+            <span class="text-xs text-slate-500">
+                Total de docentes: <strong>{{ total_docentes }}</strong> | Total de cargos a computar: <strong>{{ grilla|length }}</strong>
+            </span>
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors cursor-pointer">
+                    Guardar Asistencia Diaria
+                </button>
             </div>
         </div>
     </form>
+
+    <!-- Script de interacción: Búsqueda en tiempo real y asignación de faltas por materia -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputFiltro = document.getElementById('filtro-docente-asistencia');
+        const btnLimpiar = document.getElementById('btn-limpiar-filtro-asistencia');
+        const contador = document.getElementById('contador-docentes');
+        const bloques = document.querySelectorAll('.docente-bloque');
+        const total = bloques.length;
+        const btnTodosPresentes = document.getElementById('btn-todos-presentes');
+
+        // 1. Filtrado de docentes en tiempo real
+        function filtrarDocentes() {
+            if (!inputFiltro) return;
+            const q = inputFiltro.value.trim().toLowerCase();
+            let visibles = 0;
+
+            if (btnLimpiar) {
+                btnLimpiar.classList.toggle('hidden', !q);
+            }
+
+            bloques.forEach(function(bloque) {
+                const datos = bloque.getAttribute('data-docente') || '';
+                if (!q || datos.includes(q)) {
+                    bloque.style.display = '';
+                    visibles++;
+                } else {
+                    bloque.style.display = 'none';
+                }
+            });
+
+            if (contador) {
+                contador.textContent = q ? `Mostrando ${visibles} de ${total} docentes` : `Mostrando ${total} docentes`;
+            }
+        }
+
+        if (inputFiltro) {
+            inputFiltro.addEventListener('input', filtrarDocentes);
+        }
+
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', function() {
+                inputFiltro.value = '';
+                filtrarDocentes();
+                inputFiltro.focus();
+            });
+        }
+
+        // 2. Selectores de falta rápida por materia
+        const selectoresMateria = document.querySelectorAll('.selector-falta-materia');
+        selectoresMateria.forEach(function(selector) {
+            selector.addEventListener('change', function() {
+                const valor = this.value;
+                if (!valor) return;
+
+                const bloque = this.closest('.docente-bloque');
+                if (!bloque) return;
+
+                const filasCargo = bloque.querySelectorAll('.fila-cargo');
+
+                if (valor === 'TODAS_PR') {
+                    filasCargo.forEach(function(fila) {
+                        const selEstado = fila.querySelector('.select-estado');
+                        const selMarca = fila.querySelector('.select-marca');
+                        if (selEstado) selEstado.value = 'PRESENTE';
+                        if (selMarca) selMarca.value = 'PR';
+                        fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                    });
+                } else if (valor === 'TODAS_I') {
+                    filasCargo.forEach(function(fila) {
+                        const selEstado = fila.querySelector('.select-estado');
+                        const selMarca = fila.querySelector('.select-marca');
+                        if (selEstado) selEstado.value = 'AUSENTE';
+                        if (selMarca) selMarca.value = 'I';
+                        fila.classList.add('bg-red-50/60');
+                    });
+                } else if (valor === 'TODAS_LIC') {
+                    filasCargo.forEach(function(fila) {
+                        const selEstado = fila.querySelector('.select-estado');
+                        const selMarca = fila.querySelector('.select-marca');
+                        if (selEstado) selEstado.value = 'LICENCIA';
+                        if (selMarca) selMarca.value = 'LIC';
+                        fila.classList.add('bg-amber-50/60');
+                    });
+                } else if (valor.startsWith('SOLO_')) {
+                    const targetCargoId = valor.replace('SOLO_', '');
+                    filasCargo.forEach(function(fila) {
+                        const cargoId = fila.getAttribute('data-cargo-id');
+                        const selEstado = fila.querySelector('.select-estado');
+                        const selMarca = fila.querySelector('.select-marca');
+
+                        if (cargoId === targetCargoId) {
+                            // Materia a la que faltó
+                            if (selEstado) selEstado.value = 'AUSENTE';
+                            if (selMarca) selMarca.value = 'I';
+                            fila.classList.add('bg-red-50/60');
+                        } else {
+                            // Otras materias del docente: presentes
+                            if (selEstado) selEstado.value = 'PRESENTE';
+                            if (selMarca) selMarca.value = 'PR';
+                            fila.classList.remove('bg-red-50/60');
+                        }
+                    });
+                }
+            });
+        });
+
+        // 3. Sincronización automática de estado -> marca_diaria al cambiar manualmente
+        document.querySelectorAll('.select-estado').forEach(function(sel) {
+            sel.addEventListener('change', function() {
+                const fila = this.closest('tr');
+                if (!fila) return;
+                const selMarca = fila.querySelector('.select-marca');
+                if (!selMarca) return;
+
+                if (this.value === 'PRESENTE') {
+                    selMarca.value = 'PR';
+                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                } else if (this.value === 'AUSENTE') {
+                    selMarca.value = 'I';
+                    fila.classList.add('bg-red-50/60');
+                } else if (this.value === 'LICENCIA') {
+                    selMarca.value = 'LIC';
+                    fila.classList.add('bg-amber-50/60');
+                } else if (this.value === 'JUSTIFICADO') {
+                    selMarca.value = 'P';
+                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                }
+            });
+        });
+
+        // 4. Marcar todos presentes globalmente
+        if (btnTodosPresentes) {
+            btnTodosPresentes.addEventListener('click', function() {
+                document.querySelectorAll('.select-estado').forEach(function(s) {
+                    s.value = 'PRESENTE';
+                });
+                document.querySelectorAll('.select-marca').forEach(function(m) {
+                    m.value = 'PR';
+                });
+                document.querySelectorAll('.fila-cargo').forEach(function(f) {
+                    f.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                });
+                document.querySelectorAll('.selector-falta-materia').forEach(function(sm) {
+                    sm.value = 'TODAS_PR';
+                });
+            });
+        }
+    });
+    </script>
 </div>
 {% endblock %}

@@ -352,7 +352,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
         "personal.CargoDocente",
         on_delete=models.PROTECT,
         related_name="renglones_mensuales",
-        help_text="RF-12: Desglose obligatorio por materia/cargo",
+        help_text="Desglose obligatorio por materia/cargo",
         verbose_name="Cargo / Materia",
     )
     tipo_licencia = models.ForeignKey(
@@ -390,7 +390,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
     horas_afectadas = models.PositiveIntegerField(
         default=0,
         help_text=(
-            "RF-13: Horas cátedra que correspondía dictar en los días afectados"
+            "Horas cátedra que correspondía dictar en los días afectados"
         ),
         verbose_name="Horas Afectadas",
     )
@@ -410,7 +410,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
         blank=True,
         null=True,
         help_text=(
-            "RN-11: Único número de disposición para todas las materias "
+            "Único número de disposición para todas las materias "
             "afectadas del docente en el mismo bloque"
         ),
         verbose_name="Número de Instrumento",
@@ -419,7 +419,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
         default=False,
         verbose_name="Planilla Desactualizada",
         help_text=(
-            "RN-03: Se marca en True cuando ingresan justificaciones o "
+            "Se marca en True cuando ingresan justificaciones o "
             "novedades posteriores a la emisión inicial de la planilla."
         ),
     )

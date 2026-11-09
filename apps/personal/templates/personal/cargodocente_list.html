@@ -19,6 +19,35 @@
         </div>
     </div>
 
+    <!-- Barra de Búsqueda de Cargos y Designaciones -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <form method="get" class="flex-1 max-w-md relative flex items-center">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input type="text" name="q" value="{{ q }}" 
+                   placeholder="Buscar por docente, DNI, materia o código..." 
+                   class="w-full pl-9 pr-20 py-2 border border-slate-300 rounded-lg text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
+            <div class="absolute inset-y-0 right-0 flex items-center pr-1.5 space-x-1">
+                {% if q %}
+                <a href="{% url 'personal:cargodocente_list' %}" class="px-2 py-1 text-xs text-slate-400 hover:text-slate-600 font-medium">
+                    &times; Limpiar
+                </a>
+                {% endif %}
+                <button type="submit" class="px-2.5 py-1 bg-institucional-600 text-white rounded-md text-xs font-semibold hover:bg-institucional-700">
+                    Buscar
+                </button>
+            </div>
+        </form>
+        <div class="text-xs text-slate-500">
+            {% if q %}
+                Filtrando por: <strong class="text-slate-800">"{{ q }}"</strong>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
