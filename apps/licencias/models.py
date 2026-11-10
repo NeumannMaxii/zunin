@@ -62,6 +62,9 @@ class TipoLicencia(models.Model):
         ("DL-02", "DL-02 - Inasistencias y Permisos (Compatibilidad)"),
     ]
 
+    UNIDAD_HABILES = "HABILES"
+    UNIDAD_CORRIDOS = "CORRIDOS"
+
     codigo = models.CharField(max_length=30, unique=True, verbose_name="Código")
     regimen = models.CharField(
         max_length=10,
@@ -211,6 +214,31 @@ class TipoLicencia(models.Model):
     def modificado_el(self):
         """Compatibilidad con referencias previas a modificado_el."""
         return self.actualizado_en
+
+    @property
+    def unidad_calculo(self):
+        """
+        Unidad normalizada ('HABILES' o 'CORRIDOS') para el motor de cálculo
+        (Ticket 16.2).
+        """
+        from apps.licencias.calculador import normalizar_unidad
+
+        return normalizar_unidad(tipo_licencia=self)
+
+    def calcular_fechas(self, fecha_desde, dias=None, fecha_hasta=None, feriados=None):
+        """
+        Calcula fecha de finalización y reintegro según la unidad estatutaria del tipo.
+        (Ticket 16.2).
+        """
+        from apps.licencias.calculador import calcular_fechas_licencia
+
+        return calcular_fechas_licencia(
+            fecha_desde=fecha_desde,
+            dias=dias,
+            fecha_hasta=fecha_hasta,
+            tipo_licencia=self,
+            feriados=feriados,
+        )
 
     class Meta:
         verbose_name = "Tipo de Licencia"
@@ -709,3 +737,28 @@ class LicenciaOtorgada(AuditoriaModel):
                 self.porcentaje_goce = Decimal("100.00")
 
         super().save(*args, **kwargs)
+
+    def calcular_fechas(self, feriados=None):
+        """
+        Calcula las fechas, días consumidos y reintegro usando el motor
+        de cálculo (Ticket 16.2).
+        """
+        from apps.licencias.calculador import calcular_fechas_licencia
+
+        return calcular_fechas_licencia(
+            fecha_desde=self.fecha_desde,
+            fecha_hasta=self.fecha_hasta_prevista,
+            tipo_licencia=self.tipo_licencia,
+            feriados=feriados,
+        )
+
+    def calcular_reintegro(self, feriados=None):
+        """
+        Calcula la fecha de reintegro efectiva posterior a la fecha de finalización
+        prevista (Ticket 16.2).
+        """
+        from apps.licencias.calculador import calcular_fecha_reintegro
+
+        return calcular_fecha_reintegro(
+            self.fecha_hasta_prevista, feriados=feriados
+        )
