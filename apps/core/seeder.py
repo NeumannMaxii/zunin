@@ -19,6 +19,40 @@ from apps.personal.models import (
 )
 
 
+def poblar_catalogo_normativo_ley647e(usuario=None):
+    """
+    Puebla la base de datos con las especificaciones completas del
+    Catálogo Normativo de Licencias, Inasistencias y Permisos según Ley 647-E
+    para Personal Titular (TIT), Interino (INT) y Suplente (SUP) (Ticket 15.2).
+    Es completamente idempotente (usa update_or_create).
+    """
+    from apps.core.catalogo_normativo_data import CATALOGO_NORMATIVO_LEY_647E
+
+    resumen = {
+        "total": len(CATALOGO_NORMATIVO_LEY_647E),
+        "creados": 0,
+        "actualizados": 0,
+    }
+
+    with transaction.atomic():
+        for item in CATALOGO_NORMATIVO_LEY_647E:
+            defaults = dict(item)
+            codigo = defaults.pop("codigo")
+            if usuario:
+                defaults["creado_por"] = usuario
+
+            _, created = TipoLicencia.objects.update_or_create(
+                codigo=codigo,
+                defaults=defaults,
+            )
+            if created:
+                resumen["creados"] += 1
+            else:
+                resumen["actualizados"] += 1
+
+    return resumen
+
+
 def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
     """
     Puebla la base de datos con información base y un mes completo de prueba
@@ -93,6 +127,10 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
             )
             if created:
                 resumen["tipos_autorizacion"] += 1
+
+        # Catálogo Normativo Ley 647-E (Ticket 15.2)
+        res_cat = poblar_catalogo_normativo_ley647e(usuario=usuario)
+        resumen["tipos_licencia"] += res_cat["creados"]
 
         tipos_lic_data = [
             {
