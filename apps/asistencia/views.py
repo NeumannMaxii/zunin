@@ -11,9 +11,10 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -21,12 +22,19 @@ from django.views.generic import (
     ListView,
     UpdateView,
 )
-from apps.asistencia.forms import ConsultaAsistenciaForm, DiaNoLaborableForm
+from apps.asistencia.forms import (
+    ConsultaAsistenciaForm,
+    DiaNoLaborableForm,
+    RegistroAsistenciaUpdateForm,
+)
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
-from apps.asistencia.services import justificar_lote_asistencias
-from apps.core.audit import AuditoriaFormMixin
+from apps.asistencia.services import (
+    justificar_lote_asistencias,
+    rectificar_planillas_por_fechas,
+)
+from apps.core.audit import AuditoriaFormMixin, audit_save
 from apps.core.mixins import PermisosEstrictosMixin
-from apps.licencias.models import TipoLicencia
+from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
 from apps.personal.models import CargoDocente, Docente
 
 
@@ -54,7 +62,12 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
         queryset = (
             super()
             .get_queryset()
-            .select_related("docente", "cargo__materia", "tipo_licencia")
+            .select_related(
+                "docente",
+                "cargo__materia",
+                "cargo__cargo_catalogo",
+                "tipo_licencia",
+            )
         )
         self.form = ConsultaAsistenciaForm(self.request.GET or None)
         if self.form.is_valid():
@@ -81,6 +94,90 @@ class ConsultaAsistenciaView(RegistroAsistenciaListView):
     """
 
     pass
+
+
+class RegistroAsistenciaUpdateView(BackendPermisoMixin, UpdateView):
+    """
+    Edición individual de un RegistroAsistencia (Presente <-> Ausente <->
+    Licencia <-> Justificado) para corregir errores de carga sobre un único
+    cargo y fecha, rectificando planillas mensuales preexistentes (RN-03).
+    """
+
+    raise_exception = True
+    model = RegistroAsistencia
+    form_class = RegistroAsistenciaUpdateForm
+    template_name = "asistencia/registroasistencia_form.html"
+    context_object_name = "registro"
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("asistencia.change_registroasistencia")
+        )
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related(
+                "docente",
+                "cargo__materia",
+                "cargo__cargo_catalogo",
+                "tipo_licencia",
+            )
+        )
+
+    def _get_next_url(self):
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+        return reverse("asistencia:asistencia_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Editar Registro de Asistencia"
+        context["accion"] = "Guardar Cambios"
+        context["next_url"] = self._get_next_url()
+        context["planilla_existente"] = (
+            RenglonPlanillaMensual.objects.filter(
+                mes=self.object.fecha.month,
+                anio=self.object.fecha.year,
+            ).exists()
+        )
+        return context
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            obj = form.save(commit=False)
+            self.object = audit_save(obj, user=self.request.user, created=False)
+            rectificados = rectificar_planillas_por_fechas(
+                [self.object.fecha],
+                usuario=self.request.user,
+            )
+
+        msg = (
+            f"Registro de {self.object.docente} del "
+            f"{self.object.fecha.strftime('%d/%m/%Y')} actualizado a "
+            f"{self.object.get_estado_display()} ({self.object.marca_diaria})."
+        )
+        if rectificados:
+            periodos_txt = ", ".join(f"{m:02d}/{a}" for m, a in rectificados)
+            msg += (
+                f" Planilla mensual {periodos_txt} rectificada "
+                "automáticamente (RN-03)."
+            )
+        messages.success(self.request, msg)
+        return redirect(self._get_next_url())
 
 
 class AsistenciaDiariaView(BackendPermisoMixin, View):
@@ -342,6 +439,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
 
         nuevos = []
         existentes = []
+        rectificados = []
         audit_user = (
             request.user
             if (
@@ -421,8 +519,15 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         reg.justifica = False
                     elif estado == "AUSENTE":
                         reg.justifica = False
-                    elif estado in ["PRESENTE", "JUSTIFICADO"]:
+                    elif estado in ["PRESENTE", "LICENCIA", "JUSTIFICADO"]:
                         reg.justifica = True
+
+                    if (
+                        not created
+                        and estado == "PRESENTE"
+                        and reg.numero_disposicion
+                    ):
+                        reg.numero_disposicion = ""
 
                     if created:
                         if not reg.creado_por_id:
@@ -448,11 +553,17 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                             "estado",
                             "marca_diaria",
                             "tipo_licencia",
+                            "numero_disposicion",
                             "observaciones",
                             "justifica",
                             "modificado_por",
                             "actualizado_en",
                         ],
+                    )
+                if nuevos or existentes:
+                    rectificados = rectificar_planillas_por_fechas(
+                        [fecha],
+                        usuario=audit_user,
                     )
 
             if es_feriado:
@@ -468,6 +579,13 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     f"Asistencia diaria de {len(cargos_a_procesar)} cargo(s) "
                     f"del día {fecha.strftime('%d/%m/%Y')} registrada exitosamente.",
                 )
+            if rectificados:
+                periodos_txt = ", ".join(f"{m:02d}/{a}" for m, a in rectificados)
+                messages.info(
+                    request,
+                    f"Planilla mensual {periodos_txt} rectificada automáticamente "
+                    "para reflejar los cambios (RN-03).",
+                )
             return redirect("asistencia:asistencia_list")
 
         except (ValidationError, IntegrityError) as exc:
@@ -476,7 +594,10 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                 f"Error al registrar la asistencia diaria: {exc}. "
                 "Se revirtieron los cambios atómicamente.",
             )
-            return redirect("asistencia:asistencia_diaria")
+            return redirect(
+                f"{reverse('asistencia:asistencia_diaria')}"
+                f"?fecha={fecha.isoformat()}"
+            )
 
 
 class JustificacionesLoteView(BackendPermisoMixin, View):

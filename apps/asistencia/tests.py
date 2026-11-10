@@ -1698,6 +1698,588 @@ class JustificacionesLoteViewTests(TestCase):
         self.assertEqual(self.ausente_1.tipo_licencia, self.tipo_lic)
 
 
+class RegistroAsistenciaUpdateAndSyncTests(TestCase):
+    """
+    Pruebas para edición individual de registros de asistencia (dos vías:
+    Presente <-> Ausente <-> Licencia <-> Justificado), aislamiento por cargo,
+    preservación de filtros (?next=), rectificación automática de planillas
+    mensuales preexistentes (RN-03) y correcciones en AsistenciaDiariaView.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from apps.personal.models import CargoDocente, EspacioCurricular
+
+        User = get_user_model()
+        self.grupo_admin, _ = Group.objects.get_or_create(name="Admin_Institucional")
+        self.grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.grupo_consulta, _ = Group.objects.get_or_create(name="Consulta_Directiva")
+
+        self.user_admin = User.objects.create_user(
+            username="admin_edit_asist", password="password123"
+        )
+        self.user_admin.groups.add(self.grupo_admin)
+
+        self.user_bedelia = User.objects.create_user(
+            username="bedelia_edit_asist", password="password123"
+        )
+        self.user_bedelia.groups.add(self.grupo_bedelia)
+
+        self.user_consulta = User.objects.create_user(
+            username="consulta_edit_asist", password="password123"
+        )
+        self.user_consulta.groups.add(self.grupo_consulta)
+
+        self.docente = Docente.objects.create(
+            dni="32111222",
+            apellido="Benítez",
+            nombre="Sofía",
+            sexo="F",
+            activo=True,
+        )
+        self.otro_docente = Docente.objects.create(
+            dni="32999888",
+            apellido="Peralta",
+            nombre="Diego",
+            sexo="M",
+            activo=True,
+        )
+
+        self.mat_1 = EspacioCurricular.objects.create(
+            codigo="PROG-301",
+            nombre="Programación III",
+            carrera="TSDS",
+            anio=2,
+            turno="MANANA",
+        )
+        self.mat_2 = EspacioCurricular.objects.create(
+            codigo="BD-302",
+            nombre="Bases de Datos II",
+            carrera="TSDS",
+            anio=2,
+            turno="TARDE",
+        )
+        self.cargo_manana = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.mat_1,
+            turno="M",
+            situacion_revista="TIT",
+            horas_lunes=4,
+            horas_miercoles=4,
+            activo=True,
+        )
+        self.cargo_tarde = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.mat_2,
+            turno="T",
+            situacion_revista="INT",
+            horas_lunes=3,
+            horas_miercoles=3,
+            activo=True,
+        )
+        self.cargo_otro = CargoDocente.objects.create(
+            docente=self.otro_docente,
+            materia=self.mat_1,
+            turno="N",
+            situacion_revista="TIT",
+            horas_lunes=2,
+            activo=True,
+        )
+
+        self.lic_ordinaria = TipoLicencia.objects.create(
+            codigo="TIT-ORD-311-A",
+            articulo="Art. 311 inc. a",
+            descripcion="Enfermedad común titular",
+            categoria="Ordinaria",
+            cuadro_mensual="IL-01",
+            activo=True,
+        )
+        self.lic_largo = TipoLicencia.objects.create(
+            codigo="LT-340B",
+            articulo="Art. 340 inc. b",
+            descripcion="Largo Tratamiento",
+            categoria="Especial",
+            cuadro_mensual="IL-01",
+            activo=True,
+        )
+        self.lic_particular = TipoLicencia.objects.create(
+            codigo="ART-350-P",
+            articulo="Art. 350",
+            descripcion="Asuntos particulares sin goce",
+            categoria="Particular",
+            cuadro_mensual="IL-02",
+            activo=True,
+        )
+
+        self.fecha_lunes = datetime.date(2026, 9, 7)
+
+    def test_rbac_y_visibilidad_boton_editar(self):
+        reg = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=self.fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        edit_url = reverse("asistencia:asistencia_update", args=[reg.pk])
+        list_url = reverse("asistencia:asistencia_list")
+
+        # Anónimo -> 302 al login
+        resp_anon_get = self.client.get(edit_url)
+        self.assertEqual(resp_anon_get.status_code, 302)
+        self.assertIn("/accounts/login/", resp_anon_get.url)
+
+        resp_anon_post = self.client.post(edit_url, {"estado": "PRESENTE"})
+        self.assertEqual(resp_anon_post.status_code, 302)
+        self.assertIn("/accounts/login/", resp_anon_post.url)
+
+        # Consulta_Directiva -> 403 en GET/POST y no ve botón Editar
+        self.client.login(username="consulta_edit_asist", password="password123")
+        resp_cons_list = self.client.get(list_url)
+        self.assertEqual(resp_cons_list.status_code, 200)
+        self.assertNotContains(resp_cons_list, edit_url)
+
+        resp_cons_get = self.client.get(edit_url)
+        self.assertEqual(resp_cons_get.status_code, 403)
+
+        resp_cons_post = self.client.post(edit_url, {"estado": "PRESENTE"})
+        self.assertEqual(resp_cons_post.status_code, 403)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+
+        # Bedelia_Operadoras -> ve botón Editar, GET 200 y POST 302
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        resp_bed_list = self.client.get(list_url)
+        self.assertEqual(resp_bed_list.status_code, 200)
+        self.assertContains(resp_bed_list, edit_url)
+
+        resp_bed_get = self.client.get(edit_url)
+        self.assertEqual(resp_bed_get.status_code, 200)
+        self.assertTemplateUsed(resp_bed_get, "asistencia/registroasistencia_form.html")
+
+        resp_bed_post = self.client.post(edit_url, {"estado": "PRESENTE"})
+        self.assertEqual(resp_bed_post.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "PRESENTE")
+
+        # Admin_Institucional -> GET 200 y POST 302
+        self.client.login(username="admin_edit_asist", password="password123")
+        resp_adm_get = self.client.get(edit_url)
+        self.assertEqual(resp_adm_get.status_code, 200)
+        resp_adm_post = self.client.post(edit_url, {"estado": "AUSENTE"})
+        self.assertEqual(resp_adm_post.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+
+    def test_corregir_ausente_a_presente_actualiza_metricas_y_aisla_otros_cargos(self):
+        from apps.core.services import obtener_panel_alertas_docentes
+
+        reg_objetivo = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=self.fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+            numero_disposicion="001/2026",
+            creado_por=self.user_admin,
+        )
+        reg_mismo_doc_otro_cargo = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_tarde,
+            fecha=self.fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+            creado_por=self.user_admin,
+        )
+        reg_otro_docente = RegistroAsistencia.objects.create(
+            docente=self.otro_docente,
+            cargo=self.cargo_otro,
+            fecha=self.fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+            creado_por=self.user_admin,
+        )
+
+        alerta_antes = obtener_panel_alertas_docentes(anio=2026).get(
+            pk=self.docente.pk
+        )
+        self.assertEqual(alerta_antes.faltas_count, 2)
+        resumen_antes = self.docente.obtener_resumen_inasistencias(anio=2026)
+        self.assertEqual(resumen_antes["inasistencias"], 2)
+
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        edit_url = reverse("asistencia:asistencia_update", args=[reg_objetivo.pk])
+        resp = self.client.post(
+            edit_url,
+            {
+                "estado": "PRESENTE",
+                "marca_diaria": "I",
+                "tipo_licencia": str(self.lic_ordinaria.pk),
+                "numero_disposicion": "001/2026",
+                "observaciones": "Corrección: firmó planilla",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+
+        reg_objetivo.refresh_from_db()
+        self.assertEqual(reg_objetivo.estado, "PRESENTE")
+        self.assertEqual(reg_objetivo.marca_diaria, "PR")
+        self.assertTrue(reg_objetivo.justifica)
+        self.assertIsNone(reg_objetivo.tipo_licencia)
+        self.assertEqual(reg_objetivo.numero_disposicion, "")
+        self.assertEqual(reg_objetivo.creado_por, self.user_admin)
+        self.assertEqual(reg_objetivo.modificado_por, self.user_bedelia)
+
+        # Otros cargos/docentes permanecen intactos
+        reg_mismo_doc_otro_cargo.refresh_from_db()
+        reg_otro_docente.refresh_from_db()
+        self.assertEqual(reg_mismo_doc_otro_cargo.estado, "AUSENTE")
+        self.assertEqual(reg_mismo_doc_otro_cargo.marca_diaria, "I")
+        self.assertFalse(reg_mismo_doc_otro_cargo.justifica)
+        self.assertEqual(reg_otro_docente.estado, "AUSENTE")
+
+        alerta_despues = obtener_panel_alertas_docentes(anio=2026).get(
+            pk=self.docente.pk
+        )
+        self.assertEqual(alerta_despues.faltas_count, 1)
+        resumen_despues = self.docente.obtener_resumen_inasistencias(anio=2026)
+        self.assertEqual(resumen_despues["inasistencias"], 1)
+
+    def test_transiciones_presente_a_ausente_y_licencia_con_validacion(self):
+        reg = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=self.fecha_lunes,
+            fecha_hasta=self.fecha_lunes + datetime.timedelta(days=1),
+            estado="PRESENTE",
+            marca_diaria="PR",
+            justifica=True,
+        )
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        edit_url = reverse("asistencia:asistencia_update", args=[reg.pk])
+
+        # PRESENTE -> AUSENTE (también limpia fecha_hasta por RN-06)
+        resp_aus = self.client.post(
+            edit_url,
+            {
+                "estado": "AUSENTE",
+                "marca_diaria": "PR",
+                "observaciones": "Ausencia constatada",
+            },
+        )
+        self.assertEqual(resp_aus.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+        self.assertEqual(reg.marca_diaria, "I")
+        self.assertFalse(reg.justifica)
+        self.assertIsNone(reg.fecha_hasta)
+
+        # AUSENTE -> LICENCIA sin tipo_licencia -> 200 con error y DB intacta
+        resp_err = self.client.post(
+            edit_url,
+            {
+                "estado": "LICENCIA",
+                "marca_diaria": "LIC",
+                "tipo_licencia": "",
+                "next": "/asistencia/?estado=AUSENTE",
+            },
+        )
+        self.assertEqual(resp_err.status_code, 200)
+        self.assertFormError(
+            resp_err.context["form"],
+            "tipo_licencia",
+            "Debe especificar el Tipo de Licencia cuando el estado es LICENCIA.",
+        )
+        self.assertEqual(resp_err.context["next_url"], "/asistencia/?estado=AUSENTE")
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+
+        # AUSENTE -> LICENCIA (con LT-340B asigna marca LT)
+        resp_lic = self.client.post(
+            edit_url,
+            {
+                "estado": "LICENCIA",
+                "marca_diaria": "I",
+                "tipo_licencia": str(self.lic_largo.pk),
+                "numero_disposicion": "Res. MEC 500/2026",
+            },
+        )
+        self.assertEqual(resp_lic.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "LICENCIA")
+        self.assertEqual(reg.marca_diaria, "LT")
+        self.assertEqual(reg.tipo_licencia, self.lic_largo)
+        self.assertTrue(reg.justifica)
+
+        # LICENCIA -> AUSENTE (limpia tipo_licencia y disposición previa sin cambios)
+        resp_lic_aus = self.client.post(
+            edit_url,
+            {
+                "estado": "AUSENTE",
+                "marca_diaria": "LT",
+                "tipo_licencia": str(self.lic_largo.pk),
+                "numero_disposicion": "Res. MEC 500/2026",
+            },
+        )
+        self.assertEqual(resp_lic_aus.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "AUSENTE")
+        self.assertEqual(reg.marca_diaria, "I")
+        self.assertIsNone(reg.tipo_licencia)
+        self.assertEqual(reg.numero_disposicion, "")
+        self.assertFalse(reg.justifica)
+
+        # AUSENTE -> JUSTIFICADO
+        resp_just = self.client.post(
+            edit_url,
+            {
+                "estado": "JUSTIFICADO",
+                "marca_diaria": "I",
+                "tipo_licencia": "",
+            },
+        )
+        self.assertEqual(resp_just.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "JUSTIFICADO")
+        self.assertEqual(reg.marca_diaria, "P")
+        self.assertTrue(reg.justifica)
+
+    def test_preserva_filtros_next_y_protege_contra_redireccion_externa(self):
+        reg = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=self.fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        next_valid = "/asistencia/?dni_o_apellido=Ben%C3%ADtez&estado=AUSENTE"
+        edit_url = reverse("asistencia:asistencia_update", args=[reg.pk])
+
+        resp_valid = self.client.post(
+            edit_url,
+            {"estado": "PRESENTE", "next": next_valid},
+        )
+        self.assertRedirects(resp_valid, next_valid, fetch_redirect_response=False)
+
+        resp_unsafe = self.client.post(
+            edit_url,
+            {"estado": "AUSENTE", "next": "https://evil.example/phish"},
+        )
+        self.assertRedirects(
+            resp_unsafe,
+            reverse("asistencia:asistencia_list"),
+            fetch_redirect_response=False,
+        )
+
+    def test_rectificacion_rn03_ausente_a_presente_y_cambio_licencia_en_planilla(self):
+        from apps.licencias.models import RenglonPlanillaMensual
+        from apps.licencias.services import generar_planilla_mes
+
+        # Mes sin planilla previa -> editar NO debe autogenerar renglones prematuros
+        reg_sin_planilla = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=datetime.date(2026, 8, 3),
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        self.client.post(
+            reverse("asistencia:asistencia_update", args=[reg_sin_planilla.pk]),
+            {"estado": "PRESENTE"},
+        )
+        self.assertEqual(
+            RenglonPlanillaMensual.objects.filter(mes=8, anio=2026).count(), 0
+        )
+
+        # Mes con planilla mensual ya generada (septiembre 2026)
+        reg_aus = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=datetime.date(2026, 9, 7),
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        reg_lic = RegistroAsistencia.objects.create(
+            docente=self.otro_docente,
+            cargo=self.cargo_otro,
+            fecha=datetime.date(2026, 9, 7),
+            estado="LICENCIA",
+            marca_diaria="LIC",
+            tipo_licencia=self.lic_particular,
+            justifica=True,
+        )
+        generar_planilla_mes(mes=9, anio=2026, usuario=self.user_admin)
+
+        vigentes_ini = RenglonPlanillaMensual.objects.vigentes().filter(
+            mes=9, anio=2026
+        )
+        self.assertEqual(vigentes_ini.count(), 2)
+        renglon_aus_orig = vigentes_ini.get(docente=self.docente)
+        inst_orig_aus = renglon_aus_orig.numero_instrumento
+
+        # 1. GET muestra aviso RN-03
+        edit_aus_url = reverse("asistencia:asistencia_update", args=[reg_aus.pk])
+        resp_get = self.client.get(edit_aus_url)
+        self.assertTrue(resp_get.context["planilla_existente"])
+        self.assertContains(resp_get, "RN-03")
+
+        # 2. Corregir Benítez AUSENTE -> PRESENTE
+        resp_post = self.client.post(
+            edit_aus_url,
+            {"estado": "PRESENTE", "numero_disposicion": inst_orig_aus},
+        )
+        self.assertEqual(resp_post.status_code, 302)
+
+        renglon_aus_orig.refresh_from_db()
+        self.assertTrue(renglon_aus_orig.desactualizada)
+        self.assertEqual(renglon_aus_orig.numero_instrumento, inst_orig_aus)
+
+        vigentes_post_1 = RenglonPlanillaMensual.objects.vigentes().filter(
+            mes=9, anio=2026
+        )
+        self.assertEqual(vigentes_post_1.count(), 1)
+        self.assertFalse(vigentes_post_1.filter(docente=self.docente).exists())
+
+        csv_resp = self.client.get(
+            f"{reverse('licencias:exportar_planilla_csv')}?mes=9&anio=2026"
+        )
+        self.assertEqual(csv_resp.status_code, 200)
+        self.assertNotIn("Benítez", csv_resp.content.decode("utf-8"))
+
+        # 3. Cambiar tipo de licencia equivocado en reg_lic (IL-02 -> IL-01)
+        renglon_lic_orig = vigentes_post_1.get(docente=self.otro_docente)
+        inst_lic_orig = renglon_lic_orig.numero_instrumento
+        edit_lic_url = reverse("asistencia:asistencia_update", args=[reg_lic.pk])
+        resp_lic_fix = self.client.post(
+            edit_lic_url,
+            {
+                "estado": "LICENCIA",
+                "marca_diaria": "LIC",
+                "tipo_licencia": str(self.lic_ordinaria.pk),
+                "numero_disposicion": inst_lic_orig,
+            },
+        )
+        self.assertEqual(resp_lic_fix.status_code, 302)
+
+        renglon_lic_orig.refresh_from_db()
+        self.assertTrue(renglon_lic_orig.desactualizada)
+        self.assertEqual(renglon_lic_orig.numero_instrumento, inst_lic_orig)
+
+        vigentes_post_2 = RenglonPlanillaMensual.objects.vigentes().filter(
+            mes=9, anio=2026
+        )
+        self.assertEqual(vigentes_post_2.count(), 1)
+        nuevo_renglon = vigentes_post_2.get(docente=self.otro_docente)
+        self.assertEqual(nuevo_renglon.tipo_licencia, self.lic_ordinaria)
+        self.assertEqual(nuevo_renglon.cuadro, "IL-01")
+        self.assertNotEqual(nuevo_renglon.numero_instrumento, inst_lic_orig)
+
+    def test_justificaciones_lote_rectifica_planilla_preexistente(self):
+        from apps.licencias.models import RenglonPlanillaMensual
+        from apps.licencias.services import generar_planilla_mes
+
+        reg = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=datetime.date(2026, 10, 5),
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        generar_planilla_mes(mes=10, anio=2026, usuario=self.user_admin)
+        renglon_orig = RenglonPlanillaMensual.objects.vigentes().get(
+            mes=10, anio=2026, docente=self.docente
+        )
+        self.assertIsNone(renglon_orig.tipo_licencia)
+
+        self.client.login(username="bedelia_edit_asist", password="password123")
+        resp = self.client.post(
+            reverse("asistencia:justificaciones_lote"),
+            {
+                "nueva_marca": "LIC",
+                "tipo_licencia": str(self.lic_ordinaria.pk),
+                "items": [str(reg.pk)],
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+
+        renglon_orig.refresh_from_db()
+        self.assertTrue(renglon_orig.desactualizada)
+
+        renglon_nuevo = RenglonPlanillaMensual.objects.vigentes().get(
+            mes=10, anio=2026, docente=self.docente
+        )
+        self.assertEqual(renglon_nuevo.tipo_licencia, self.lic_ordinaria)
+        self.assertEqual(renglon_nuevo.cuadro, "IL-01")
+
+    def test_asistencia_diaria_justifica_en_licencia_y_redirect_fecha_error(self):
+        from apps.licencias.models import RenglonPlanillaMensual
+        from apps.licencias.services import generar_planilla_mes
+
+        fecha = datetime.date(2026, 9, 9)
+        reg = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_manana,
+            fecha=fecha,
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        generar_planilla_mes(mes=9, anio=2026, usuario=self.user_admin)
+        renglon_orig = RenglonPlanillaMensual.objects.vigentes().get(
+            mes=9, anio=2026, docente=self.docente
+        )
+
+        self.client.login(username="bedelia_edit_asist", password="password123")
+
+        # 1. Error al elegir LICENCIA sin tipo_licencia preserva ?fecha=...
+        resp_err = self.client.post(
+            reverse("asistencia:asistencia_diaria"),
+            {
+                "fecha": fecha.isoformat(),
+                f"estado_{self.cargo_manana.pk}": "LICENCIA",
+                f"marca_diaria_{self.cargo_manana.pk}": "LIC",
+            },
+        )
+        self.assertRedirects(
+            resp_err,
+            f"{reverse('asistencia:asistencia_diaria')}?fecha={fecha.isoformat()}",
+            fetch_redirect_response=False,
+        )
+
+        # 2. Corregir AUSENTE -> LICENCIA asigna justifica=True y rectifica planilla
+        resp_ok = self.client.post(
+            reverse("asistencia:asistencia_diaria"),
+            {
+                "fecha": fecha.isoformat(),
+                f"estado_{self.cargo_manana.pk}": "LICENCIA",
+                f"marca_diaria_{self.cargo_manana.pk}": "LIC",
+                f"licencia_{self.cargo_manana.pk}": str(self.lic_ordinaria.pk),
+            },
+        )
+        self.assertEqual(resp_ok.status_code, 302)
+        reg.refresh_from_db()
+        self.assertEqual(reg.estado, "LICENCIA")
+        self.assertTrue(reg.justifica)
+        self.assertEqual(reg.tipo_licencia, self.lic_ordinaria)
+
+        renglon_orig.refresh_from_db()
+        self.assertTrue(renglon_orig.desactualizada)
+        renglon_nuevo = RenglonPlanillaMensual.objects.vigentes().get(
+            mes=9, anio=2026, docente=self.docente
+        )
+        self.assertEqual(renglon_nuevo.tipo_licencia, self.lic_ordinaria)
+
+
 # Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)
 from apps.asistencia.tests_ticket_12_6 import (  # noqa: F401, E402
     ConsultaAvanzadaMulticriterioTests,
