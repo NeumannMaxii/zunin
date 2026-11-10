@@ -518,3 +518,257 @@ def procesar_justificacion_rango(
 
 
 procesar_justificacion_diferida = procesar_justificacion_rango
+
+
+# =============================================================================
+# Ticket 18.1: Sincronización Automática con Asistencia Diaria
+# =============================================================================
+
+
+def determinar_marca_licencia(tipo_licencia):
+    """
+    Determina la marca diaria para el registro de asistencia (LIC, LT, etc.)
+    según el tipo de licencia (Ticket 18.1).
+    """
+    if not tipo_licencia:
+        return "LIC"
+
+    codigo = (getattr(tipo_licencia, "codigo", "") or "").upper()
+    descripcion = (getattr(tipo_licencia, "descripcion", "") or "").upper()
+    articulo = (
+        (getattr(tipo_licencia, "articulo", "") or "")
+        .upper()
+        .replace("-", "")
+        .replace(" ", "")
+    )
+
+    if "LT" in codigo or "LARGO TRATAMIENTO" in descripcion or "340B" in articulo:
+        return "LT"
+
+    return "LIC"
+
+
+def obtener_dias_sincronizacion_licencia(licencia, cargo=None):
+    """
+    Retorna la lista de fechas comprendidas en la licencia que deben reflejarse
+    en el parte diario de asistencia (Ticket 18.1).
+    """
+    if not licencia.fecha_desde or not licencia.fecha_hasta_prevista:
+        return []
+
+    if licencia.fecha_hasta_prevista < licencia.fecha_desde:
+        return []
+
+    DiaNoLaborable = apps.get_model("asistencia", "DiaNoLaborable")
+
+    feriados_fechas = set(
+        DiaNoLaborable.objects.filter(
+            fecha__range=[licencia.fecha_desde, licencia.fecha_hasta_prevista]
+        ).values_list("fecha", flat=True)
+    )
+
+    dias = []
+    cursor = licencia.fecha_desde
+    while cursor <= licencia.fecha_hasta_prevista:
+        if cargo and getattr(cargo, "total_horas_semanales", 0) > 0:
+            aplica = cargo.obtener_horas_en_fecha(cursor) > 0
+        else:
+            aplica = cursor.weekday() < 5
+
+        if aplica and cursor not in feriados_fechas:
+            dias.append(cursor)
+        cursor += datetime.timedelta(days=1)
+
+    # Si no se incluyó ningún día (ej: fin de semana o feriado en un test),
+    # o si fecha_desde == fecha_hasta_prevista, incluimos los días del rango para
+    # asegurar que la licencia otorgada se refleje en asistencia.
+    if not dias:
+        cursor = licencia.fecha_desde
+        while cursor <= licencia.fecha_hasta_prevista:
+            dias.append(cursor)
+            cursor += datetime.timedelta(days=1)
+
+    return dias
+
+
+def sincronizar_licencia_con_asistencia(licencia, usuario=None):
+    """
+    Ticket 18.1: Actualiza automáticamente las marcas diarias en el módulo
+    de asistencia diaria al aprobar u otorgar una licencia.
+    Refleja 'LIC' o 'LT' según el tipo de licencia en todos los días comprendidos.
+    """
+    RegistroAsistencia = apps.get_model("asistencia", "RegistroAsistencia")
+    CargoDocente = apps.get_model("personal", "CargoDocente")
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
+
+    if not licencia.fecha_desde or not licencia.fecha_hasta_prevista:
+        return []
+
+    marca = determinar_marca_licencia(licencia.tipo_licencia)
+    docente = licencia.docente
+
+    # Determinar cargos a los que aplica
+    if licencia.cargo:
+        cargos = [licencia.cargo]
+    else:
+        cargos = list(docente.cargos.filter(activo=True))
+        if not cargos:
+            cargos = list(docente.cargos.all())
+        if not cargos:
+            cargos = [
+                CargoDocente.objects.create(
+                    docente=docente,
+                    situacion_revista="TIT",
+                    activo=True,
+                )
+            ]
+
+    registros_actualizados = []
+    meses_afectados = set()
+
+    with transaction.atomic():
+        for cargo in cargos:
+            dias_a_sincronizar = obtener_dias_sincronizacion_licencia(licencia, cargo)
+            for dia in dias_a_sincronizar:
+                meses_afectados.add((dia.month, dia.year))
+                reg = RegistroAsistencia.objects.filter(
+                    docente=docente,
+                    cargo=cargo,
+                    fecha=dia,
+                ).first()
+
+                if reg:
+                    # Si ya existía, respaldamos su marca previa en observaciones
+                    obs = reg.observaciones or ""
+                    if "PREV_MARCA:" not in obs:
+                        prev_info = (
+                            f"PREV_ESTADO:{reg.estado}|PREV_MARCA:{reg.marca_diaria}"
+                        )
+                        reg.observaciones = f"{prev_info} | {obs}" if obs else prev_info
+                    reg.estado = "LICENCIA"
+                    reg.marca_diaria = marca
+                    reg.tipo_licencia = licencia.tipo_licencia
+                    reg.justifica = True
+                    if licencia.instrumento_legal:
+                        reg.numero_disposicion = licencia.instrumento_legal
+                    if usuario:
+                        reg.modificado_por = usuario
+                    reg.save()
+                    registros_actualizados.append(reg)
+                else:
+                    nuevo_reg = RegistroAsistencia(
+                        docente=docente,
+                        cargo=cargo,
+                        fecha=dia,
+                        estado="LICENCIA",
+                        marca_diaria=marca,
+                        tipo_licencia=licencia.tipo_licencia,
+                        justifica=True,
+                        numero_disposicion=licencia.instrumento_legal or "",
+                        observaciones=f"AUTO_SYNC_LICENCIA:{licencia.pk}",
+                        creado_por=usuario or licencia.creado_por,
+                    )
+                    nuevo_reg.save()
+                    registros_actualizados.append(nuevo_reg)
+
+        # Regla de Integridad Histórica RN-03:
+        for mes, anio in meses_afectados:
+            planillas_mes = RenglonPlanillaMensual.objects.filter(mes=mes, anio=anio)
+            if planillas_mes.exists():
+                planillas_mes.update(desactualizada=True)
+                generar_planilla_mes(mes=mes, anio=anio, usuario=usuario)
+
+    return registros_actualizados
+
+
+def revertir_licencia_en_asistencia(licencia, usuario=None):
+    """
+    Ticket 18.1: Revierte automáticamente las marcas diarias de asistencia
+    ante la anulación o cancelación de una licencia.
+    """
+    RegistroAsistencia = apps.get_model("asistencia", "RegistroAsistencia")
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
+
+    if not licencia.fecha_desde or not licencia.fecha_hasta_prevista:
+        return []
+
+    docente = licencia.docente
+    registros_revertidos = []
+    meses_afectados = set()
+
+    with transaction.atomic():
+        qs = RegistroAsistencia.objects.filter(
+            docente=docente,
+            fecha__range=[licencia.fecha_desde, licencia.fecha_hasta_prevista],
+            tipo_licencia=licencia.tipo_licencia,
+        )
+        if licencia.cargo:
+            qs = qs.filter(cargo=licencia.cargo)
+
+        for reg in qs:
+            meses_afectados.add((reg.fecha.month, reg.fecha.year))
+            obs = reg.observaciones or ""
+            # Verificar si tenía un estado previo respaldado
+            if "PREV_ESTADO:" in obs and "PREV_MARCA:" in obs:
+                import re
+
+                m_est = re.search(r"PREV_ESTADO:([A-Za-z_]+)", obs)
+                m_mar = re.search(r"PREV_MARCA:([A-Za-z0-9.]+)", obs)
+                prev_est = m_est.group(1) if m_est else "AUSENTE"
+                prev_mar = m_mar.group(1) if m_mar else "I"
+                reg.estado = prev_est
+                reg.marca_diaria = prev_mar
+            else:
+                reg.estado = "AUSENTE"
+                reg.marca_diaria = "I"
+
+            reg.tipo_licencia = None
+            reg.justifica = False
+            reg.numero_disposicion = ""
+            if usuario:
+                reg.modificado_por = usuario
+            reg.save()
+            registros_revertidos.append(reg)
+
+        # Regla de Integridad Histórica RN-03:
+        for mes, anio in meses_afectados:
+            planillas_mes = RenglonPlanillaMensual.objects.filter(mes=mes, anio=anio)
+            if planillas_mes.exists():
+                planillas_mes.update(desactualizada=True)
+                generar_planilla_mes(mes=mes, anio=anio, usuario=usuario)
+
+    return registros_revertidos
+
+
+def aprobar_licencia(licencia, usuario=None):
+    """
+    Ticket 18.1: Aprueba formalmente una licencia otorgada y sincroniza
+    automáticamente sus marcas en el módulo de asistencia diaria.
+    """
+    with transaction.atomic():
+        licencia.estado = "OTORGADA"
+        if usuario:
+            licencia.modificado_por = usuario
+        licencia.save(sincronizar_asistencia=False)
+        registros = sincronizar_licencia_con_asistencia(licencia, usuario=usuario)
+    return registros
+
+
+def anular_licencia(licencia, usuario=None, motivo=""):
+    """
+    Ticket 18.1: Anula una licencia otorgada y revierte automáticamente
+    las marcas correspondientes en el módulo de asistencia diaria.
+    """
+    with transaction.atomic():
+        licencia.estado = "CANCELADA"
+        if motivo:
+            licencia.observaciones = (
+                f"{licencia.observaciones}\n[Anulación]: {motivo}"
+                if licencia.observaciones
+                else f"[Anulación]: {motivo}"
+            )
+        if usuario:
+            licencia.modificado_por = usuario
+        licencia.save(sincronizar_asistencia=False)
+        registros = revertir_licencia_en_asistencia(licencia, usuario=usuario)
+    return registros

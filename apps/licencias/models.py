@@ -109,9 +109,7 @@ class TipoLicencia(models.Model):
         default="CON_GOCE",
         verbose_name="Forma de Pago",
     )
-    goce_haberes = models.BooleanField(
-        default=True, verbose_name="Goce de Haberes"
-    )
+    goce_haberes = models.BooleanField(default=True, verbose_name="Goce de Haberes")
     duracion_maxima = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -262,9 +260,7 @@ class TipoLicencia(models.Model):
 
         return obtener_regimenes_permitidos(self)
 
-    def obtener_tope_efectivo(
-        self, cargo=None, docente=None, fecha_referencia=None
-    ):
+    def obtener_tope_efectivo(self, cargo=None, docente=None, fecha_referencia=None):
         """
         Retorna el tope efectivo y su posible recorte por antigüedad en el
         establecimiento para el docente / cargo (Ticket 17.2).
@@ -314,9 +310,7 @@ class TipoLicencia(models.Model):
 
         if not self.regimen and self.situacion_revista_aplicable:
             primer_reg = self.situacion_revista_aplicable.split(",")[0].strip()
-            self.regimen = (
-                primer_reg if primer_reg in ["TIT", "INT", "SUP"] else "TIT"
-            )
+            self.regimen = primer_reg if primer_reg in ["TIT", "INT", "SUP"] else "TIT"
 
         if self.duracion_maxima is not None:
             if not self.tope_anual:
@@ -329,17 +323,11 @@ class TipoLicencia(models.Model):
                         else f"{self.duracion_maxima} horas diarias"
                     )
                 elif self.unidad == "Hábiles":
-                    self.cantidad_duracion = (
-                        f"{self.duracion_maxima} días hábiles"
-                    )
+                    self.cantidad_duracion = f"{self.duracion_maxima} días hábiles"
                 elif self.unidad == "Laborables":
-                    self.cantidad_duracion = (
-                        f"{self.duracion_maxima} días laborales"
-                    )
+                    self.cantidad_duracion = f"{self.duracion_maxima} días laborales"
                 else:
-                    self.cantidad_duracion = (
-                        f"{self.duracion_maxima} días corridos"
-                    )
+                    self.cantidad_duracion = f"{self.duracion_maxima} días corridos"
 
         super().save(*args, **kwargs)
 
@@ -580,9 +568,7 @@ class RenglonPlanillaMensual(AuditoriaModel):
     )
     horas_afectadas = models.PositiveIntegerField(
         default=0,
-        help_text=(
-            "Horas cátedra que correspondía dictar en los días afectados"
-        ),
+        help_text=("Horas cátedra que correspondía dictar en los días afectados"),
         verbose_name="Horas Afectadas",
     )
     marca_origen = models.CharField(
@@ -665,9 +651,11 @@ class LicenciaOtorgada(AuditoriaModel):
     ESTADO_CHOICES = [
         ("SOLICITADA", "Solicitada"),
         ("OTORGADA", "Otorgada"),
+        ("APROBADA", "Aprobada"),
         ("RECHAZADA", "Rechazada"),
         ("FINALIZADA", "Finalizada"),
         ("CANCELADA", "Cancelada"),
+        ("ANULADA", "Anulada"),
     ]
 
     docente = models.ForeignKey(
@@ -737,6 +725,10 @@ class LicenciaOtorgada(AuditoriaModel):
             models.Index(fields=["docente", "estado"]),
             models.Index(fields=["fecha_desde", "fecha_hasta_prevista"]),
         ]
+
+    def __init__(self, *args, **kwargs):
+        self._sincronizar_asistencia = kwargs.pop("sincronizar_asistencia", True)
+        super().__init__(*args, **kwargs)
 
     def __str__(self):
         cargo_str = f" - {self.cargo}" if self.cargo else ""
@@ -838,7 +830,24 @@ class LicenciaOtorgada(AuditoriaModel):
                 f"El cargo '{cargo}' no pertenece al docente {docente}."
             )
 
+        if (
+            getattr(self, "fecha_desde", None)
+            and getattr(self, "fecha_hasta_prevista", None)
+            and self.fecha_hasta_prevista < self.fecha_desde
+        ):
+            raise ValidationError(
+                {
+                    "fecha_hasta_prevista": (
+                        "La fecha hasta prevista no puede ser anterior "
+                        "a la fecha desde."
+                    )
+                }
+            )
+
     def save(self, *args, **kwargs):
+        sincronizar = kwargs.pop(
+            "sincronizar_asistencia", getattr(self, "_sincronizar_asistencia", True)
+        )
         self.clean()
         if isinstance(self.porcentaje_goce, str):
             val = self.porcentaje_goce.replace("%", "").strip()
@@ -862,6 +871,49 @@ class LicenciaOtorgada(AuditoriaModel):
 
         super().save(*args, **kwargs)
 
+        if (
+            sincronizar
+            and getattr(self, "fecha_desde", None)
+            and getattr(self, "fecha_hasta_prevista", None)
+        ):
+            if self.estado in ("OTORGADA", "APROBADA"):
+                self.sincronizar_asistencia()
+            elif self.estado in ("CANCELADA", "ANULADA", "RECHAZADA"):
+                self.revertir_asistencia()
+
+    def sincronizar_asistencia(self, usuario=None):
+        """
+        Sincroniza la licencia con los registros diarios de asistencia (Ticket 18.1).
+        """
+        from apps.licencias.services import sincronizar_licencia_con_asistencia
+
+        return sincronizar_licencia_con_asistencia(self, usuario=usuario)
+
+    def revertir_asistencia(self, usuario=None):
+        """
+        Revierte las marcas de asistencia asociadas a esta licencia (Ticket 18.1).
+        """
+        from apps.licencias.services import revertir_licencia_en_asistencia
+
+        return revertir_licencia_en_asistencia(self, usuario=usuario)
+
+    def aprobar(self, usuario=None):
+        """
+        Aprueba la licencia y sincroniza automáticamente las marcas diarias
+        (Ticket 18.1).
+        """
+        from apps.licencias.services import aprobar_licencia
+
+        return aprobar_licencia(self, usuario=usuario)
+
+    def anular(self, usuario=None, motivo=""):
+        """
+        Anula la licencia y revierte automáticamente las marcas diarias (Ticket 18.1).
+        """
+        from apps.licencias.services import anular_licencia
+
+        return anular_licencia(self, usuario=usuario, motivo=motivo)
+
     def calcular_fechas(self, feriados=None):
         """
         Calcula las fechas, días consumidos y reintegro usando el motor
@@ -883,6 +935,4 @@ class LicenciaOtorgada(AuditoriaModel):
         """
         from apps.licencias.calculador import calcular_fecha_reintegro
 
-        return calcular_fecha_reintegro(
-            self.fecha_hasta_prevista, feriados=feriados
-        )
+        return calcular_fecha_reintegro(self.fecha_hasta_prevista, feriados=feriados)

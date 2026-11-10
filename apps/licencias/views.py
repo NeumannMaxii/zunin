@@ -776,9 +776,7 @@ class ValidarAntiguedadLicenciaAPIView(View):
             return JsonResponse(
                 {
                     "status": "error",
-                    "error": (
-                        f"No se encontró el tipo de licencia '{tipo_param}'."
-                    ),
+                    "error": (f"No se encontró el tipo de licencia '{tipo_param}'."),
                 },
                 status=404,
             )
@@ -861,9 +859,7 @@ class ValidarSolapamientoLicenciaAPIView(View):
             return JsonResponse(
                 {
                     "status": "error",
-                    "error": (
-                        "El parámetro 'cargo_id' o 'cargo' es obligatorio."
-                    ),
+                    "error": ("El parámetro 'cargo_id' o 'cargo' es obligatorio."),
                 },
                 status=400,
             )
@@ -924,9 +920,7 @@ class ValidarSolapamientoLicenciaAPIView(View):
                 docente=docente_id,
             )
             valido = True
-            mensaje = (
-                "No existen licencias superpuestas en el período para el cargo."
-            )
+            mensaje = "No existen licencias superpuestas en el período para el cargo."
         except ValidationError as exc:
             valido = False
             mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
@@ -958,9 +952,7 @@ class ValidarSolapamientoLicenciaAPIView(View):
         return self._procesar(data)
 
 
-validar_solapamiento_licencia_api = (
-    ValidarSolapamientoLicenciaAPIView.as_view()
-)
+validar_solapamiento_licencia_api = ValidarSolapamientoLicenciaAPIView.as_view()
 
 
 class ValidarSaldosLicenciaAPIView(View):
@@ -997,9 +989,7 @@ class ValidarSaldosLicenciaAPIView(View):
             return JsonResponse(
                 {
                     "status": "error",
-                    "error": (
-                        f"No se encontró el tipo de licencia '{tipo_param}'."
-                    ),
+                    "error": (f"No se encontró el tipo de licencia '{tipo_param}'."),
                 },
                 status=404,
             )
@@ -1035,9 +1025,7 @@ class ValidarSaldosLicenciaAPIView(View):
                 instancia_actual=dummy_inst,
             )
             valido = True
-            mensaje = (
-                "La solicitud se encuentra dentro del saldo y tope disponible."
-            )
+            mensaje = "La solicitud se encuentra dentro del saldo y tope disponible."
         except ValidationError as exc:
             valido = False
             mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
@@ -1102,8 +1090,79 @@ class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
+        response = super().form_valid(form)
+        if form.instance.estado in ("OTORGADA", "APROBADA"):
+            form.instance.sincronizar_asistencia(usuario=self.request.user)
         messages.success(
             self.request,
             f"Licencia para {form.instance.docente} registrada exitosamente.",
         )
-        return super().form_valid(form)
+        return response
+
+
+class LicenciaOtorgadaAprobarView(PermisosEstrictosMixin, View):
+    """
+    Ticket 18.1: Acción para aprobar una licencia y reflejar automáticamente
+    las marcas correspondientes en la asistencia diaria.
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        licencia = get_object_or_404(LicenciaOtorgada, pk=pk)
+        licencia.aprobar(usuario=request.user)
+        cod = licencia.tipo_licencia.codigo if licencia.tipo_licencia else "LIC"
+        messages.success(
+            request,
+            f"Licencia #{licencia.pk} para {licencia.docente} aprobada exitosamente. "
+            f"Se reflejaron las marcas '{cod}' en asistencia diaria.",
+        )
+        return redirect("licencias:licenciaotorgada_list")
+
+    def get(self, request, pk, *args, **kwargs):
+        return self.post(request, pk, *args, **kwargs)
+
+
+class LicenciaOtorgadaAnularView(PermisosEstrictosMixin, View):
+    """
+    Ticket 18.1: Acción para anular una licencia y revertir automáticamente
+    las marcas correspondientes en la asistencia diaria.
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        licencia = get_object_or_404(LicenciaOtorgada, pk=pk)
+        motivo = request.POST.get("motivo", "")
+        licencia.anular(usuario=request.user, motivo=motivo)
+        messages.info(
+            request,
+            f"Licencia #{licencia.pk} para {licencia.docente} anulada. "
+            "Se revirtieron las marcas de asistencia a su estado original.",
+        )
+        return redirect("licencias:licenciaotorgada_list")
+
+    def get(self, request, pk, *args, **kwargs):
+        return self.post(request, pk, *args, **kwargs)
