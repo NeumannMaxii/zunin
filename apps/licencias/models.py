@@ -250,6 +250,29 @@ class TipoLicencia(models.Model):
                 primer_reg if primer_reg in ["TIT", "INT", "SUP"] else "TIT"
             )
 
+        if self.duracion_maxima is not None:
+            if not self.tope_anual:
+                self.tope_anual = self.duracion_maxima
+            if not self.cantidad_duracion:
+                if self.unidad == "Horas":
+                    self.cantidad_duracion = (
+                        f"{self.duracion_maxima} hora diaria"
+                        if self.duracion_maxima == 1
+                        else f"{self.duracion_maxima} horas diarias"
+                    )
+                elif self.unidad == "Hábiles":
+                    self.cantidad_duracion = (
+                        f"{self.duracion_maxima} días hábiles"
+                    )
+                elif self.unidad == "Laborables":
+                    self.cantidad_duracion = (
+                        f"{self.duracion_maxima} días laborales"
+                    )
+                else:
+                    self.cantidad_duracion = (
+                        f"{self.duracion_maxima} días corridos"
+                    )
+
         super().save(*args, **kwargs)
 
     @classmethod
