@@ -502,52 +502,93 @@ class JustificacionesLoteView(BackendPermisoMixin, View):
             or user.has_perm("asistencia.change_registroasistencia")
         )
 
-    def get(self, request):
-        inasistencias_pendientes = (
+    def _get_inasistencias_pendientes(self):
+        return (
             RegistroAsistencia.objects.filter(
                 Q(marca_diaria__in=["I", "INA"])
                 | Q(estado="AUSENTE", justifica=False)
             )
-            .select_related("docente", "cargo__espacio_curricular", "tipo_licencia")
+            .select_related(
+                "docente",
+                "cargo__materia",
+                "cargo__cargo_catalogo",
+                "tipo_licencia",
+            )
             .order_by("-fecha", "docente__apellido")
         )
-        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
+
+    def _get_tipos_licencia(self):
+        return TipoLicencia.objects.filter(activo=True).order_by("codigo")
+
+    def _build_context(
+        self,
+        *,
+        selected_ids=None,
+        selected_nueva_marca="P",
+        selected_tipo_licencia="",
+        error=False,
+    ):
+        inasistencias_pendientes = self._get_inasistencias_pendientes()
+        return {
+            "titulo": "Justificaciones por Lote",
+            "inasistencias": inasistencias_pendientes,
+            "tipos_licencia": self._get_tipos_licencia(),
+            "total_pendientes": inasistencias_pendientes.count(),
+            "selected_ids": selected_ids or [],
+            "selected_nueva_marca": selected_nueva_marca,
+            "selected_tipo_licencia": selected_tipo_licencia,
+            "error": error,
+        }
+
+    def get(self, request):
         return render(
             request,
             "asistencia/justificaciones_lote.html",
-            {
-                "titulo": "Justificaciones por Lote",
-                "inasistencias": inasistencias_pendientes,
-                "tipos_licencia": tipos_licencia,
-                "total_pendientes": inasistencias_pendientes.count(),
-            },
+            self._build_context(),
         )
 
     def post(self, request):
         lote_items = request.POST.getlist("items", [])
         if not lote_items:
             messages.warning(request, "No se recibieron registros para justificar.")
-            return redirect("asistencia:asistencia_list")
+            return redirect("asistencia:justificaciones_lote")
 
-        nueva_marca = request.POST.get("nueva_marca", "P")
-        tipo_licencia_id = request.POST.get("tipo_licencia")
-        tipo_licencia = (
-            TipoLicencia.objects.filter(pk=tipo_licencia_id).first()
-            if tipo_licencia_id
-            else None
-        )
+        nueva_marca = (request.POST.get("nueva_marca") or "P").strip().upper()
+        tipo_licencia_id = (request.POST.get("tipo_licencia") or "").strip()
+        tipo_licencia = None
+        if tipo_licencia_id:
+            if tipo_licencia_id.isdigit():
+                tipo_licencia = TipoLicencia.objects.filter(
+                    pk=int(tipo_licencia_id)
+                ).first()
+            if tipo_licencia is None:
+                tipo_licencia = tipo_licencia_id
 
         items_lote = []
+        selected_ids = []
         for it in lote_items:
-            if isinstance(it, str) and it.isdigit():
+            if isinstance(it, str) and it.strip().isdigit():
+                item_id = int(it.strip())
+                selected_ids.append(str(item_id))
                 items_lote.append({
-                    "asistencia": int(it),
+                    "asistencia": item_id,
                     "nueva_marca": nueva_marca,
                     "tipo_licencia": tipo_licencia,
                 })
             elif isinstance(it, str):
                 try:
                     parsed = json.loads(it)
+                    if isinstance(parsed, dict):
+                        parsed.setdefault("nueva_marca", nueva_marca)
+                        if not parsed.get("tipo_licencia") and tipo_licencia:
+                            parsed["tipo_licencia"] = tipo_licencia
+                        parsed_id = (
+                            parsed.get("asistencia")
+                            or parsed.get("registro")
+                            or parsed.get("id")
+                        )
+                        if parsed_id is not None:
+                            selected_ids.append(str(parsed_id))
                     items_lote.append(parsed)
                 except Exception:
                     items_lote.append(it)
@@ -555,31 +596,25 @@ class JustificacionesLoteView(BackendPermisoMixin, View):
                 items_lote.append(it)
 
         try:
-            justificar_lote_asistencias(
+            justificados = justificar_lote_asistencias(
                 items_lote, usuario=request.user, request=request
             )
-            messages.success(request, "Lote de justificaciones procesado exitosamente.")
+            messages.success(
+                request,
+                f"Lote de justificaciones procesado exitosamente "
+                f"({len(justificados)} registro/s actualizado/s).",
+            )
             return redirect("asistencia:asistencia_list")
         except (ValidationError, IntegrityError, Exception):
-            inasistencias_pendientes = (
-                RegistroAsistencia.objects.filter(
-                    Q(marca_diaria__in=["I", "INA"])
-                    | Q(estado="AUSENTE", justifica=False)
-                )
-                .select_related("docente", "cargo__espacio_curricular", "tipo_licencia")
-                .order_by("-fecha", "docente__apellido")
-            )
-            tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
             return render(
                 request,
                 "asistencia/justificaciones_lote.html",
-                {
-                    "titulo": "Justificaciones por Lote",
-                    "inasistencias": inasistencias_pendientes,
-                    "tipos_licencia": tipos_licencia,
-                    "total_pendientes": inasistencias_pendientes.count(),
-                    "error": True,
-                },
+                self._build_context(
+                    selected_ids=selected_ids,
+                    selected_nueva_marca=nueva_marca,
+                    selected_tipo_licencia=tipo_licencia_id,
+                    error=True,
+                ),
                 status=400,
             )
 

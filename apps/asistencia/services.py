@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.utils.dateparse import parse_date
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.audit import audit_save
+from apps.licencias.models import TipoLicencia
 
 
 def guardar_asistencia_diaria_masiva(lote_datos, usuario=None, request=None):
@@ -78,6 +79,11 @@ def justificar_lote_asistencias(lote_datos, usuario=None, request=None):
                     nueva_marca = item.get("nueva_marca") or item.get("marca")
                     tipo_licencia = item.get("tipo_licencia")
                 elif isinstance(item, (tuple, list)):
+                    if len(item) < 2:
+                        raise ValidationError(
+                            "Cada elemento de tipo lista/tupla debe incluir "
+                            "registro de asistencia y nueva marca."
+                        )
                     asistencia = item[0]
                     nueva_marca = item[1]
                     tipo_licencia = item[2] if len(item) > 2 else None
@@ -86,8 +92,40 @@ def justificar_lote_asistencias(lote_datos, usuario=None, request=None):
                         f"Formato de item de justificación no válido: {type(item)}."
                     )
 
+                if isinstance(asistencia, str) and asistencia.strip().isdigit():
+                    asistencia = int(asistencia.strip())
+
                 if isinstance(asistencia, int):
-                    asistencia = RegistroAsistencia.objects.get(pk=asistencia)
+                    asistencia_id = asistencia
+                    asistencia = RegistroAsistencia.objects.filter(
+                        pk=asistencia_id
+                    ).first()
+                    if asistencia is None:
+                        raise ValidationError(
+                            f"El registro de asistencia #{asistencia_id} no existe."
+                        )
+                elif not isinstance(asistencia, RegistroAsistencia):
+                    raise ValidationError(
+                        "Debe especificar un registro de asistencia válido."
+                    )
+
+                if isinstance(tipo_licencia, int) or (
+                    isinstance(tipo_licencia, str) and tipo_licencia.strip()
+                ):
+                    tl_val = str(tipo_licencia).strip()
+                    if isinstance(tipo_licencia, int) or tl_val.isdigit():
+                        tl_obj = TipoLicencia.objects.filter(pk=int(tl_val)).first()
+                    else:
+                        tl_obj = TipoLicencia.objects.filter(
+                            codigo__iexact=tl_val
+                        ).first()
+                    if tl_obj is None:
+                        raise ValidationError(
+                            f"Tipo de licencia no encontrado: '{tipo_licencia}'."
+                        )
+                    tipo_licencia = tl_obj
+                elif isinstance(tipo_licencia, str) and not tipo_licencia.strip():
+                    tipo_licencia = None
 
                 asistencia.justificar_con_formulario(
                     nueva_marca=nueva_marca,
