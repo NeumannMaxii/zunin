@@ -44,10 +44,31 @@
                 </a>
 
                 <!-- Cuadro IL-02 -->
-                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-02{% if q %}&q={{ q }}{% endif %}"
+                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-02{% if q %}&q={{ q }}{% endif %}{% if regimen %}&regimen={{ regimen }}{% endif %}"
                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro == 'IL-02' %}bg-amber-600 text-white shadow-xs{% else %}bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200{% endif %}">
                     <span class="w-2 h-2 rounded-full mr-1.5 {% if cuadro == 'IL-02' %}bg-white{% else %}bg-amber-500{% endif %}"></span>
                     Cuadro IL-02 (Especiales / Inasistencias)
+                </a>
+            </div>
+
+            <!-- Filtro de Régimen de Revista (Ticket 17.1) -->
+            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Régimen:</span>
+                <a href="{% url 'licencias:tipolicencia_list' %}?{% if cuadro %}cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if not regimen %}bg-slate-700 text-white shadow-xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                    Todos
+                </a>
+                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=TIT{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'TIT' %}bg-indigo-600 text-white shadow-xs{% else %}bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200{% endif %}">
+                    Titular (TIT)
+                </a>
+                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=INT{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'INT' %}bg-emerald-600 text-white shadow-xs{% else %}bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200{% endif %}">
+                    Interino (INT)
+                </a>
+                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=SUP{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'SUP' %}bg-purple-600 text-white shadow-xs{% else %}bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200{% endif %}">
+                    Suplente (SUP)
                 </a>
             </div>
 
@@ -61,6 +82,9 @@
         <form method="get" action="{% url 'licencias:tipolicencia_list' %}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {% if cuadro %}
             <input type="hidden" name="cuadro" value="{{ cuadro }}">
+            {% endif %}
+            {% if regimen %}
+            <input type="hidden" name="regimen" value="{{ regimen }}">
             {% endif %}
 
             <!-- Input con Sugerencias y Filtrado en Tiempo Real -->

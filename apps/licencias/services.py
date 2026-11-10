@@ -23,6 +23,17 @@ from apps.licencias.calculador import (  # noqa: F401
     normalizar_unidad,
     obtener_siguiente_dia_habil,
 )
+from apps.licencias.validaciones import (  # noqa: F401
+    REGIMEN_CHOICES,
+    REGIMEN_INT,
+    REGIMEN_SUP,
+    REGIMEN_TIT,
+    es_regimen_compatible,
+    filtrar_tipos_licencia_por_regimen,
+    normalizar_regimen,
+    obtener_regimenes_permitidos,
+    validar_regimen_revista,
+)
 
 
 def generar_planilla_mes(mes, anio, usuario=None):

@@ -6,6 +6,7 @@ from django.urls import path
 from apps.licencias.views import (
     AutocompletarLicenciaAPIView,
     CalcularFechasLicenciaAPIView,
+    ValidarRegimenLicenciaAPIView,
 )
 
 app_name = "api_licencias"
@@ -30,5 +31,15 @@ urlpatterns = [
         "licencias/calcular-fechas/",
         CalcularFechasLicenciaAPIView.as_view(),
         name="licencias_calcular_fechas",
+    ),
+    path(
+        "validar-regimen/",
+        ValidarRegimenLicenciaAPIView.as_view(),
+        name="validar_regimen",
+    ),
+    path(
+        "licencias/validar-regimen/",
+        ValidarRegimenLicenciaAPIView.as_view(),
+        name="licencias_validar_regimen",
     ),
 ]
