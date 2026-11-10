@@ -157,6 +157,7 @@ class LicenciaOtorgadaModelTests(TestCase):
         self.assertEqual(lic_50.fecha_solicitud, hoy)
         self.assertEqual(lic_50.estado, "OTORGADA")
         self.assertEqual(lic_50.porcentaje_goce, Decimal("50.00"))
+        lic_50.delete()
 
         # 2. Tipo de licencia Sin goce
         tipo_sin = TipoLicencia.objects.create(
@@ -173,6 +174,7 @@ class LicenciaOtorgadaModelTests(TestCase):
             fecha_hasta_prevista=hasta,
         )
         self.assertEqual(lic_sin.porcentaje_goce, Decimal("0.00"))
+        lic_sin.delete()
 
         # 3. Conversión de string como "50%"
         lic_str = LicenciaOtorgada.objects.create(

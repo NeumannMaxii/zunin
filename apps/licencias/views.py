@@ -843,6 +843,126 @@ class ValidarAntiguedadLicenciaAPIView(View):
 validar_antiguedad_licencia_api = ValidarAntiguedadLicenciaAPIView.as_view()
 
 
+class ValidarSolapamientoLicenciaAPIView(View):
+    """
+    Endpoint API para validar que un cargo docente no posea licencias
+    activas superpuestas en el período solicitado (Ticket 17.3).
+    Ruta: GET o POST /api/licencias/validar-solapamiento/
+    """
+
+    def _procesar(self, params):
+        cargo_id = params.get("cargo_id") or params.get("cargo")
+        fecha_desde = params.get("fecha_desde")
+        fecha_hasta = params.get("fecha_hasta")
+        excluir_id = params.get("excluir_id")
+        docente_id = params.get("docente_id") or params.get("docente")
+
+        if not cargo_id:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": (
+                        "El parámetro 'cargo_id' o 'cargo' es obligatorio."
+                    ),
+                },
+                status=400,
+            )
+
+        if not fecha_desde or not fecha_hasta:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": (
+                        "Los parámetros 'fecha_desde' y 'fecha_hasta' "
+                        "son obligatorios."
+                    ),
+                },
+                status=400,
+            )
+
+        from apps.licencias.validaciones import (
+            buscar_licencias_solapadas,
+            validar_solapamiento_licencias,
+        )
+
+        excluir_pk = int(excluir_id) if str(excluir_id).isdigit() else None
+        solapadas = buscar_licencias_solapadas(
+            cargo=cargo_id,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            excluir_id=excluir_pk,
+            docente=docente_id,
+        )
+
+        hay_solapamiento = solapadas.exists()
+        solapadas_data = [
+            {
+                "id": lic.pk,
+                "tipo_licencia": (
+                    lic.tipo_licencia.codigo if lic.tipo_licencia else "S/T"
+                ),
+                "descripcion": (
+                    lic.tipo_licencia.descripcion if lic.tipo_licencia else ""
+                ),
+                "fecha_desde": lic.fecha_desde.strftime("%Y-%m-%d"),
+                "fecha_hasta": lic.fecha_hasta_prevista.strftime("%Y-%m-%d"),
+                "estado": lic.estado,
+            }
+            for lic in solapadas
+        ]
+
+        dummy_inst = None
+        if excluir_pk:
+            dummy_inst = type("Obj", (), {"pk": excluir_pk})()
+
+        try:
+            validar_solapamiento_licencias(
+                cargo=cargo_id,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+                instancia_actual=dummy_inst,
+                docente=docente_id,
+            )
+            valido = True
+            mensaje = (
+                "No existen licencias superpuestas en el período para el cargo."
+            )
+        except ValidationError as exc:
+            valido = False
+            mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "valido": valido,
+                "hay_solapamiento": hay_solapamiento,
+                "mensaje": mensaje,
+                "cantidad_solapadas": len(solapadas_data),
+                "licencias_solapadas": solapadas_data,
+            },
+            status=200,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        data = request.POST or {}
+        if not data and request.body:
+            import json
+
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        return self._procesar(data)
+
+
+validar_solapamiento_licencia_api = (
+    ValidarSolapamientoLicenciaAPIView.as_view()
+)
+
+
 class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
     """
     Listado institucional de licencias otorgadas y solicitudes (Ticket 16.1 / 17.1).

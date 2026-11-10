@@ -2,6 +2,7 @@
 Motor de Reglas de Negocio y Validaciones para Licencias Docentes.
 Ticket 17.1: Validación de Régimen de Revista (TIT, INT, SUP).
 Ticket 17.2: Validación de Antigüedad Mínima y Recorte de Topes.
+Ticket 17.3: Control de Solapamientos por Cargo y Fechas.
 """
 
 import datetime
@@ -42,6 +43,10 @@ TOPE_ENFERMEDAD_INTERINO_MENOR_4_MESES = 10
 TOPE_ENFERMEDAD_SUPLENTE_MENOR_4_MESES = 5
 MESES_MINIMOS_ENFERMEDAD_COMPLETA = 4
 
+# Constantes Ticket 17.3: Estados de Licencias para Control de Solapamiento
+ESTADOS_LICENCIA_ACTIVAS = ("SOLICITADA", "OTORGADA", "FINALIZADA")
+ESTADOS_LICENCIA_INACTIVAS = ("CANCELADA", "RECHAZADA")
+
 
 def normalizar_regimen(valor: Any) -> Optional[str]:
     """
@@ -71,6 +76,36 @@ def _extraer_revista_cargo(cargo: Any) -> Tuple[Optional[str], str]:
         return None, ""
     revista = getattr(cargo, "situacion_revista", None)
     return revista, f" para el cargo '{cargo}'"
+
+
+def _extraer_id_cargo(cargo: Any) -> Optional[int]:
+    """Extrae el identificador numérico de un cargo o parámetro cargo_id."""
+    if cargo is None:
+        return None
+    if isinstance(cargo, int):
+        return cargo
+    if isinstance(cargo, str) and cargo.strip().isdigit():
+        return int(cargo.strip())
+    if hasattr(cargo, "pk") and cargo.pk:
+        return cargo.pk
+    if hasattr(cargo, "id") and cargo.id:
+        return cargo.id
+    return None
+
+
+def _extraer_id_docente(docente: Any) -> Optional[int]:
+    """Extrae el identificador numérico de un docente o parámetro docente_id."""
+    if docente is None:
+        return None
+    if isinstance(docente, int):
+        return docente
+    if isinstance(docente, str) and docente.strip().isdigit():
+        return int(docente.strip())
+    if hasattr(docente, "pk") and docente.pk:
+        return docente.pk
+    if hasattr(docente, "id") and docente.id:
+        return docente.id
+    return None
 
 
 def obtener_regimenes_permitidos(tipo_licencia: Any) -> Set[str]:
@@ -514,6 +549,125 @@ def validar_antiguedad_minima(
     return True
 
 
+def buscar_licencias_solapadas(
+    cargo: Any,
+    fecha_desde: Any,
+    fecha_hasta: Any,
+    excluir_id: Optional[int] = None,
+    docente: Optional[Any] = None,
+    estados_activos: Optional[Iterable[str]] = None,
+) -> QuerySet:
+    """
+    Busca instancias de LicenciaOtorgada activas que se solapan con el
+    período [fecha_desde, fecha_hasta] para el cargo especificado (Ticket 17.3).
+
+    Dos intervalos [D1, H1] y [D2, H2] se superponen si y solo si:
+    D1 <= H2 y H1 >= D2.
+    """
+    from apps.licencias.calculador import parse_date_safe
+    from apps.licencias.models import LicenciaOtorgada
+
+    f_desde = parse_date_safe(fecha_desde)
+    f_hasta = parse_date_safe(fecha_hasta)
+
+    if not f_desde or not f_hasta:
+        return LicenciaOtorgada.objects.none()
+
+    if estados_activos is None:
+        estados_activos = ESTADOS_LICENCIA_ACTIVAS
+
+    cargo_id = _extraer_id_cargo(cargo)
+    docente_id = _extraer_id_docente(docente)
+
+    if not cargo_id and not docente_id:
+        return LicenciaOtorgada.objects.none()
+
+    qs = LicenciaOtorgada.objects.filter(
+        estado__in=estados_activos,
+        fecha_desde__lte=f_hasta,
+        fecha_hasta_prevista__gte=f_desde,
+    )
+
+    if cargo_id:
+        qs = qs.filter(cargo_id=cargo_id)
+    elif docente_id:
+        qs = qs.filter(docente_id=docente_id)
+
+    if excluir_id:
+        qs = qs.exclude(pk=excluir_id)
+
+    return qs.select_related("tipo_licencia", "cargo", "docente")
+
+
+def validar_solapamiento_licencias(
+    cargo: Any,
+    fecha_desde: Any,
+    fecha_hasta: Any,
+    instancia_actual: Optional[Any] = None,
+    docente: Optional[Any] = None,
+    estados_activos: Optional[Iterable[str]] = None,
+) -> bool:
+    """
+    Valida que no existan superposiciones con otras licencias activas
+    para el mismo cargo y rango de fechas (Ticket 17.3).
+
+    Especificaciones Técnicas:
+    Validar rangos de fechas (fecha_desde a fecha_hasta) por cargo_id antes de guardar.
+
+    Criterio de Aceptación:
+    El sistema bloquea el registro si el cargo ya posee otra licencia activa
+    en el período.
+    """
+    from apps.licencias.calculador import parse_date_safe
+
+    # Si la instancia actual ya es inactiva (cancelada/rechazada), no restringe
+    if instancia_actual:
+        est = getattr(instancia_actual, "estado", None)
+        if est in ESTADOS_LICENCIA_INACTIVAS:
+            return True
+
+    f_desde = parse_date_safe(fecha_desde)
+    f_hasta = parse_date_safe(fecha_hasta)
+
+    if not f_desde or not f_hasta:
+        return True
+
+    if f_hasta < f_desde:
+        raise ValidationError(
+            "La fecha de finalización no puede ser anterior a la fecha de inicio."
+        )
+
+    cargo_id = _extraer_id_cargo(cargo)
+    if not cargo_id:
+        return True
+
+    excluir_id = getattr(instancia_actual, "pk", None)
+    solapadas = buscar_licencias_solapadas(
+        cargo=cargo_id,
+        fecha_desde=f_desde,
+        fecha_hasta=f_hasta,
+        excluir_id=excluir_id,
+        docente=docente,
+        estados_activos=estados_activos,
+    )
+
+    if solapadas.exists():
+        primera = solapadas.first()
+        tipo_str = (
+            primera.tipo_licencia.codigo if primera.tipo_licencia else "S/T"
+        )
+        f_desde_fmt = primera.fecha_desde.strftime("%d/%m/%Y")
+        f_hasta_fmt = primera.fecha_hasta_prevista.strftime("%d/%m/%Y")
+        cargo_rep = str(primera.cargo) if primera.cargo else f"ID {cargo_id}"
+        raise ValidationError(
+            f"El cargo '{cargo_rep}' ya posee otra licencia activa en el período "
+            f"solicitado ({f_desde_fmt} al {f_hasta_fmt}, Tipo: {tipo_str}, "
+            f"Estado: {primera.get_estado_display()})."
+        )
+
+    return True
+
+
 def validar_solicitud_licencia(
     tipo_licencia: Any,
     docente: Optional[Any] = None,
@@ -522,11 +676,13 @@ def validar_solicitud_licencia(
     fecha_hasta: Optional[Any] = None,
     dias: Optional[int] = None,
     situacion_revista: Optional[str] = None,
+    instancia_actual: Optional[Any] = None,
 ) -> bool:
     """
     Orquesta integralmente las validaciones de negocio de licencias:
     - Ticket 17.1: Régimen de revista (TIT, INT, SUP).
     - Ticket 17.2: Antigüedad mínima y tope reducido por antigüedad.
+    - Ticket 17.3: Control de solapamientos por cargo_id y rango de fechas.
     """
     validar_regimen_revista(
         tipo_licencia=tipo_licencia,
@@ -541,4 +697,12 @@ def validar_solicitud_licencia(
         fecha_hasta=fecha_hasta,
         dias=dias,
     )
+    if cargo and fecha_desde and fecha_hasta:
+        validar_solapamiento_licencias(
+            cargo=cargo,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            instancia_actual=instancia_actual,
+            docente=docente,
+        )
     return True

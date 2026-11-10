@@ -801,6 +801,21 @@ class LicenciaOtorgada(AuditoriaModel):
                 fecha_hasta=getattr(self, "fecha_hasta_prevista", None),
             )
 
+        if (
+            cargo
+            and getattr(self, "fecha_desde", None)
+            and getattr(self, "fecha_hasta_prevista", None)
+        ):
+            from apps.licencias.validaciones import validar_solapamiento_licencias
+
+            validar_solapamiento_licencias(
+                cargo=cargo,
+                fecha_desde=self.fecha_desde,
+                fecha_hasta=self.fecha_hasta_prevista,
+                instancia_actual=self,
+                docente=docente,
+            )
+
         if docente and cargo and cargo.docente != docente:
             raise ValidationError(
                 f"El cargo '{cargo}' no pertenece al docente {docente}."
