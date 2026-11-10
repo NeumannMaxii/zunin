@@ -256,14 +256,12 @@ def filtrar_tipos_licencia_por_regimen(
     if not regimenes:
         return queryset
 
-    # Construir filtro de compatibilidad ORM:
-    # 1. situacion_revista_aplicable contiene el régimen buscado
-    # 2. O su campo regimen coincide con el régimen buscado
-    q_cond = Q()
-    for reg in regimenes:
-        q_cond |= Q(situacion_revista_aplicable__icontains=reg) | Q(regimen=reg)
-
-    return queryset.filter(q_cond).distinct()
+    valid_pks = [
+        t.pk
+        for t in queryset
+        if any(r in obtener_regimenes_permitidos(t) for r in regimenes)
+    ]
+    return queryset.filter(pk__in=valid_pks)
 
 
 # =============================================================================
@@ -723,11 +721,13 @@ def calcular_saldo_licencia(
     from apps.licencias.calculador import parse_date_safe
     from apps.licencias.models import LicenciaOtorgada
 
-    f_ref = (
-        parse_date_safe(fecha_desde)
-        or parse_date_safe(fecha_referencia)
-        or datetime.date.today()
-    )
+    f_ref = None
+    if fecha_desde:
+        f_ref = parse_date_safe(fecha_desde)
+    elif fecha_referencia:
+        f_ref = parse_date_safe(fecha_referencia)
+    if not f_ref:
+        f_ref = datetime.date.today()
 
     cargo_id = _extraer_id_cargo(cargo)
     docente_id = _extraer_id_docente(docente)

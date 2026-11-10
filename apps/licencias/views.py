@@ -9,12 +9,13 @@ Implementa:
 """
 
 import csv
+import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, FormView, ListView
@@ -1030,6 +1031,12 @@ class ValidarSaldosLicenciaAPIView(View):
             valido = False
             mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
 
+        dias_restantes = (
+            max(0, res_saldo["tope_maximo"] - res_saldo["total_acumulado"])
+            if res_saldo["tope_maximo"] is not None
+            else None
+        )
+
         return JsonResponse(
             {
                 "status": "success",
@@ -1039,6 +1046,7 @@ class ValidarSaldosLicenciaAPIView(View):
                 "dias_consumidos": res_saldo["dias_consumidos"],
                 "dias_solicitados": res_saldo["dias_solicitados"],
                 "total_acumulado": res_saldo["total_acumulado"],
+                "dias_restantes": dias_restantes,
                 "tope_maximo": res_saldo["tope_maximo"],
                 "tope_reducido": res_saldo["tope_reducido"],
                 "periodo": res_saldo["periodo"],
@@ -1066,6 +1074,157 @@ class ValidarSaldosLicenciaAPIView(View):
 validar_saldos_licencia_api = ValidarSaldosLicenciaAPIView.as_view()
 
 
+class DocenteCargosAPIView(View):
+    """
+    Ticket 18.2: Retorna los cargos activos de un docente para alimentar
+    dinámicamente el selector del formulario de solicitud.
+    Ruta: GET /api/licencias/docente-cargos/?docente=<id>
+    """
+
+    def get(self, request, *args, **kwargs):
+        docente_id = request.GET.get("docente") or request.GET.get("docente_id")
+        if not docente_id or not str(docente_id).isdigit():
+            return JsonResponse(
+                {"status": "error", "error": "Parámetro 'docente' inválido."},
+                status=400,
+            )
+
+        from apps.personal.models import CargoDocente
+
+        cargos = CargoDocente.objects.filter(
+            docente_id=int(docente_id), activo=True
+        ).select_related("materia")
+
+        data = []
+        for c in cargos:
+            materia_nombre = c.materia.nombre if c.materia else str(c)
+            revista_disp = c.get_situacion_revista_display()
+            data.append(
+                {
+                    "id": c.id,
+                    "materia": materia_nombre,
+                    "situacion_revista": c.situacion_revista,
+                    "situacion_revista_display": revista_disp,
+                    "turno": getattr(c, "turno", ""),
+                    "label": f"{c} ({revista_disp})",
+                }
+            )
+
+        return JsonResponse({"status": "success", "cargos": data}, status=200)
+
+
+docente_cargos_api = DocenteCargosAPIView.as_view()
+
+
+class TiposLicenciaPorRegimenAPIView(View):
+    """
+    Ticket 18.2: Retorna los tipos de licencia estatutarios compatibles
+    con el régimen de revista (TIT, INT, SUP) o con un cargo docente.
+    Ruta: GET /api/licencias/tipos-por-regimen/?regimen=TIT
+    """
+
+    def get(self, request, *args, **kwargs):
+        regimen = request.GET.get("regimen")
+        cargo_id = request.GET.get("cargo") or request.GET.get("cargo_id")
+
+        if not regimen and cargo_id and str(cargo_id).isdigit():
+            from apps.personal.models import CargoDocente
+
+            cargo = CargoDocente.objects.filter(pk=int(cargo_id)).first()
+            if cargo:
+                regimen = cargo.situacion_revista
+
+        from apps.licencias.validaciones import (
+            filtrar_tipos_licencia_por_regimen,
+            normalizar_regimen,
+        )
+
+        reg_norm = normalizar_regimen(regimen) if regimen else None
+        qs = TipoLicencia.objects.filter(activo=True)
+        if reg_norm:
+            qs = filtrar_tipos_licencia_por_regimen(
+                queryset=qs, situacion_revista=reg_norm
+            )
+
+        tipos = []
+        for t in qs.order_by("codigo"):
+            tipos.append(
+                {
+                    "id": t.id,
+                    "codigo": t.codigo,
+                    "articulo": t.articulo,
+                    "descripcion": t.descripcion,
+                    "duracion_maxima": t.duracion_maxima,
+                    "unidad": t.unidad or "Corridos",
+                    "periodo_tope": t.periodo_tope or "Año calendario",
+                    "label": f"{t.codigo} - {t.descripcion}"
+                    + (f" ({t.articulo})" if t.articulo else ""),
+                }
+            )
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "regimen": reg_norm,
+                "tipos": tipos,
+            },
+            status=200,
+        )
+
+
+tipos_licencia_por_regimen_api = TiposLicenciaPorRegimenAPIView.as_view()
+
+
+class DocenteSaldosView(LoginRequiredMixin, View):
+    """
+    Ticket 18.2: Vista institucional para la visualización integral de
+    saldos de licencias disponibles por docente.
+    Rutas:
+    - /licencias/saldos/
+    - /licencias/saldos/<int:docente_id>/
+    """
+
+    template_name = "licencias/docente_saldos.html"
+
+    def get(self, request, docente_id=None, *args, **kwargs):
+        from apps.personal.models import Docente
+        from apps.licencias.services import obtener_resumen_saldos_docente
+
+        target_id = docente_id or request.GET.get("docente")
+        docente = None
+        if target_id and str(target_id).isdigit():
+            docente = Docente.objects.filter(pk=int(target_id)).first()
+
+        docentes_activos = Docente.objects.filter(activo=True).order_by(
+            "apellido", "nombre"
+        )
+
+        if not docente and docentes_activos.exists():
+            docente = docentes_activos.first()
+
+        resumen = None
+        licencias_recientes = []
+        anio = request.GET.get("anio")
+        anio_int = int(anio) if (anio and str(anio).isdigit()) else None
+
+        if docente:
+            resumen = obtener_resumen_saldos_docente(docente, anio=anio_int)
+            licencias_recientes = (
+                LicenciaOtorgada.objects.filter(docente=docente)
+                .select_related("tipo_licencia", "cargo")
+                .order_by("-fecha_desde")[:10]
+            )
+
+        context = {
+            "docente_seleccionado": docente,
+            "resumen": resumen,
+            "docentes": docentes_activos,
+            "licencias_recientes": licencias_recientes,
+            "anio_actual": anio_int or datetime.date.today().year,
+        }
+        return render(request, self.template_name, context)
+
+
 class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
     """
     Listado institucional de licencias otorgadas y solicitudes (Ticket 16.1 / 17.1).
@@ -1080,13 +1239,50 @@ class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
 
 class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
     """
-    Formulario de solicitud y registro de licencias docentes (Ticket 16.1 / 17.1).
+    Formulario de solicitud y registro de licencias docentes
+    (Ticket 16.1 / 17.1 / 18.2).
     """
 
     model = LicenciaOtorgada
     form_class = LicenciaOtorgadaForm
     template_name = "licencias/licenciaotorgada_form.html"
     success_url = reverse_lazy("licencias:licenciaotorgada_list")
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+        )
+
+    def get_initial(self):
+        initial = super().get_initial()
+        docente_id = self.request.GET.get("docente")
+        cargo_id = self.request.GET.get("cargo")
+        tipo_id = self.request.GET.get("tipo_licencia")
+        if docente_id:
+            initial["docente"] = docente_id
+        if cargo_id:
+            initial["cargo"] = cargo_id
+        if tipo_id:
+            initial["tipo_licencia"] = tipo_id
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.request.method == "GET":
+            docente_id = self.request.GET.get("docente")
+            cargo_id = self.request.GET.get("cargo")
+            if docente_id and str(docente_id).isdigit():
+                kwargs["docente"] = int(docente_id)
+            if cargo_id and str(cargo_id).isdigit():
+                kwargs["cargo"] = int(cargo_id)
+        return kwargs
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user

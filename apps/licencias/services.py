@@ -772,3 +772,121 @@ def anular_licencia(licencia, usuario=None, motivo=""):
         licencia.save(sincronizar_asistencia=False)
         registros = revertir_licencia_en_asistencia(licencia, usuario=usuario)
     return registros
+
+
+def obtener_resumen_saldos_docente(docente, anio=None):
+    """
+    Ticket 18.2: Calcula y consolida el resumen de saldos estatutarios de
+    un docente para el año calendario especificado (o año actual por defecto).
+    """
+    from apps.personal.models import Docente
+    from apps.licencias.models import TipoLicencia, LicenciaOtorgada
+
+    if isinstance(docente, int) or (
+        isinstance(docente, str) and str(docente).isdigit()
+    ):
+        docente = Docente.objects.filter(pk=int(docente)).first()
+
+    if not docente:
+        return None
+
+    anio_actual = anio or datetime.date.today().year
+    fecha_ref = datetime.date(anio_actual, 6, 1)
+
+    antiguedad_meses = calcular_antiguedad_docente(
+        docente=docente, fecha_referencia=fecha_ref
+    )
+
+    cargos_activos = docente.cargos.filter(activo=True)
+    regimenes_docente = set(
+        c.situacion_revista for c in cargos_activos if c.situacion_revista
+    )
+    if not regimenes_docente:
+        regimenes_docente = {REGIMEN_TIT}
+
+    tipos_qs = (
+        TipoLicencia.objects.filter(activo=True)
+        .filter(
+            models.Q(duracion_maxima__isnull=False)
+            | models.Q(tope_anual__isnull=False)
+            | models.Q(licencias_otorgadas__docente=docente)
+        )
+        .distinct()
+        .order_by("codigo")
+    )
+
+    tipos_compatibles = []
+    for tipo in tipos_qs:
+        permitidos = obtener_regimenes_permitidos(tipo)
+        if any(r in permitidos for r in regimenes_docente):
+            tipos_compatibles.append(tipo)
+
+    if not tipos_compatibles:
+        tipos_compatibles = list(tipos_qs)
+
+    resumen_causales = []
+    total_dias_consumidos = 0
+
+    for tipo in tipos_compatibles:
+        cargo_ref = next(
+            (c for c in cargos_activos if es_regimen_compatible(tipo, cargo=c)),
+            cargos_activos.first(),
+        )
+
+        saldo_info = calcular_saldo_licencia(
+            tipo_licencia=tipo,
+            docente=docente,
+            cargo=cargo_ref,
+            fecha_referencia=fecha_ref,
+        )
+
+        dias_consumidos = saldo_info["dias_consumidos"]
+        tope_maximo = saldo_info["tope_maximo"]
+        saldo_disp = saldo_info["saldo_disponible"]
+        total_dias_consumidos += dias_consumidos
+
+        if tope_maximo is not None and tope_maximo > 0:
+            porcentaje = min(100.0, round((dias_consumidos / tope_maximo) * 100, 1))
+        else:
+            porcentaje = 0.0
+
+        if saldo_disp == 0:
+            alerta = "danger"
+        elif saldo_disp is not None and saldo_disp <= 5:
+            alerta = "warning"
+        else:
+            alerta = "success"
+
+        resumen_causales.append(
+            {
+                "tipo_id": tipo.pk,
+                "codigo": tipo.codigo,
+                "articulo": tipo.articulo or tipo.codigo,
+                "descripcion": tipo.descripcion,
+                "unidad": tipo.unidad or "Corridos",
+                "periodo": saldo_info["periodo"],
+                "tope_maximo": tope_maximo,
+                "tope_reducido": saldo_info["tope_reducido"],
+                "dias_consumidos": dias_consumidos,
+                "saldo_disponible": saldo_disp,
+                "porcentaje_consumido": porcentaje,
+                "alerta_nivel": alerta,
+                "licencias_count": saldo_info["licencias_consumidas_count"],
+            }
+        )
+
+    licencias_activas_anio = LicenciaOtorgada.objects.filter(
+        docente=docente,
+        fecha_desde__year=anio_actual,
+        estado__in=ESTADOS_LICENCIA_ACTIVAS,
+    ).count()
+
+    return {
+        "docente": docente,
+        "anio": anio_actual,
+        "antiguedad_meses": antiguedad_meses,
+        "cargos": list(cargos_activos),
+        "resumen_causales": resumen_causales,
+        "total_dias_consumidos": total_dias_consumidos,
+        "total_licencias_otorgadas": licencias_activas_anio,
+    }
