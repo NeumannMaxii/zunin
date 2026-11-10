@@ -118,6 +118,17 @@ urlpatterns = [
         views.ValidarSolapamientoLicenciaAPIView.as_view(),
         name="validar_solapamiento",
     ),
+    # API Control de Saldos y Topes (Ticket 17.4)
+    path(
+        "api/validar-saldos/",
+        views.ValidarSaldosLicenciaAPIView.as_view(),
+        name="api_validar_saldos",
+    ),
+    path(
+        "validar-saldos/",
+        views.ValidarSaldosLicenciaAPIView.as_view(),
+        name="validar_saldos",
+    ),
     # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1)
     path(
         "solicitudes/",

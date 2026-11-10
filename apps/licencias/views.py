@@ -963,6 +963,121 @@ validar_solapamiento_licencia_api = (
 )
 
 
+class ValidarSaldosLicenciaAPIView(View):
+    """
+    Endpoint API para calcular el saldo disponible y validar que no se exceda
+    el tope máximo permitido en el período (Ticket 17.4).
+    Ruta: GET o POST /api/licencias/validar-saldos/
+    """
+
+    def _procesar(self, params):
+        tipo_param = params.get("tipo_licencia") or params.get("codigo")
+        docente_id = params.get("docente_id") or params.get("docente")
+        cargo_id = params.get("cargo_id") or params.get("cargo")
+        fecha_desde = params.get("fecha_desde")
+        fecha_hasta = params.get("fecha_hasta")
+        dias = params.get("dias")
+        excluir_id = params.get("excluir_id")
+
+        if not tipo_param:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": "El parámetro 'tipo_licencia' es obligatorio.",
+                },
+                status=400,
+            )
+
+        if str(tipo_param).isdigit():
+            tipo_lic = TipoLicencia.objects.filter(pk=int(tipo_param)).first()
+        else:
+            tipo_lic = TipoLicencia.objects.filter(codigo=tipo_param).first()
+
+        if not tipo_lic:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": (
+                        f"No se encontró el tipo de licencia '{tipo_param}'."
+                    ),
+                },
+                status=404,
+            )
+
+        from apps.licencias.validaciones import (
+            calcular_saldo_licencia,
+            validar_control_saldos_y_topes,
+        )
+
+        excluir_pk = int(excluir_id) if str(excluir_id).isdigit() else None
+        res_saldo = calcular_saldo_licencia(
+            tipo_licencia=tipo_lic,
+            docente=docente_id,
+            cargo=cargo_id,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            dias_solicitados=dias,
+            excluir_id=excluir_pk,
+        )
+
+        dummy_inst = None
+        if excluir_pk:
+            dummy_inst = type("Obj", (), {"pk": excluir_pk})()
+
+        try:
+            validar_control_saldos_y_topes(
+                tipo_licencia=tipo_lic,
+                docente=docente_id,
+                cargo=cargo_id,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+                dias=dias,
+                instancia_actual=dummy_inst,
+            )
+            valido = True
+            mensaje = (
+                "La solicitud se encuentra dentro del saldo y tope disponible."
+            )
+        except ValidationError as exc:
+            valido = False
+            mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "valido": valido,
+                "supera_tope": res_saldo["supera_tope"],
+                "saldo_disponible": res_saldo["saldo_disponible"],
+                "dias_consumidos": res_saldo["dias_consumidos"],
+                "dias_solicitados": res_saldo["dias_solicitados"],
+                "total_acumulado": res_saldo["total_acumulado"],
+                "tope_maximo": res_saldo["tope_maximo"],
+                "tope_reducido": res_saldo["tope_reducido"],
+                "periodo": res_saldo["periodo"],
+                "tipo_licencia": tipo_lic.codigo,
+                "mensaje": mensaje,
+            },
+            status=200,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        data = request.POST or {}
+        if not data and request.body:
+            import json
+
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        return self._procesar(data)
+
+
+validar_saldos_licencia_api = ValidarSaldosLicenciaAPIView.as_view()
+
+
 class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
     """
     Listado institucional de licencias otorgadas y solicitudes (Ticket 16.1 / 17.1).

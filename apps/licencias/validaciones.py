@@ -3,6 +3,7 @@ Motor de Reglas de Negocio y Validaciones para Licencias Docentes.
 Ticket 17.1: Validación de Régimen de Revista (TIT, INT, SUP).
 Ticket 17.2: Validación de Antigüedad Mínima y Recorte de Topes.
 Ticket 17.3: Control de Solapamientos por Cargo y Fechas.
+Ticket 17.4: Control de Saldos y Topes Máximos.
 """
 
 import datetime
@@ -668,6 +669,255 @@ def validar_solapamiento_licencias(
     return True
 
 
+def obtener_rango_periodo_tope(
+    periodo_tope: Optional[str],
+    fecha_referencia: Any,
+) -> Tuple[Optional[datetime.date], Optional[datetime.date], str]:
+    """
+    Determina la fecha de inicio y fin del período de cómputo para el tope
+    (Ticket 17.4).
+    Retorna (fecha_inicio, fecha_fin, descripcion_periodo).
+    """
+    from apps.licencias.calculador import parse_date_safe
+
+    f_ref = parse_date_safe(fecha_referencia) or datetime.date.today()
+    periodo = (periodo_tope or "Año calendario").strip()
+
+    if periodo in ["Sin tope", "SIN_TOPE"]:
+        return None, None, "Sin tope"
+
+    if periodo in ["Mes calendario", "MENSUAL"]:
+        import calendar
+
+        _, ult_dia = calendar.monthrange(f_ref.year, f_ref.month)
+        inicio = datetime.date(f_ref.year, f_ref.month, 1)
+        fin = datetime.date(f_ref.year, f_ref.month, ult_dia)
+        return inicio, fin, f"Mes {f_ref.strftime('%m/%Y')}"
+
+    if periodo in ["Decenio", "DECENIO"]:
+        inicio = datetime.date(f_ref.year - 9, 1, 1)
+        fin = datetime.date(f_ref.year, 12, 31)
+        return inicio, fin, f"Decenio {inicio.year}-{fin.year}"
+
+    # Default estatutario: Año calendario / Año escolar
+    inicio = datetime.date(f_ref.year, 1, 1)
+    fin = datetime.date(f_ref.year, 12, 31)
+    return inicio, fin, f"Año calendario {f_ref.year}"
+
+
+def calcular_saldo_licencia(
+    tipo_licencia: Any,
+    docente: Optional[Any] = None,
+    cargo: Optional[Any] = None,
+    fecha_referencia: Optional[Any] = None,
+    dias_solicitados: Optional[int] = None,
+    fecha_desde: Optional[Any] = None,
+    fecha_hasta: Optional[Any] = None,
+    excluir_id: Optional[int] = None,
+    estados_activos: Optional[Iterable[str]] = None,
+) -> dict:
+    """
+    Calcula el saldo disponible de días para un tipo de licencia restando los días
+    consumidos en el período correspondiente (Ticket 17.4).
+
+    Especificaciones Técnicas:
+    Sumar los días otorgados de esa causal en el período en curso y comparar
+    con el tope máximo permitido.
+    """
+    from apps.licencias.calculador import parse_date_safe
+    from apps.licencias.models import LicenciaOtorgada
+
+    f_ref = (
+        parse_date_safe(fecha_desde)
+        or parse_date_safe(fecha_referencia)
+        or datetime.date.today()
+    )
+
+    cargo_id = _extraer_id_cargo(cargo)
+    docente_id = _extraer_id_docente(docente)
+    if not docente_id and cargo:
+        docente_obj = getattr(cargo, "docente", None)
+        docente_id = _extraer_id_docente(docente_obj)
+
+    # 1. Determinar tope máximo aplicable (considerando régimen y antigüedad)
+    info_tope = obtener_tope_efectivo_licencia(
+        tipo_licencia=tipo_licencia,
+        cargo=cargo,
+        docente=docente_id,
+        fecha_referencia=f_ref,
+    )
+    tope_maximo = info_tope["tope_dias"]
+    es_reducido = info_tope["tope_reducido"]
+    es_enf = info_tope["es_enfermedad_comun"]
+
+    # 2. Determinar período de cómputo
+    periodo_cfg = getattr(tipo_licencia, "periodo_tope", "Año calendario")
+    f_ini, f_fin, periodo_desc = obtener_rango_periodo_tope(periodo_cfg, f_ref)
+
+    # 3. Sumar días consumidos de la causal en el período
+    dias_consumidos = 0
+    licencias_consumidas_qs = LicenciaOtorgada.objects.none()
+
+    if f_ini and f_fin and (cargo_id or docente_id):
+        if estados_activos is None:
+            estados_activos = ESTADOS_LICENCIA_ACTIVAS
+
+        # Definir filtro de causal (salud / misma causal normativa)
+        if es_enf:
+            filtro_causal = (
+                Q(tipo_licencia=tipo_licencia)
+                | Q(tipo_licencia__articulo__in=[
+                    "308", "Art. 308", "330", "Art. 330", "339", "Art. 339"
+                ])
+                | Q(tipo_licencia__descripcion__icontains="enfermedad com")
+                | Q(tipo_licencia__descripcion__icontains="afeccion com")
+                | Q(tipo_licencia__descripcion__icontains="afección com")
+            )
+        elif getattr(tipo_licencia, "articulo", ""):
+            art = tipo_licencia.articulo.strip()
+            filtro_causal = (
+                Q(tipo_licencia=tipo_licencia)
+                | Q(tipo_licencia__articulo=art)
+            )
+        else:
+            filtro_causal = Q(tipo_licencia=tipo_licencia)
+
+        qs = LicenciaOtorgada.objects.filter(
+            estado__in=estados_activos,
+            fecha_desde__lte=f_fin,
+            fecha_hasta_prevista__gte=f_ini,
+        ).filter(filtro_causal)
+
+        if cargo_id:
+            qs = qs.filter(cargo_id=cargo_id)
+        elif docente_id:
+            qs = qs.filter(docente_id=docente_id)
+
+        if excluir_id:
+            qs = qs.exclude(pk=excluir_id)
+
+        licencias_consumidas_qs = qs.select_related("tipo_licencia")
+
+        for lic in licencias_consumidas_qs:
+            # Días que caen dentro del período de cómputo
+            d_ini = max(lic.fecha_desde, f_ini)
+            d_fin = min(lic.fecha_hasta_prevista, f_fin)
+            if d_fin >= d_ini:
+                if hasattr(lic.tipo_licencia, "calcular_fechas"):
+                    try:
+                        calc = lic.tipo_licencia.calcular_fechas(
+                            fecha_desde=d_ini, fecha_hasta=d_fin
+                        )
+                        dias_consumidos += calc.dias_consumidos
+                        continue
+                    except Exception:
+                        pass
+                dias_consumidos += (d_fin - d_ini).days + 1
+
+    # 4. Calcular días solicitados en la petición actual
+    dias_sol = 0
+    if dias_solicitados is not None:
+        dias_sol = int(dias_solicitados)
+    elif fecha_desde and fecha_hasta:
+        f_d = parse_date_safe(fecha_desde)
+        f_h = parse_date_safe(fecha_hasta)
+        if f_d and f_h and f_h >= f_d:
+            if hasattr(tipo_licencia, "calcular_fechas"):
+                try:
+                    calc = tipo_licencia.calcular_fechas(
+                        fecha_desde=f_d, fecha_hasta=f_h
+                    )
+                    dias_sol = calc.dias_consumidos
+                except Exception:
+                    dias_sol = (f_h - f_d).days + 1
+            else:
+                dias_sol = (f_h - f_d).days + 1
+
+    # 5. Saldo disponible y validación de exceso
+    if tope_maximo is not None:
+        saldo_disponible = max(0, tope_maximo - dias_consumidos)
+        total_acumulado = dias_consumidos + dias_sol
+        supera_tope = total_acumulado > tope_maximo
+    else:
+        saldo_disponible = None
+        total_acumulado = dias_consumidos + dias_sol
+        supera_tope = False
+
+    return {
+        "tipo_licencia": getattr(tipo_licencia, "codigo", str(tipo_licencia)),
+        "articulo": getattr(tipo_licencia, "articulo", ""),
+        "periodo": periodo_desc,
+        "inicio_periodo": f_ini,
+        "fin_periodo": f_fin,
+        "tope_maximo": tope_maximo,
+        "tope_reducido": es_reducido,
+        "dias_consumidos": dias_consumidos,
+        "dias_solicitados": dias_sol,
+        "saldo_disponible": saldo_disponible,
+        "total_acumulado": total_acumulado,
+        "supera_tope": supera_tope,
+        "es_enfermedad_comun": es_enf,
+        "licencias_consumidas_count": licencias_consumidas_qs.count(),
+    }
+
+
+def validar_control_saldos_y_topes(
+    tipo_licencia: Any,
+    docente: Optional[Any] = None,
+    cargo: Optional[Any] = None,
+    fecha_desde: Optional[Any] = None,
+    fecha_hasta: Optional[Any] = None,
+    dias: Optional[int] = None,
+    instancia_actual: Optional[Any] = None,
+) -> bool:
+    """
+    Aplica el control de saldos y topes estatutarios (Ticket 17.4).
+    Lanza ValidationError descriptivo si la solicitud excede el tope máximo.
+
+    Criterio de Aceptación:
+    Un titular que consumió 45 días de enfermedad común en el año calendario
+    ve bloqueado el intento de registrar el día 46.
+    """
+    if tipo_licencia is None:
+        return True
+
+    # Si la instancia actual ya es inactiva (cancelada/rechazada), no bloquea
+    if instancia_actual:
+        est = getattr(instancia_actual, "estado", None)
+        if est in ESTADOS_LICENCIA_INACTIVAS:
+            return True
+
+    excluir_id = getattr(instancia_actual, "pk", None)
+    res = calcular_saldo_licencia(
+        tipo_licencia=tipo_licencia,
+        docente=docente,
+        cargo=cargo,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        dias_solicitados=dias,
+        excluir_id=excluir_id,
+    )
+
+    if res["supera_tope"]:
+        tope = res["tope_maximo"]
+        consumidos = res["dias_consumidos"]
+        solicitados = res["dias_solicitados"]
+        saldo = res["saldo_disponible"]
+        acumulado = res["total_acumulado"]
+        periodo = res["periodo"]
+        cod = res["tipo_licencia"]
+
+        raise ValidationError(
+            f"El docente ya ha consumido {consumidos} días de licencia para la "
+            f"causal '{cod}' en el {periodo} (tope máximo: {tope} días). "
+            f"Saldo disponible: {saldo} días. "
+            f"La solicitud de {solicitados} días supera el límite permitido "
+            f"(acumulado resultante: {acumulado} días)."
+        )
+
+    return True
+
+
 def validar_solicitud_licencia(
     tipo_licencia: Any,
     docente: Optional[Any] = None,
@@ -683,6 +933,7 @@ def validar_solicitud_licencia(
     - Ticket 17.1: Régimen de revista (TIT, INT, SUP).
     - Ticket 17.2: Antigüedad mínima y tope reducido por antigüedad.
     - Ticket 17.3: Control de solapamientos por cargo_id y rango de fechas.
+    - Ticket 17.4: Control de saldos disponibles y topes anuales/período.
     """
     validar_regimen_revista(
         tipo_licencia=tipo_licencia,
@@ -704,5 +955,15 @@ def validar_solicitud_licencia(
             fecha_hasta=fecha_hasta,
             instancia_actual=instancia_actual,
             docente=docente,
+        )
+    if tipo_licencia and (fecha_desde or dias):
+        validar_control_saldos_y_topes(
+            tipo_licencia=tipo_licencia,
+            docente=docente,
+            cargo=cargo,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            dias=dias,
+            instancia_actual=instancia_actual,
         )
     return True
