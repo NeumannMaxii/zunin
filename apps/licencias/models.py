@@ -15,9 +15,35 @@ class TipoLicencia(models.Model):
     """
 
     CATEGORIA_CHOICES = [
+        ("Ordinaria", "Ordinaria"),
+        ("Extraordinaria", "Extraordinaria"),
+        ("Permiso", "Permiso"),
         ("LICENCIA", "Licencia"),
-        ("PERMISO", "Permiso"),
         ("INASISTENCIA", "Inasistencia"),
+    ]
+    REGIMEN_CHOICES = [
+        ("TIT", "Titular (TIT)"),
+        ("INT", "Interino (INT)"),
+        ("SUP", "Suplente (SUP)"),
+    ]
+    FORMA_GOCE_CHOICES = [
+        ("100%", "100%"),
+        ("50%", "50%"),
+        ("Sin goce", "Sin goce"),
+        ("Escala", "Escala"),
+    ]
+    UNIDAD_CHOICES = [
+        ("Corridos", "Corridos"),
+        ("Hábiles", "Hábiles"),
+        ("Laborables", "Laborables"),
+        ("Horas", "Horas"),
+    ]
+    PERIODO_TOPE_CHOICES = [
+        ("Año calendario", "Año calendario"),
+        ("Año escolar", "Año escolar"),
+        ("Decenio", "Decenio"),
+        ("Sin tope", "Sin tope"),
+        ("Hecho", "Hecho"),
     ]
     FORMA_PAGO_CHOICES = [
         ("CON_GOCE", "Con Goce de haberes"),
@@ -34,7 +60,16 @@ class TipoLicencia(models.Model):
         ("DL-02", "DL-02 - Inasistencias y Permisos (Compatibilidad)"),
     ]
 
-    codigo = models.CharField(max_length=20, unique=True, verbose_name="Código")
+    codigo = models.CharField(max_length=30, unique=True, verbose_name="Código")
+    regimen = models.CharField(
+        max_length=10,
+        choices=REGIMEN_CHOICES,
+        default="TIT",
+        blank=True,
+        null=True,
+        verbose_name="Régimen",
+        help_text="Situación de revista: TIT, INT, SUP",
+    )
     articulo = models.CharField(
         max_length=50,
         blank=True,
@@ -48,10 +83,20 @@ class TipoLicencia(models.Model):
         verbose_name="Descripción",
     )
     categoria = models.CharField(
-        max_length=15,
+        max_length=30,
         choices=CATEGORIA_CHOICES,
-        default="LICENCIA",
+        default="Ordinaria",
         verbose_name="Categoría",
+        help_text="Categoría: Ordinaria, Extraordinaria, Permiso",
+    )
+    forma_goce = models.CharField(
+        max_length=20,
+        choices=FORMA_GOCE_CHOICES,
+        default="100%",
+        blank=True,
+        null=True,
+        verbose_name="Forma de Goce",
+        help_text="Forma de goce: 100%, 50%, Sin goce, Escala",
     )
     forma_pago = models.CharField(
         max_length=25,
@@ -59,7 +104,38 @@ class TipoLicencia(models.Model):
         default="CON_GOCE",
         verbose_name="Forma de Pago",
     )
-    goce_haberes = models.BooleanField(default=True, verbose_name="Goce de Haberes")
+    goce_haberes = models.BooleanField(
+        default=True, verbose_name="Goce de Haberes"
+    )
+    duracion_maxima = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Duración Máxima",
+        help_text="Duración máxima permitida en la unidad especificada.",
+    )
+    unidad = models.CharField(
+        max_length=20,
+        choices=UNIDAD_CHOICES,
+        default="Corridos",
+        blank=True,
+        null=True,
+        verbose_name="Unidad",
+        help_text="Unidad: Corridos, Hábiles, Laborables, Horas",
+    )
+    periodo_tope = models.CharField(
+        max_length=30,
+        choices=PERIODO_TOPE_CHOICES,
+        default="Año calendario",
+        blank=True,
+        null=True,
+        verbose_name="Período Tope",
+        help_text="Período tope: Año calendario, Año escolar, Decenio, Sin tope, Hecho",
+    )
+    antiguedad_minima_meses = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Antigüedad Mínima (Meses)",
+        help_text="Antigüedad docente mínima requerida en meses.",
+    )
     tope_anual = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
@@ -146,10 +222,34 @@ class TipoLicencia(models.Model):
         return f"{art}({self.codigo}) - {self.descripcion} [{goce}]".strip()
 
     def save(self, *args, **kwargs):
-        if not self.goce_haberes and self.forma_pago == "CON_GOCE":
+        if self.forma_goce in ["Sin goce", "SIN_GOCE"]:
+            self.goce_haberes = False
             self.forma_pago = "SIN_GOCE"
-        else:
-            self.goce_haberes = self.forma_pago == "CON_GOCE"
+        elif self.forma_goce == "50%":
+            self.goce_haberes = True
+            self.forma_pago = "CINCUENTA_PORCIENTO"
+        elif self.forma_goce in ["100%", "Escala", "ESCALA"]:
+            self.goce_haberes = True
+            self.forma_pago = "CON_GOCE"
+        elif not self.goce_haberes and self.forma_pago == "CON_GOCE":
+            self.forma_pago = "SIN_GOCE"
+            if not self.forma_goce:
+                self.forma_goce = "Sin goce"
+        elif self.forma_pago == "CON_GOCE":
+            self.goce_haberes = True
+            if not self.forma_goce:
+                self.forma_goce = "100%"
+        elif self.forma_pago == "CINCUENTA_PORCIENTO":
+            self.goce_haberes = True
+            if not self.forma_goce:
+                self.forma_goce = "50%"
+
+        if not self.regimen and self.situacion_revista_aplicable:
+            primer_reg = self.situacion_revista_aplicable.split(",")[0].strip()
+            self.regimen = (
+                primer_reg if primer_reg in ["TIT", "INT", "SUP"] else "TIT"
+            )
+
         super().save(*args, **kwargs)
 
     @classmethod
