@@ -26,6 +26,7 @@ Esta matriz documenta la vinculación bidireccional entre los **Requerimientos F
 | **RF-14** | **Dashboard y Panel de Alertas**: Monitoreo en tiempo real de inasistencias acumuladas y licencias por vencer. | Ticket 12 | `apps/core/views.py`<br>`apps/core/services.py`<br>`apps/core/templates/core/dashboard.html` | `apps/core/tests/test_ticket_12_panel_alertas.py` |
 | **RF-15** | **Control de Acceso RBAC Estricto**: Restricción de operaciones por rol (Admin_Institucional, Bedelia_Operadoras, Consulta). | Ticket 11 / 10.6 | `apps/core/mixins.py`<br>`apps/core/templatetags/auth_tags.py`<br>`templates/403.html` | `apps/core/tests/test_ticket_11_permisos_estrictos.py`<br>`apps/licencias/tests/test_ticket_10_6_permisos.py` |
 | **RF-16** | **Auditoría Transaccional Automática**: Registro automático de autor y timestamp en creación y actualización. | Transversal | `apps/core/models.py` (`AuditoriaModel`)<br>`apps/core/audit.py` (`audit_save`) | `apps/core/tests/test_audit.py` |
+| **RF-17** | **Sincronización Automática de Licencias con Asistencia Diaria**: Reflejo automático de marcas (LIC, LT) al aprobar y reversión ante anulación. | Ticket 18.1 | `apps/licencias/models.py`<br>`apps/licencias/services.py`<br>`apps/licencias/views.py` | `apps/licencias/tests/test_ticket_18_1_sincronizacion_asistencia.py` |
 
 ---
 
@@ -50,7 +51,7 @@ Esta matriz documenta la vinculación bidireccional entre los **Requerimientos F
 
 ## 3. Cobertura de Verificación Automatizada
 
-- **Total de Pruebas Unitarias e Integración:** 242 tests
+- **Total de Pruebas Unitarias e Integración:** 379 tests
 - **Tasa de Aprobación:** 100% (todos los tests en verde)
 - **Conformidad de Estilo (PEP8):** 0 errores de `flake8`
 - **Simulación Temporal E2E:** Validada exitosamente mediante `freezegun` en `apps/core/tests/test_ticket_14_e2e_tiempo.py`.

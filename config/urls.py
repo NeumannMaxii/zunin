@@ -9,6 +9,11 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+# Con esto nos aseguramos de que solo el super usuario pueda acceder al admin.
+admin.site.has_permission = lambda request: (
+    request.user.is_active and request.user.is_superuser
+)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),

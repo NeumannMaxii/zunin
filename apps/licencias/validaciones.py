@@ -45,8 +45,8 @@ TOPE_ENFERMEDAD_SUPLENTE_MENOR_4_MESES = 5
 MESES_MINIMOS_ENFERMEDAD_COMPLETA = 4
 
 # Constantes Ticket 17.3: Estados de Licencias para Control de Solapamiento
-ESTADOS_LICENCIA_ACTIVAS = ("SOLICITADA", "OTORGADA", "FINALIZADA")
-ESTADOS_LICENCIA_INACTIVAS = ("CANCELADA", "RECHAZADA")
+ESTADOS_LICENCIA_ACTIVAS = ("SOLICITADA", "OTORGADA", "APROBADA", "FINALIZADA")
+ESTADOS_LICENCIA_INACTIVAS = ("CANCELADA", "ANULADA", "RECHAZADA")
 
 
 def normalizar_regimen(valor: Any) -> Optional[str]:
@@ -270,6 +270,7 @@ def filtrar_tipos_licencia_por_regimen(
 # TICKET 17.2: MOTOR DE CÁLCULO DE ANTIGÜEDAD Y RECORTE DE TOPES
 # =============================================================================
 
+
 def calcular_antiguedad_meses(
     fecha_alta: Any,
     fecha_referencia: Optional[Any] = None,
@@ -286,9 +287,7 @@ def calcular_antiguedad_meses(
 
     alta = parse_date_safe(fecha_alta)
     ref = (
-        parse_date_safe(fecha_referencia)
-        if fecha_referencia
-        else datetime.date.today()
+        parse_date_safe(fecha_referencia) if fecha_referencia else datetime.date.today()
     )
 
     if ref < alta:
@@ -389,8 +388,7 @@ def es_licencia_enfermedad_comun(tipo_licencia: Any) -> bool:
 
     es_articulo = any(art in texto for art in ["308", "330", "339"])
     es_desc = (
-        "enfermedad comun" in texto_sin_tilde
-        or "afeccion comun" in texto_sin_tilde
+        "enfermedad comun" in texto_sin_tilde or "afeccion comun" in texto_sin_tilde
     )
     return es_articulo or es_desc
 
@@ -654,9 +652,7 @@ def validar_solapamiento_licencias(
 
     if solapadas.exists():
         primera = solapadas.first()
-        tipo_str = (
-            primera.tipo_licencia.codigo if primera.tipo_licencia else "S/T"
-        )
+        tipo_str = primera.tipo_licencia.codigo if primera.tipo_licencia else "S/T"
         f_desde_fmt = primera.fecha_desde.strftime("%d/%m/%Y")
         f_hasta_fmt = primera.fecha_hasta_prevista.strftime("%d/%m/%Y")
         cargo_rep = str(primera.cargo) if primera.cargo else f"ID {cargo_id}"
@@ -766,18 +762,24 @@ def calcular_saldo_licencia(
         if es_enf:
             filtro_causal = (
                 Q(tipo_licencia=tipo_licencia)
-                | Q(tipo_licencia__articulo__in=[
-                    "308", "Art. 308", "330", "Art. 330", "339", "Art. 339"
-                ])
+                | Q(
+                    tipo_licencia__articulo__in=[
+                        "308",
+                        "Art. 308",
+                        "330",
+                        "Art. 330",
+                        "339",
+                        "Art. 339",
+                    ]
+                )
                 | Q(tipo_licencia__descripcion__icontains="enfermedad com")
                 | Q(tipo_licencia__descripcion__icontains="afeccion com")
                 | Q(tipo_licencia__descripcion__icontains="afección com")
             )
         elif getattr(tipo_licencia, "articulo", ""):
             art = tipo_licencia.articulo.strip()
-            filtro_causal = (
-                Q(tipo_licencia=tipo_licencia)
-                | Q(tipo_licencia__articulo=art)
+            filtro_causal = Q(tipo_licencia=tipo_licencia) | Q(
+                tipo_licencia__articulo=art
             )
         else:
             filtro_causal = Q(tipo_licencia=tipo_licencia)

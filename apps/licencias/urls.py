@@ -129,7 +129,7 @@ urlpatterns = [
         views.ValidarSaldosLicenciaAPIView.as_view(),
         name="validar_saldos",
     ),
-    # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1)
+    # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1 / 18.1)
     path(
         "solicitudes/",
         views.LicenciaOtorgadaListView.as_view(),
@@ -139,5 +139,15 @@ urlpatterns = [
         "solicitudes/nueva/",
         views.LicenciaOtorgadaCreateView.as_view(),
         name="licenciaotorgada_create",
+    ),
+    path(
+        "solicitudes/<int:pk>/aprobar/",
+        views.LicenciaOtorgadaAprobarView.as_view(),
+        name="licenciaotorgada_aprobar",
+    ),
+    path(
+        "solicitudes/<int:pk>/anular/",
+        views.LicenciaOtorgadaAnularView.as_view(),
+        name="licenciaotorgada_anular",
     ),
 ]
