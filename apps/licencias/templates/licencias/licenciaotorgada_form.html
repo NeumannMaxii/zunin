@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitud de Licencia - IESETyFP Zunin{% endblock %}
+{% block title %}Registrar Solicitud de Licencia - IESETyFP Zunin{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <!-- Header y Breadcrumbs -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -14,144 +14,610 @@
                 <span>/</span>
                 <span class="text-slate-700 font-medium">Nueva Solicitud</span>
             </div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registrar Solicitud de Licencia</h1>
-            <p class="text-sm text-slate-500">Gestión de licencias docentes y validación estatutaria por régimen de revista (Ley 647-E).</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registrar Solicitud de Licencia Docente</h1>
+            <p class="text-sm text-slate-500">Formulario adaptativo con filtrado por régimen estatutario y validación de saldos en tiempo real (Ley 647-E).</p>
         </div>
-        <div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'licencias:docente_saldos' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Ver Panel de Saldos
+            </a>
             <a href="{% url 'licencias:licenciaotorgada_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 &larr; Volver al Listado
             </a>
         </div>
     </div>
 
-    <!-- Tarjeta del Formulario -->
-    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
+    <!-- Layout en 2 Columnas: Formulario a la Izquierda y Panel Informativo de Saldos a la Derecha -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <!-- Columna Izquierda: Formulario de Solicitud (lg:col-span-2) -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+            <form id="licencia-form" method="post" class="space-y-6">
+                {% csrf_token %}
 
-            {% if form.non_field_errors %}
-            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
-                {{ form.non_field_errors }}
-            </div>
-            {% endif %}
+                {% if form.non_field_errors %}
+                <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
 
-            <!-- Sección 1: Docente y Cargo -->
-            <div>
-                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
-                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
-                    <span>1. Docente y Cargo Afectado</span>
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-1 space-y-1.5">
-                        <label for="{{ form.docente.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Docente <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.docente }}
-                        {% if form.docente.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.docente.errors }}</div>
-                        {% endif %}
+                <!-- Sección 1: Docente y Cargo Afectado -->
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+                        <span class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
+                            <span>1. Docente y Cargo Afectado</span>
+                        </span>
+                        <span id="badge-regimen-docente" class="hidden text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700"></span>
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-1 space-y-1.5">
+                            <label for="{{ form.docente.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Docente <span class="text-rose-500">*</span>
+                            </label>
+                            {{ form.docente }}
+                            <p class="text-xs text-slate-500">Seleccione el agente para cargar sus cargos y saldos.</p>
+                            {% if form.docente.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.docente.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="sm:col-span-1 space-y-1.5">
+                            <label for="{{ form.cargo.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Cargo Docente / Materia (Opcional)
+                            </label>
+                            {{ form.cargo }}
+                            <p id="cargo-helper-text" class="text-xs text-slate-500">Filtra automáticamente el catálogo de licencias según la situación de revista.</p>
+                            {% if form.cargo.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cargo.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 2: Tipo de Licencia y Período -->
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+                        <span class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
+                            <span>2. Causal Estatutaria y Período</span>
+                        </span>
+                        <span id="catalogo-filtro-info" class="text-xs text-slate-500 font-normal">Catálogo filtrado por régimen</span>
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2 space-y-1.5">
+                            <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Tipo de Licencia Estatutaria <span class="text-rose-500">*</span>
+                            </label>
+                            {{ form.tipo_licencia }}
+                            <div id="tipo-licencia-meta" class="flex flex-wrap gap-2 text-xs text-slate-500 mt-1"></div>
+                            {% if form.tipo_licencia.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_licencia.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="{{ form.fecha_desde.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Fecha Desde <span class="text-rose-500">*</span>
+                            </label>
+                            {{ form.fecha_desde }}
+                            {% if form.fecha_desde.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_desde.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="{{ form.fecha_hasta_prevista.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Fecha Hasta Prevista <span class="text-rose-500">*</span>
+                            </label>
+                            {{ form.fecha_hasta_prevista }}
+                            {% if form.fecha_hasta_prevista.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_hasta_prevista.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 3: Datos Administrativos e Instrumento -->
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
+                        <span>3. Estado e Instrumento Legal</span>
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="space-y-1.5">
+                            <label for="{{ form.estado.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Estado de la Solicitud
+                            </label>
+                            {{ form.estado }}
+                            <p class="text-[11px] text-slate-500">Al aprobarse sincroniza marcas en asistencia diaria.</p>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="{{ form.porcentaje_goce.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                % de Goce de Haberes
+                            </label>
+                            {{ form.porcentaje_goce }}
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="{{ form.instrumento_legal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Instrumento Legal (Resolución/Disp.)
+                            </label>
+                            {{ form.instrumento_legal }}
+                        </div>
+
+                        <div class="sm:col-span-3 space-y-1.5">
+                            <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Observaciones / Diagnóstico / Certificado
+                            </label>
+                            {{ form.observaciones }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-200">
+                    <div id="form-validation-summary" class="text-xs font-medium text-slate-600 flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                        <span>Complete los campos requeridos para validar saldos.</span>
+                    </div>
+                    <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                        <a href="{% url 'licencias:licenciaotorgada_list' %}" class="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                            Cancelar
+                        </a>
+                        <button id="btn-submit" type="submit" class="px-6 py-2.5 rounded-xl bg-institucional-600 hover:bg-institucional-700 text-white text-sm font-semibold shadow-xs transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-institucional-600">
+                            Confirmar y Guardar Solicitud
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Columna Derecha: Panel Informativo de Saldos y Validación en Tiempo Real (Sticky lg:col-span-1) -->
+        <div class="lg:col-span-1 space-y-4 lg:sticky lg:top-6">
+            <!-- Tarjeta Principal de Saldos y Días Restantes -->
+            <div id="panel-saldos" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5 transition-all">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-institucional-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Saldos y Validación en Vivo</span>
+                    </h3>
+                    <span id="live-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Validación en tiempo real activa"></span>
+                </div>
+
+                <!-- Destacado: Días Restantes tras Confirmar (Criterio de Aceptación Ticket 18.2) -->
+                <div id="card-dias-restantes" class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Días Restantes tras Confirmar</p>
+                    <div id="val-dias-restantes" class="text-3xl font-extrabold text-slate-800">
+                        —
+                    </div>
+                    <p id="val-dias-restantes-sub" class="text-xs text-slate-500 font-medium">
+                        Seleccione causal y fechas para el cómputo
+                    </p>
+                </div>
+
+                <!-- Detalle Métrico del Cómputo -->
+                <div class="space-y-3 text-xs">
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                        <span class="text-slate-500">Días Solicitados:</span>
+                        <span id="val-dias-solicitados" class="font-bold text-slate-900 text-sm">0 Días</span>
                     </div>
 
-                    <div class="sm:col-span-1 space-y-1.5">
-                        <label for="{{ form.cargo.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Cargo Docente / Materia (Opcional)
-                        </label>
-                        {{ form.cargo }}
-                        <p class="text-xs text-slate-500">Determina el régimen de revista (TIT, INT, SUP) para la validación estatutaria.</p>
-                        {% if form.cargo.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cargo.errors }}</div>
-                        {% endif %}
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                        <span class="text-slate-500">Fecha de Reintegro:</span>
+                        <span id="val-fecha-reintegro" class="font-semibold text-slate-800">—</span>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                        <span class="text-slate-500">Tope Estatutario:</span>
+                        <span id="val-tope-maximo" class="font-semibold text-slate-800">—</span>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                        <span class="text-slate-500">Días Ya Consumidos:</span>
+                        <span id="val-dias-consumidos" class="font-semibold text-slate-800">0 Días</span>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                        <span class="text-slate-500">Saldo Disponible Previo:</span>
+                        <span id="val-saldo-previo" class="font-bold text-institucional-700">—</span>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1.5">
+                        <span class="text-slate-500">Período de Cómputo:</span>
+                        <span id="val-periodo" class="text-slate-700 text-right">—</span>
+                    </div>
+                </div>
+
+                <!-- Contenedor Dinámico de Alertas y Notificaciones en Vivo -->
+                <div id="live-alerts-container" class="space-y-2">
+                    <div id="alert-solapamiento" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                        <strong>⚠️ Alerta de Solapamiento:</strong>
+                        <div id="alert-solapamiento-msg" class="mt-0.5">El docente ya posee otra licencia en las fechas seleccionadas.</div>
+                    </div>
+
+                    <div id="alert-tope" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                        <strong>🚫 Superación de Tope Estatutario:</strong>
+                        <div id="alert-tope-msg" class="mt-0.5">La solicitud supera el límite permitido para el régimen de revista.</div>
+                    </div>
+
+                    <div id="alert-antiguedad" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                        <strong>⏳ Restricción de Antigüedad:</strong>
+                        <div id="alert-antiguedad-msg" class="mt-0.5">Aplica tope reducido por registrar menos de 4 meses de antigüedad.</div>
+                    </div>
+
+                    <div id="alert-ok" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+                        <strong>✓ Solicitud Estatutariamente Válida:</strong>
+                        <div id="alert-ok-msg" class="mt-0.5">El saldo disponible cubre íntegramente los días solicitados.</div>
+                    </div>
+                </div>
+
+                <!-- Barra de Progreso del Saldo Acumulado -->
+                <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                    <div class="flex justify-between text-[11px] font-medium text-slate-500">
+                        <span>Consumo proyectado del tope</span>
+                        <span id="val-progreso-pct">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div id="val-progreso-bar" class="h-2.5 rounded-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Sección 2: Tipo de Licencia y Período -->
-            <div>
-                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
-                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
-                    <span>2. Tipo de Licencia y Período</span>
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-2 space-y-1.5">
-                        <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Tipo de Licencia Estatutaria <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.tipo_licencia }}
-                        <p id="regimen-info" class="text-xs text-slate-500">Seleccione el tipo aplicable al régimen del docente según Estatuto Docente.</p>
-                        {% if form.tipo_licencia.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_licencia.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label for="{{ form.fecha_desde.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Fecha Desde <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.fecha_desde }}
-                        {% if form.fecha_desde.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_desde.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label for="{{ form.fecha_hasta_prevista.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Fecha Hasta Prevista <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.fecha_hasta_prevista }}
-                        {% if form.fecha_hasta_prevista.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_hasta_prevista.errors }}</div>
-                        {% endif %}
-                    </div>
+            <!-- Ayuda Institucional y Enlace Directo -->
+            <div class="bg-institucional-50/60 rounded-2xl p-4 border border-institucional-100 text-xs text-institucional-900 space-y-2">
+                <p class="font-bold flex items-center space-x-1.5">
+                    <span>Estatuto Docente - Ley 647-E</span>
+                </p>
+                <p class="text-institucional-700 leading-relaxed">
+                    Las licencias se imputan por cargo según la situación de revista (<span class="font-semibold">TIT, INT, SUP</span>). Al confirmarse, se integran automáticamente en la planilla de asistencia diaria.
+                </p>
+                <div class="pt-1">
+                    <a id="link-docente-saldos" href="{% url 'licencias:docente_saldos' %}" class="font-semibold text-institucional-700 hover:text-institucional-900 underline inline-flex items-center space-x-1">
+                        <span>Consultar historial completo de saldos</span>
+                        <span>&rarr;</span>
+                    </a>
                 </div>
             </div>
-
-            <!-- Sección 3: Datos Administrativos -->
-            <div>
-                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
-                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
-                    <span>3. Estado e Instrumento Legal</span>
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="space-y-1.5">
-                        <label for="{{ form.estado.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Estado
-                        </label>
-                        {{ form.estado }}
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label for="{{ form.porcentaje_goce.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            % de Goce (Opcional)
-                        </label>
-                        {{ form.porcentaje_goce }}
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label for="{{ form.instrumento_legal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Instrumento Legal
-                        </label>
-                        {{ form.instrumento_legal }}
-                    </div>
-
-                    <div class="sm:col-span-3 space-y-1.5">
-                        <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Observaciones
-                        </label>
-                        {{ form.observaciones }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Botones de Acción -->
-            <div class="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200">
-                <a href="{% url 'licencias:licenciaotorgada_list' %}" class="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                    Cancelar
-                </a>
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-institucional-600 hover:bg-institucional-700 text-white text-sm font-medium shadow-sm transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-institucional-600">
-                    Guardar Solicitud
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const docenteSelect = document.getElementById('id_docente');
+    const cargoSelect = document.getElementById('id_cargo');
+    const tipoLicenciaSelect = document.getElementById('id_tipo_licencia');
+    const fechaDesdeInput = document.getElementById('id_fecha_desde');
+    const fechaHastaInput = document.getElementById('id_fecha_hasta_prevista');
+    const submitBtn = document.getElementById('btn-submit');
+    const form = document.getElementById('licencia-form');
+
+    // Elementos del Panel de Saldos en Tiempo Real
+    const cardDiasRestantes = document.getElementById('card-dias-restantes');
+    const valDiasRestantes = document.getElementById('val-dias-restantes');
+    const valDiasRestantesSub = document.getElementById('val-dias-restantes-sub');
+    const valDiasSolicitados = document.getElementById('val-dias-solicitados');
+    const valFechaReintegro = document.getElementById('val-fecha-reintegro');
+    const valTopeMaximo = document.getElementById('val-tope-maximo');
+    const valDiasConsumidos = document.getElementById('val-dias-consumidos');
+    const valSaldoPrevio = document.getElementById('val-saldo-previo');
+    const valPeriodo = document.getElementById('val-periodo');
+    const valProgresoPct = document.getElementById('val-progreso-pct');
+    const valProgresoBar = document.getElementById('val-progreso-bar');
+    const validationSummary = document.getElementById('form-validation-summary');
+    const linkDocenteSaldos = document.getElementById('link-docente-saldos');
+
+    // Alertas
+    const alertSolapamiento = document.getElementById('alert-solapamiento');
+    const alertSolapamientoMsg = document.getElementById('alert-solapamiento-msg');
+    const alertTope = document.getElementById('alert-tope');
+    const alertTopeMsg = document.getElementById('alert-tope-msg');
+    const alertAntiguedad = document.getElementById('alert-antiguedad');
+    const alertAntiguedadMsg = document.getElementById('alert-antiguedad-msg');
+    const alertOk = document.getElementById('alert-ok');
+    const alertOkMsg = document.getElementById('alert-ok-msg');
+
+    let debounceTimer = null;
+    let estadoValidacion = {
+        bloqueado: false,
+        motivoBloqueo: '',
+        diasRestantes: null,
+        diasSolicitados: 0
+    };
+
+    function debounce(callback, delay) {
+        return function (...args) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => callback.apply(this, args), delay);
+        };
+    }
+
+    // 1. Cargar cargos de un docente adaptativamente
+    async function actualizarCargosDocente(docenteId, mantenerSeleccion = false) {
+        if (!docenteId) {
+            if (cargoSelect) cargoSelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        if (linkDocenteSaldos) {
+            linkDocenteSaldos.href = `/licencias/saldos/${docenteId}/`;
+        }
+
+        try {
+            const resp = await fetch(`/api/licencias/docente-cargos/?docente=${docenteId}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.status === 'success' && cargoSelect) {
+                const prevCargoId = cargoSelect.value;
+                cargoSelect.innerHTML = '<option value="">--------- (General / Institucional)</option>';
+                data.cargos.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.label;
+                    opt.dataset.regimen = c.situacion_revista;
+                    cargoSelect.appendChild(opt);
+                });
+
+                if (mantenerSeleccion && prevCargoId) {
+                    cargoSelect.value = prevCargoId;
+                }
+            }
+        } catch (err) {
+            console.error('Error al cargar cargos del docente:', err);
+        }
+    }
+
+    // 2. Filtrar tipos de licencia por régimen del cargo
+    async function actualizarCatalogoPorRegimen(cargoId) {
+        if (!tipoLicenciaSelect) return;
+        let url = '/api/licencias/tipos-por-regimen/';
+        if (cargoId) {
+            url += `?cargo=${cargoId}`;
+        }
+
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.status === 'success' && data.tipos) {
+                const prevTipoId = tipoLicenciaSelect.value;
+                tipoLicenciaSelect.innerHTML = '<option value="">---------</option>';
+                data.tipos.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = t.label;
+                    opt.dataset.duracion = t.duracion_maxima || '';
+                    opt.dataset.codigo = t.codigo;
+                    tipoLicenciaSelect.appendChild(opt);
+                });
+
+                if (prevTipoId && Array.from(tipoLicenciaSelect.options).some(o => o.value === prevTipoId)) {
+                    tipoLicenciaSelect.value = prevTipoId;
+                }
+            }
+        } catch (err) {
+            console.error('Error al actualizar catálogo por régimen:', err);
+        }
+    }
+
+    // 3. Validación y Cálculo de Saldos en Tiempo Real
+    async function validarEnTiempoReal() {
+        const docenteId = docenteSelect ? docenteSelect.value : '';
+        const cargoId = cargoSelect ? cargoSelect.value : '';
+        const tipoLicenciaId = tipoLicenciaSelect ? tipoLicenciaSelect.value : '';
+        const fechaDesde = fechaDesdeInput ? fechaDesdeInput.value : '';
+        const fechaHasta = fechaHastaInput ? fechaHastaInput.value : '';
+
+        // Reset de alertas visuales
+        alertSolapamiento.classList.add('hidden');
+        alertTope.classList.add('hidden');
+        alertAntiguedad.classList.add('hidden');
+        alertOk.classList.add('hidden');
+
+        if (!tipoLicenciaId || !fechaDesde) {
+            valDiasRestantes.textContent = '—';
+            valDiasRestantesSub.textContent = 'Seleccione causal y fechas para el cómputo';
+            cardDiasRestantes.className = 'p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1';
+            valDiasSolicitados.textContent = '0 Días';
+            valFechaReintegro.textContent = '—';
+            valProgresoPct.textContent = '0%';
+            valProgresoBar.style.width = '0%';
+            valProgresoBar.className = 'h-2.5 rounded-full bg-slate-300 transition-all duration-300';
+            estadoValidacion.bloqueado = false;
+            return;
+        }
+
+        // Cálculo de fechas y reintegro
+        let diasCalculados = 0;
+        if (fechaDesde && fechaHasta) {
+            try {
+                const calcResp = await fetch(`/api/licencias/calcular-fechas/?tipo_licencia=${tipoLicenciaId}&fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`);
+                if (calcResp.ok) {
+                    const calcData = await calcResp.json();
+                    if (calcData.status === 'success') {
+                        diasCalculados = calcData.dias_consumidos;
+                        valDiasSolicitados.textContent = `${calcData.dias_consumidos} ${calcData.unidad_dias || 'Días'}`;
+                        if (calcData.fecha_reintegro) {
+                            const [y, m, d] = calcData.fecha_reintegro.split('-');
+                            valFechaReintegro.textContent = `${d}/${m}/${y}`;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error en cálculo de fechas:', e);
+            }
+        }
+
+        // Validación de Solapamientos
+        if (cargoId && fechaDesde && fechaHasta) {
+            try {
+                const solapResp = await fetch(`/api/licencias/validar-solapamiento/?cargo=${cargoId}&fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`);
+                if (solapResp.ok) {
+                    const solapData = await solapResp.json();
+                    if (solapData.status === 'success' && solapData.hay_solapamiento) {
+                        alertSolapamiento.classList.remove('hidden');
+                        alertSolapamientoMsg.textContent = solapData.mensaje;
+                        estadoValidacion.bloqueado = true;
+                        estadoValidacion.motivoBloqueo = solapData.mensaje;
+                    }
+                }
+            } catch (e) {
+                console.warn('Error en validación de solapamiento:', e);
+            }
+        }
+
+        // Validación de Saldos y Topes Estatutarios
+        let urlSaldos = `/api/licencias/validar-saldos/?tipo_licencia=${tipoLicenciaId}&docente=${docenteId}`;
+        if (cargoId) urlSaldos += `&cargo=${cargoId}`;
+        if (fechaDesde) urlSaldos += `&fecha_desde=${fechaDesde}`;
+        if (fechaHasta) urlSaldos += `&fecha_hasta=${fechaHasta}`;
+
+        try {
+            const saldosResp = await fetch(urlSaldos);
+            if (saldosResp.ok) {
+                const data = await saldosResp.json();
+                if (data.status === 'success') {
+                    valDiasConsumidos.textContent = `${data.dias_consumidos} Días`;
+                    valPeriodo.textContent = data.periodo || 'Año calendario';
+
+                    if (data.tope_maximo !== null && data.tope_maximo !== undefined) {
+                        valTopeMaximo.textContent = `${data.tope_maximo} Días` + (data.tope_reducido ? ' (Reducido)' : '');
+                        valSaldoPrevio.textContent = `${data.saldo_disponible} Días`;
+                    } else {
+                        valTopeMaximo.textContent = 'Sin tope';
+                        valSaldoPrevio.textContent = 'Ilimitado';
+                    }
+
+                    if (data.tope_reducido) {
+                        alertAntiguedad.classList.remove('hidden');
+                        alertAntiguedadMsg.textContent = 'Tope especial reducido por antigüedad menor a 4 meses en este régimen.';
+                    }
+
+                    // DÍAS RESTANTES (Criterio de Aceptación Ticket 18.2)
+                    estadoValidacion.diasSolicitados = data.dias_solicitados || diasCalculados;
+                    estadoValidacion.diasRestantes = data.dias_restantes;
+
+                    if (data.supera_tope) {
+                        estadoValidacion.bloqueado = true;
+                        estadoValidacion.motivoBloqueo = data.mensaje;
+
+                        valDiasRestantes.textContent = '0 Días';
+                        valDiasRestantesSub.textContent = `Supera el tope estatutario de ${data.tope_maximo} días`;
+                        cardDiasRestantes.className = 'p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-center space-y-1';
+
+                        alertTope.classList.remove('hidden');
+                        alertTopeMsg.textContent = data.mensaje;
+
+                        valProgresoPct.textContent = '100%+';
+                        valProgresoBar.style.width = '100%';
+                        valProgresoBar.className = 'h-2.5 rounded-full bg-rose-600 transition-all duration-300';
+
+                        validationSummary.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-rose-600 font-semibold">Tope estatutario superado. Se bloquea la confirmación.</span>';
+                    } else {
+                        estadoValidacion.bloqueado = false;
+                        estadoValidacion.motivoBloqueo = '';
+
+                        if (data.dias_restantes !== null && data.dias_restantes !== undefined) {
+                            valDiasRestantes.textContent = `${data.dias_restantes} Días`;
+                            valDiasRestantesSub.textContent = `Saldo que conservará en ${data.periodo}`;
+                            cardDiasRestantes.className = 'p-4 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-center space-y-1';
+
+                            if (data.tope_maximo > 0) {
+                                const pct = Math.min(100, Math.round((data.total_acumulado / data.tope_maximo) * 100));
+                                valProgresoPct.textContent = `${pct}%`;
+                                valProgresoBar.style.width = `${pct}%`;
+                                valProgresoBar.className = pct >= 80
+                                    ? 'h-2.5 rounded-full bg-amber-500 transition-all duration-300'
+                                    : 'h-2.5 rounded-full bg-emerald-500 transition-all duration-300';
+                            }
+                        } else {
+                            valDiasRestantes.textContent = 'Ilimitado';
+                            valDiasRestantesSub.textContent = 'Esta causal no posee tope restrictivo';
+                            cardDiasRestantes.className = 'p-4 rounded-xl bg-indigo-50 border-2 border-indigo-200 text-center space-y-1';
+                        }
+
+                        if (!alertSolapamiento.classList.contains('hidden')) {
+                            validationSummary.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-rose-600 font-semibold">Solapamiento detectado. Modifique las fechas.</span>';
+                        } else {
+                            alertOk.classList.remove('hidden');
+                            alertOkMsg.textContent = data.dias_restantes !== null
+                                ? `La solicitud es válida. Al confirmar, restarán ${data.dias_restantes} días de saldo.`
+                                : 'La solicitud es válida y no restringe saldos.';
+                            validationSummary.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-emerald-700 font-semibold">Listo para confirmar: Quedarán ${data.dias_restantes !== null ? data.dias_restantes : 'ilimitados'} días de saldo.</span>`;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error al validar saldos:', e);
+        }
+    }
+
+    const debouncedValidar = debounce(validarEnTiempoReal, 250);
+
+    // Event Listeners Dinámicos
+    if (docenteSelect) {
+        docenteSelect.addEventListener('change', function () {
+            actualizarCargosDocente(this.value, false);
+            debouncedValidar();
+        });
+    }
+
+    if (cargoSelect) {
+        cargoSelect.addEventListener('change', function () {
+            actualizarCatalogoPorRegimen(this.value);
+            debouncedValidar();
+        });
+    }
+
+    if (tipoLicenciaSelect) {
+        tipoLicenciaSelect.addEventListener('change', debouncedValidar);
+    }
+
+    if (fechaDesdeInput) {
+        fechaDesdeInput.addEventListener('change', debouncedValidar);
+        fechaDesdeInput.addEventListener('input', debouncedValidar);
+    }
+
+    if (fechaHastaInput) {
+        fechaHastaInput.addEventListener('change', debouncedValidar);
+        fechaHastaInput.addEventListener('input', debouncedValidar);
+    }
+
+    // Interceptar Confirmación con Criterio de Aceptación
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (estadoValidacion.bloqueado) {
+                e.preventDefault();
+                alert(`No se puede confirmar la solicitud:\n\n${estadoValidacion.motivoBloqueo || 'Supera el tope estatutario o existe solapamiento con otra licencia.'}`);
+                return false;
+            }
+
+            if (estadoValidacion.diasRestantes !== null && estadoValidacion.diasRestantes !== undefined) {
+                const conf = confirm(
+                    `Confirmación de Solicitud de Licencia:\n\n` +
+                    `• Días Solicitados: ${estadoValidacion.diasSolicitados} día(s)\n` +
+                    `• Días Restantes de Saldo: ${estadoValidacion.diasRestantes} día(s)\n\n` +
+                    `¿Desea confirmar el registro de esta licencia?`
+                );
+                if (!conf) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    }
+
+    // Inicialización al cargar la página
+    if (docenteSelect && docenteSelect.value) {
+        actualizarCargosDocente(docenteSelect.value, true);
+    }
+    debouncedValidar();
+});
+</script>
 {% endblock %}

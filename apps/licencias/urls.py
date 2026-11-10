@@ -129,7 +129,39 @@ urlpatterns = [
         views.ValidarSaldosLicenciaAPIView.as_view(),
         name="validar_saldos",
     ),
-    # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1 / 18.1)
+    # API Adaptativa Formulario (Ticket 18.2)
+    path(
+        "api/docente-cargos/",
+        views.DocenteCargosAPIView.as_view(),
+        name="api_docente_cargos",
+    ),
+    path(
+        "docente-cargos/",
+        views.DocenteCargosAPIView.as_view(),
+        name="docente_cargos",
+    ),
+    path(
+        "api/tipos-por-regimen/",
+        views.TiposLicenciaPorRegimenAPIView.as_view(),
+        name="api_tipos_por_regimen",
+    ),
+    path(
+        "tipos-por-regimen/",
+        views.TiposLicenciaPorRegimenAPIView.as_view(),
+        name="tipos_por_regimen",
+    ),
+    # Vistas de Saldos por Docente (Ticket 18.2)
+    path(
+        "saldos/",
+        views.DocenteSaldosView.as_view(),
+        name="docente_saldos",
+    ),
+    path(
+        "saldos/<int:docente_id>/",
+        views.DocenteSaldosView.as_view(),
+        name="docente_saldos_detalle",
+    ),
+    # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1 / 18.1 / 18.2)
     path(
         "solicitudes/",
         views.LicenciaOtorgadaListView.as_view(),

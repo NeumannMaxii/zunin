@@ -27,6 +27,7 @@ Esta matriz documenta la vinculación bidireccional entre los **Requerimientos F
 | **RF-15** | **Control de Acceso RBAC Estricto**: Restricción de operaciones por rol (Admin_Institucional, Bedelia_Operadoras, Consulta). | Ticket 11 / 10.6 | `apps/core/mixins.py`<br>`apps/core/templatetags/auth_tags.py`<br>`templates/403.html` | `apps/core/tests/test_ticket_11_permisos_estrictos.py`<br>`apps/licencias/tests/test_ticket_10_6_permisos.py` |
 | **RF-16** | **Auditoría Transaccional Automática**: Registro automático de autor y timestamp en creación y actualización. | Transversal | `apps/core/models.py` (`AuditoriaModel`)<br>`apps/core/audit.py` (`audit_save`) | `apps/core/tests/test_audit.py` |
 | **RF-17** | **Sincronización Automática de Licencias con Asistencia Diaria**: Reflejo automático de marcas (LIC, LT) al aprobar y reversión ante anulación. | Ticket 18.1 | `apps/licencias/models.py`<br>`apps/licencias/services.py`<br>`apps/licencias/views.py` | `apps/licencias/tests/test_ticket_18_1_sincronizacion_asistencia.py` |
+| **RF-18** | **Interfaz de Usuario para Solicitudes y Vistas de Saldo**: Formulario adaptativo filtrado por régimen con validación en tiempo real y panel de días restantes antes de confirmar, junto con vista integral de saldos del docente. | Ticket 18.2 | `apps/licencias/views.py`<br>`apps/licencias/services.py`<br>`apps/licencias/templates/licencias/licenciaotorgada_form.html`<br>`apps/licencias/templates/licencias/docente_saldos.html` | `apps/licencias/tests/test_ticket_18_2_interfaz_solicitudes_saldos.py` |
 
 ---
 

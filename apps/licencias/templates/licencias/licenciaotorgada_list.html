@@ -16,6 +16,9 @@
             <p class="text-sm text-slate-500">Historial y estado de licencias gestionadas con control de régimen estatutario.</p>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{% url 'licencias:docente_saldos' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Ver Saldos por Docente
+            </a>
             <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 Ver Catálogo Normativo
             </a>
@@ -47,6 +50,9 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                             {{ lic.docente.nombre_completo }}
                             <div class="text-xs text-slate-500">DNI: {{ lic.docente.dni }}</div>
+                            <a href="{% url 'licencias:docente_saldos_detalle' lic.docente.pk %}" class="text-[11px] text-institucional-600 hover:underline">
+                                Ver saldos &rarr;
+                            </a>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                             {% if lic.cargo %}

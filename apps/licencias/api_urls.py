@@ -6,6 +6,8 @@ from django.urls import path
 from apps.licencias.views import (
     AutocompletarLicenciaAPIView,
     CalcularFechasLicenciaAPIView,
+    DocenteCargosAPIView,
+    TiposLicenciaPorRegimenAPIView,
     ValidarAntiguedadLicenciaAPIView,
     ValidarRegimenLicenciaAPIView,
     ValidarSaldosLicenciaAPIView,
@@ -74,5 +76,25 @@ urlpatterns = [
         "licencias/validar-saldos/",
         ValidarSaldosLicenciaAPIView.as_view(),
         name="licencias_validar_saldos",
+    ),
+    path(
+        "docente-cargos/",
+        DocenteCargosAPIView.as_view(),
+        name="docente_cargos",
+    ),
+    path(
+        "licencias/docente-cargos/",
+        DocenteCargosAPIView.as_view(),
+        name="licencias_docente_cargos",
+    ),
+    path(
+        "tipos-por-regimen/",
+        TiposLicenciaPorRegimenAPIView.as_view(),
+        name="tipos_por_regimen",
+    ),
+    path(
+        "licencias/tipos-por-regimen/",
+        TiposLicenciaPorRegimenAPIView.as_view(),
+        name="licencias_tipos_por_regimen",
     ),
 ]
