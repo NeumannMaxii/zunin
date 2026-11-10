@@ -52,8 +52,9 @@ Esta matriz documenta la vinculación bidireccional entre los **Requerimientos F
 
 ## 3. Cobertura de Verificación Automatizada
 
-- **Total de Pruebas Unitarias e Integración:** 379 tests
+- **Total de Pruebas Unitarias e Integración:** 400 tests
 - **Tasa de Aprobación:** 100% (todos los tests en verde)
 - **Conformidad de Estilo (PEP8):** 0 errores de `flake8`
+- **Casos de Aceptación Críticos (Ticket 19.1):** CA-01, CA-02, CA-03 y CA-12 validados sobre el catálogo oficial Ley 647-E en `apps/licencias/tests/test_ticket_19_1_casos_aceptacion_criticos.py`.
 - **Simulación Temporal E2E:** Validada exitosamente mediante `freezegun` en `apps/core/tests/test_ticket_14_e2e_tiempo.py`.
 
