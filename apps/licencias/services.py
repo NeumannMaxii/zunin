@@ -24,15 +24,25 @@ from apps.licencias.calculador import (  # noqa: F401
     obtener_siguiente_dia_habil,
 )
 from apps.licencias.validaciones import (  # noqa: F401
+    MESES_MINIMOS_ENFERMEDAD_COMPLETA,
     REGIMEN_CHOICES,
     REGIMEN_INT,
     REGIMEN_SUP,
     REGIMEN_TIT,
+    TOPE_ENFERMEDAD_INTERINO_MENOR_4_MESES,
+    TOPE_ENFERMEDAD_SUPLENTE_MENOR_4_MESES,
+    calcular_antiguedad_docente,
+    calcular_antiguedad_meses,
+    es_licencia_enfermedad_comun,
     es_regimen_compatible,
     filtrar_tipos_licencia_por_regimen,
     normalizar_regimen,
+    obtener_fecha_alta_docente,
     obtener_regimenes_permitidos,
+    obtener_tope_efectivo_licencia,
+    validar_antiguedad_minima,
     validar_regimen_revista,
+    validar_solicitud_licencia,
 )
 
 

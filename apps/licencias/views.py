@@ -743,6 +743,106 @@ class ValidarRegimenLicenciaAPIView(View):
 validar_regimen_licencia_api = ValidarRegimenLicenciaAPIView.as_view()
 
 
+class ValidarAntiguedadLicenciaAPIView(View):
+    """
+    Endpoint API para consultar antigüedad de un docente y validar tope
+    efectivo de licencias (Ticket 17.2).
+    Ruta: GET/POST /api/licencias/validar-antiguedad/
+    """
+
+    def _procesar(self, params):
+        tipo_param = params.get("tipo_licencia") or params.get("codigo")
+        docente_id = params.get("docente_id") or params.get("docente")
+        cargo_id = params.get("cargo_id") or params.get("cargo")
+        fecha_desde = params.get("fecha_desde")
+        fecha_hasta = params.get("fecha_hasta")
+        dias = params.get("dias")
+
+        if not tipo_param:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": "El parámetro 'tipo_licencia' es obligatorio.",
+                },
+                status=400,
+            )
+
+        if str(tipo_param).isdigit():
+            tipo_lic = TipoLicencia.objects.filter(pk=int(tipo_param)).first()
+        else:
+            tipo_lic = TipoLicencia.objects.filter(codigo=tipo_param).first()
+
+        if not tipo_lic:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": (
+                        f"No se encontró el tipo de licencia '{tipo_param}'."
+                    ),
+                },
+                status=404,
+            )
+
+        from apps.licencias.validaciones import (
+            obtener_tope_efectivo_licencia,
+            validar_antiguedad_minima,
+        )
+
+        info_tope = obtener_tope_efectivo_licencia(
+            tipo_licencia=tipo_lic,
+            cargo=cargo_id,
+            docente=docente_id,
+            fecha_referencia=fecha_desde,
+        )
+
+        try:
+            validar_antiguedad_minima(
+                tipo_licencia=tipo_lic,
+                docente=docente_id,
+                cargo=cargo_id,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+                dias=dias,
+            )
+            valido = True
+            mensaje = "Cumple con las restricciones de antigüedad estatutaria."
+        except ValidationError as exc:
+            valido = False
+            mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "valido": valido,
+                "mensaje": mensaje,
+                "antiguedad_meses": info_tope["antiguedad_meses"],
+                "tope_dias": info_tope["tope_dias"],
+                "tope_reducido": info_tope["tope_reducido"],
+                "regimen": info_tope["regimen"],
+                "es_enfermedad_comun": info_tope["es_enfermedad_comun"],
+                "tipo_licencia": tipo_lic.codigo,
+            },
+            status=200,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        data = request.POST or {}
+        if not data and request.body:
+            import json
+
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        return self._procesar(data)
+
+
+validar_antiguedad_licencia_api = ValidarAntiguedadLicenciaAPIView.as_view()
+
+
 class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
     """
     Listado institucional de licencias otorgadas y solicitudes (Ticket 16.1 / 17.1).

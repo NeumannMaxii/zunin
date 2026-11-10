@@ -320,6 +320,20 @@ class JustificacionDiferidaForm(TailwindForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
+        if tipo_licencia:
+            from apps.licencias.validaciones import validar_antiguedad_minima
+
+            try:
+                validar_antiguedad_minima(
+                    tipo_licencia=tipo_licencia,
+                    docente=docente,
+                    cargo=cargo_target,
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
+                )
+            except forms.ValidationError as exc:
+                self.add_error("tipo_licencia", exc)
+
         return cleaned_data
 
     def save(self, usuario=None):
@@ -459,6 +473,23 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
             try:
                 validar_regimen_revista(
                     tipo_licencia=tipo_licencia, cargo=cargo
+                )
+            except forms.ValidationError as exc:
+                self.add_error("tipo_licencia", exc)
+
+        fecha_desde = cleaned_data.get("fecha_desde")
+        fecha_hasta = cleaned_data.get("fecha_hasta_prevista")
+
+        if tipo_licencia:
+            from apps.licencias.validaciones import validar_antiguedad_minima
+
+            try:
+                validar_antiguedad_minima(
+                    tipo_licencia=tipo_licencia,
+                    docente=docente,
+                    cargo=cargo,
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
                 )
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)

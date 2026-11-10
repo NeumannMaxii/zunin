@@ -79,6 +79,7 @@ class ValidacionRegimenRevistaTests(TestCase):
             cargo_catalogo=self.cargo_cat,
             materia=self.espacio,
             situacion_revista="TIT",
+            fecha_alta=datetime.date(2025, 1, 1),
             activo=True,
         )
         self.cargo_int = CargoDocente.objects.create(
@@ -86,6 +87,7 @@ class ValidacionRegimenRevistaTests(TestCase):
             cargo_catalogo=self.cargo_cat,
             materia=self.espacio,
             situacion_revista="INT",
+            fecha_alta=datetime.date(2025, 1, 1),
             activo=True,
         )
         self.cargo_sup = CargoDocente.objects.create(
@@ -93,6 +95,7 @@ class ValidacionRegimenRevistaTests(TestCase):
             cargo_catalogo=self.cargo_cat,
             materia=self.espacio,
             situacion_revista="SUP",
+            fecha_alta=datetime.date(2025, 1, 1),
             activo=True,
         )
 
