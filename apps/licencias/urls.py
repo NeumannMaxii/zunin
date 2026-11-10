@@ -96,6 +96,17 @@ urlpatterns = [
         views.ValidarRegimenLicenciaAPIView.as_view(),
         name="validar_regimen",
     ),
+    # API Validación de Antigüedad Mínima (Ticket 17.2)
+    path(
+        "api/validar-antiguedad/",
+        views.ValidarAntiguedadLicenciaAPIView.as_view(),
+        name="api_validar_antiguedad",
+    ),
+    path(
+        "validar-antiguedad/",
+        views.ValidarAntiguedadLicenciaAPIView.as_view(),
+        name="validar_antiguedad",
+    ),
     # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1)
     path(
         "solicitudes/",

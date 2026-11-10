@@ -262,6 +262,22 @@ class TipoLicencia(models.Model):
 
         return obtener_regimenes_permitidos(self)
 
+    def obtener_tope_efectivo(
+        self, cargo=None, docente=None, fecha_referencia=None
+    ):
+        """
+        Retorna el tope efectivo y su posible recorte por antigüedad en el
+        establecimiento para el docente / cargo (Ticket 17.2).
+        """
+        from apps.licencias.validaciones import obtener_tope_efectivo_licencia
+
+        return obtener_tope_efectivo_licencia(
+            tipo_licencia=self,
+            cargo=cargo,
+            docente=docente,
+            fecha_referencia=fecha_referencia,
+        )
+
     class Meta:
         verbose_name = "Tipo de Licencia"
         verbose_name_plural = "Tipos de Licencias"
@@ -772,6 +788,17 @@ class LicenciaOtorgada(AuditoriaModel):
             validar_regimen_revista(
                 tipo_licencia=tipo_lic,
                 cargo=cargo,
+            )
+
+        if tipo_lic:
+            from apps.licencias.validaciones import validar_antiguedad_minima
+
+            validar_antiguedad_minima(
+                tipo_licencia=tipo_lic,
+                docente=docente,
+                cargo=cargo,
+                fecha_desde=getattr(self, "fecha_desde", None),
+                fecha_hasta=getattr(self, "fecha_hasta_prevista", None),
             )
 
         if docente and cargo and cargo.docente != docente:

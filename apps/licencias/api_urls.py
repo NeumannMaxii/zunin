@@ -6,6 +6,7 @@ from django.urls import path
 from apps.licencias.views import (
     AutocompletarLicenciaAPIView,
     CalcularFechasLicenciaAPIView,
+    ValidarAntiguedadLicenciaAPIView,
     ValidarRegimenLicenciaAPIView,
 )
 
@@ -41,5 +42,15 @@ urlpatterns = [
         "licencias/validar-regimen/",
         ValidarRegimenLicenciaAPIView.as_view(),
         name="licencias_validar_regimen",
+    ),
+    path(
+        "validar-antiguedad/",
+        ValidarAntiguedadLicenciaAPIView.as_view(),
+        name="validar_antiguedad",
+    ),
+    path(
+        "licencias/validar-antiguedad/",
+        ValidarAntiguedadLicenciaAPIView.as_view(),
+        name="licencias_validar_antiguedad",
     ),
 ]

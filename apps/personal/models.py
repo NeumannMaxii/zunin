@@ -222,6 +222,24 @@ class Docente(models.Model):
         """Calcula el total de horas cátedra semanales acumuladas en sus cargos."""
         return sum(cargo.total_horas_semanales for cargo in self.cargos.all())
 
+    def fecha_alta_establecimiento(self):
+        """
+        Retorna la fecha de alta más temprana en el establecimiento entre sus cargos
+        o la fecha de creación del docente si no posee cargos con fecha_alta
+        (Ticket 17.2).
+        """
+        primer_cargo = (
+            self.cargos.filter(fecha_alta__isnull=False)
+            .order_by("fecha_alta")
+            .first()
+        )
+        if primer_cargo and primer_cargo.fecha_alta:
+            return primer_cargo.fecha_alta
+        if hasattr(self, "fecha_creacion") and self.fecha_creacion:
+            fc = self.fecha_creacion
+            return fc.date() if hasattr(fc, "date") else fc
+        return None
+
     def obtener_resumen_inasistencias(self, anio=None, limite_reglamentario=10):
         """
         RF-18: Calcula el acumulado anual de inasistencias ('I' o 'INA')
@@ -759,6 +777,17 @@ class CargoDocente(models.Model):
             if revista_upper in normalizaciones:
                 self.situacion_revista = normalizaciones[revista_upper]
         super().save(*args, **kwargs)
+
+    def obtener_fecha_alta(self):
+        """
+        Retorna la fecha de alta del cargo o la fecha de alta más temprana
+        del docente en el establecimiento (Ticket 17.2).
+        """
+        if self.fecha_alta:
+            return self.fecha_alta
+        if self.docente:
+            return self.docente.fecha_alta_establecimiento()
+        return None
 
     def es_designacion_vigente(self, fecha_referencia=None):
         """
