@@ -156,7 +156,7 @@
                 <tbody id="licencias-tbody" class="divide-y divide-slate-200 text-sm">
                     {% for lic in tipo_licencias %}
                     <tr class="hover:bg-slate-50/75 transition-colors"
-                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }}">
+                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }} {{ lic.cantidad_duracion|default:'' }} {{ lic.periodo_tope|default:'' }}">
                         <td class="px-6 py-4 font-mono font-bold text-institucional-700 whitespace-nowrap">
                             {{ lic.codigo }}
                         </td>
@@ -207,10 +207,36 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-600 text-xs">
-                            {% if lic.tope_anual %}
-                            <span class="font-medium text-slate-800">{{ lic.tope_anual }}</span> días/año
+                            {% if lic.cantidad_duracion %}
+                            <span class="font-semibold text-slate-900">{{ lic.cantidad_duracion }}</span>
+                            {% elif lic.duracion_maxima %}
+                            <span class="font-semibold text-slate-900">{{ lic.duracion_maxima }}</span>
+                                {% if lic.unidad == 'Horas' %}
+                                hora/día
+                                {% elif lic.unidad == 'Hábiles' %}
+                                días hábiles
+                                {% elif lic.unidad == 'Laborables' %}
+                                días laborales
+                                {% else %}
+                                días corridos
+                                {% endif %}
+                            {% elif lic.tope_anual %}
+                            <span class="font-semibold text-slate-900">{{ lic.tope_anual }}</span> días/año
                             {% else %}
                             <span class="text-slate-400">Sin tope</span>
+                            {% endif %}
+                            {% if lic.periodo_tope and lic.periodo_tope != 'Sin tope' and lic.tope_anual or lic.periodo_tope and lic.periodo_tope != 'Sin tope' and lic.duracion_maxima %}
+                            <span class="block text-[11px] text-slate-400 font-normal">
+                                {% if lic.periodo_tope == 'Año calendario' or lic.periodo_tope == 'Año escolar' %}
+                                por año
+                                {% elif lic.periodo_tope == 'Decenio' %}
+                                por decenio
+                                {% elif lic.periodo_tope == 'Hecho' %}
+                                por hecho
+                                {% else %}
+                                {{ lic.periodo_tope|lower }}
+                                {% endif %}
+                            </span>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-center">

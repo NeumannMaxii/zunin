@@ -5,8 +5,10 @@ Carga inicial (Seeder) del Catálogo Normativo completo según Ley 647-E
 """
 
 from io import StringIO
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 from apps.core.seeder import poblar_catalogo_normativo_ley647e
 from apps.licencias.models import TipoLicencia
 
@@ -146,6 +148,8 @@ class SeederCatalogoNormativoLey647ETests(TestCase):
         matr = TipoLicencia.objects.get(codigo="TIT-EXT-318-G")
         self.assertEqual(matr.duracion_maxima, 10)
         self.assertEqual(matr.unidad, "Hábiles")
+        self.assertEqual(matr.tope_anual, 10)
+        self.assertEqual(matr.cantidad_duracion, "10 días hábiles")
 
         # Exámenes preventivos: 1 día
         prev = TipoLicencia.objects.get(codigo="TIT-EXT-318-H")
@@ -256,6 +260,8 @@ class SeederCatalogoNormativoLey647ETests(TestCase):
         matr = TipoLicencia.objects.get(codigo="INT-EXT-335-MATR")
         self.assertEqual(matr.duracion_maxima, 10)
         self.assertEqual(matr.unidad, "Hábiles")
+        self.assertEqual(matr.tope_anual, 10)
+        self.assertEqual(matr.cantidad_duracion, "10 días hábiles")
 
     def test_catalogo_normativo_personal_suplente(self):
         """
@@ -308,6 +314,8 @@ class SeederCatalogoNormativoLey647ETests(TestCase):
         matr = TipoLicencia.objects.get(codigo="SUP-EXT-344-MATR")
         self.assertEqual(matr.duracion_maxima, 2)
         self.assertEqual(matr.unidad, "Hábiles")
+        self.assertEqual(matr.tope_anual, 2)
+        self.assertEqual(matr.cantidad_duracion, "2 días hábiles")
 
     def test_seeder_normativo_idempotencia(self):
         """
@@ -337,3 +345,24 @@ class SeederCatalogoNormativoLey647ETests(TestCase):
         self.assertIn("Catálogo Normativo cargado exitosamente", output)
         self.assertIn("Total especificaciones:", output)
         self.assertGreaterEqual(TipoLicencia.objects.count(), 70)
+
+    def test_vista_catalogo_muestra_tope_y_duracion_correctamente(self):
+        """
+        Verifica que la vista TipoLicenciaListView renderice los días hábiles
+        y el período tope para INT-EXT-335-MATR en vez de 'Sin tope'.
+        """
+        poblar_catalogo_normativo_ley647e()
+
+        user = get_user_model().objects.create_user(
+            username="testuser",
+            password="testpassword",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("licencias:tipolicencia_list"))
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode("utf-8")
+        self.assertIn("INT-EXT-335-MATR", content)
+        self.assertIn("10 días hábiles", content)
+        self.assertIn("por hecho", content)
