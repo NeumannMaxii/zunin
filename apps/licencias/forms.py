@@ -334,6 +334,19 @@ class JustificacionDiferidaForm(TailwindForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
+        if cargo_target and fecha_desde and fecha_hasta:
+            from apps.licencias.validaciones import validar_solapamiento_licencias
+
+            try:
+                validar_solapamiento_licencias(
+                    cargo=cargo_target,
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
+                    docente=docente,
+                )
+            except forms.ValidationError as exc:
+                self.add_error("fecha_desde", exc)
+
         return cleaned_data
 
     def save(self, usuario=None):
@@ -493,6 +506,20 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
                 )
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
+
+        if cargo and fecha_desde and fecha_hasta:
+            from apps.licencias.validaciones import validar_solapamiento_licencias
+
+            try:
+                validar_solapamiento_licencias(
+                    cargo=cargo,
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
+                    instancia_actual=self.instance,
+                    docente=docente,
+                )
+            except forms.ValidationError as exc:
+                self.add_error("fecha_desde", exc)
 
         if docente and cargo and cargo.docente != docente:
             self.add_error(
