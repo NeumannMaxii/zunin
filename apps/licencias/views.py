@@ -17,15 +17,20 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import FormView, ListView
+from django.views.generic import CreateView, FormView, ListView
 from apps.core.audit import audit_save
 from apps.core.mixins import PermisosEstrictosMixin
 from apps.licencias.calculador import calcular_fechas_licencia
 from apps.licencias.forms import (
     JustificacionDiferidaForm,
+    LicenciaOtorgadaForm,
     TipoLicenciaSearchForm,
 )
-from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
+from apps.licencias.models import (
+    LicenciaOtorgada,
+    RenglonPlanillaMensual,
+    TipoLicencia,
+)
 
 
 class TipoLicenciaListView(LoginRequiredMixin, ListView):
@@ -58,6 +63,8 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
             or ""
         )
         cuadro_val = cuadro_param.strip().upper()
+        regimen_param = self.request.GET.get("regimen", "")
+        regimen_val = regimen_param.strip().upper()
         q_val = self.request.GET.get("q", "").strip()
 
         context["form"] = getattr(
@@ -65,6 +72,7 @@ class TipoLicenciaListView(LoginRequiredMixin, ListView):
         )
         context["q"] = q_val
         context["cuadro"] = cuadro_val
+        context["regimen"] = regimen_val
         context["total_encontrados"] = (
             context["paginator"].count
             if "paginator" in context
@@ -525,6 +533,19 @@ class AutocompletarLicenciaAPIView(View):
 
         qs = TipoLicencia.objects.filter(q_filter).distinct().order_by("codigo")
 
+        regimen = request.GET.get("regimen")
+        cargo_id = request.GET.get("cargo_id") or request.GET.get("cargo")
+        if regimen or cargo_id:
+            from apps.licencias.validaciones import (
+                filtrar_tipos_licencia_por_regimen,
+            )
+
+            qs = filtrar_tipos_licencia_por_regimen(
+                queryset=qs,
+                situacion_revista=regimen,
+                cargo=cargo_id,
+            )
+
         if qs.exists():
             resultados = [
                 {
@@ -541,6 +562,10 @@ class AutocompletarLicenciaAPIView(View):
                     "categoria": lic.categoria,
                     "forma_pago": lic.forma_pago,
                     "goce_haberes": lic.goce_haberes,
+                    "regimen": getattr(lic, "regimen", ""),
+                    "situacion_revista_aplicable": getattr(
+                        lic, "situacion_revista_aplicable", ""
+                    ),
                 }
                 for lic in qs
             ]
@@ -633,3 +658,117 @@ class CalcularFechasLicenciaAPIView(View):
 
 
 calcular_fechas_licencia_api = CalcularFechasLicenciaAPIView.as_view()
+
+
+class ValidarRegimenLicenciaAPIView(View):
+    """
+    Endpoint API para validar la compatibilidad de una licencia con el régimen
+    de revista de un cargo docente (Ticket 17.1).
+    Ruta: GET /api/licencias/validar-regimen/?tipo_licencia=<id|cod>&regimen=<reg>
+    """
+
+    def _procesar(self, params):
+        tipo_param = params.get("tipo_licencia") or params.get("codigo")
+        regimen_param = params.get("regimen")
+        cargo_id = params.get("cargo_id") or params.get("cargo")
+
+        if not tipo_param:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": "El parámetro 'tipo_licencia' es obligatorio.",
+                },
+                status=400,
+            )
+
+        if str(tipo_param).isdigit():
+            tipo_lic = TipoLicencia.objects.filter(pk=int(tipo_param)).first()
+        else:
+            tipo_lic = TipoLicencia.objects.filter(codigo=tipo_param).first()
+
+        if not tipo_lic:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": f"No se encontró el tipo de licencia '{tipo_param}'.",
+                },
+                status=404,
+            )
+
+        from apps.licencias.validaciones import (
+            obtener_regimenes_permitidos,
+            validar_regimen_revista,
+        )
+
+        permitidos = list(sorted(obtener_regimenes_permitidos(tipo_lic)))
+
+        try:
+            validar_regimen_revista(
+                tipo_licencia=tipo_lic,
+                situacion_revista=regimen_param,
+                cargo=cargo_id,
+            )
+            valido = True
+            mensaje = "El tipo de licencia es compatible con el régimen del cargo."
+        except ValidationError as exc:
+            valido = False
+            mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "valido": valido,
+                "mensaje": mensaje,
+                "regimenes_permitidos": permitidos,
+                "tipo_licencia": tipo_lic.codigo,
+            },
+            status=200,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        data = request.POST or {}
+        if not data and request.body:
+            import json
+
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        return self._procesar(data)
+
+
+validar_regimen_licencia_api = ValidarRegimenLicenciaAPIView.as_view()
+
+
+class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
+    """
+    Listado institucional de licencias otorgadas y solicitudes (Ticket 16.1 / 17.1).
+    """
+
+    model = LicenciaOtorgada
+    template_name = "licencias/licenciaotorgada_list.html"
+    context_object_name = "licencias"
+    paginate_by = 25
+    ordering = ["-fecha_desde", "-creado_en"]
+
+
+class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
+    """
+    Formulario de solicitud y registro de licencias docentes (Ticket 16.1 / 17.1).
+    """
+
+    model = LicenciaOtorgada
+    form_class = LicenciaOtorgadaForm
+    template_name = "licencias/licenciaotorgada_form.html"
+    success_url = reverse_lazy("licencias:licenciaotorgada_list")
+
+    def form_valid(self, form):
+        form.instance.creado_por = self.request.user
+        messages.success(
+            self.request,
+            f"Licencia para {form.instance.docente} registrada exitosamente.",
+        )
+        return super().form_valid(form)

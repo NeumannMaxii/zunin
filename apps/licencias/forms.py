@@ -8,7 +8,7 @@ from django import forms
 from django.db.models import Q
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.forms import TailwindForm
-from apps.licencias.models import TipoLicencia
+from apps.licencias.models import LicenciaOtorgada, TipoLicencia
 from apps.personal.models import CargoDocente, Docente
 
 
@@ -69,6 +69,11 @@ class TipoLicenciaSearchForm(TailwindForm):
         label="Cuadro Mensual",
         choices=[("", "Todos los cuadros")] + TipoLicencia.CUADRO_CHOICES,
     )
+    regimen = forms.ChoiceField(
+        required=False,
+        label="Régimen / Situación de Revista",
+        choices=[("", "Todos los regímenes")] + TipoLicencia.REGIMEN_CHOICES,
+    )
     activo = forms.ChoiceField(
         required=False,
         label="Estado",
@@ -90,6 +95,7 @@ class TipoLicenciaSearchForm(TailwindForm):
         categoria = self.cleaned_data.get("categoria")
         forma_pago = self.cleaned_data.get("forma_pago")
         activo = self.cleaned_data.get("activo")
+        regimen = self.cleaned_data.get("regimen")
 
         if q_val:
             tokens = q_val.split()
@@ -123,6 +129,15 @@ class TipoLicenciaSearchForm(TailwindForm):
             queryset = queryset.filter(activo=True)
         elif activo == "0":
             queryset = queryset.filter(activo=False)
+
+        if regimen:
+            from apps.licencias.validaciones import (
+                filtrar_tipos_licencia_por_regimen,
+            )
+
+            queryset = filtrar_tipos_licencia_por_regimen(
+                queryset=queryset, situacion_revista=regimen
+            )
 
         return queryset
 
@@ -220,12 +235,23 @@ class JustificacionDiferidaForm(TailwindForm):
         ),
     )
 
-    def __init__(self, *args, registro=None, **kwargs):
+    def __init__(self, *args, registro=None, cargo=None, **kwargs):
         super().__init__(*args, **kwargs)
         if registro is not None:
             self.fields["registro"].initial = registro
             self.fields["registro"].queryset = RegistroAsistencia.objects.filter(
                 pk=registro.pk
+            )
+        cargo_target = cargo or (
+            registro.cargo if registro and hasattr(registro, "cargo") else None
+        )
+        if cargo_target:
+            from apps.licencias.validaciones import (
+                filtrar_tipos_licencia_por_regimen,
+            )
+
+            self.fields["tipo_licencia"].queryset = (
+                filtrar_tipos_licencia_por_regimen(cargo=cargo_target)
             )
 
     def clean(self):
@@ -278,6 +304,21 @@ class JustificacionDiferidaForm(TailwindForm):
                 "Debe especificar un Tipo de Licencia para justificar "
                 "con Licencia (LIC/LT).",
             )
+
+        # Validación de Régimen de Revista (Ticket 17.1)
+        cargo_target = cleaned_data.get("cargo")
+        if not cargo_target and registro and hasattr(registro, "cargo"):
+            cargo_target = registro.cargo
+
+        if cargo_target and tipo_licencia:
+            from apps.licencias.validaciones import validar_regimen_revista
+
+            try:
+                validar_regimen_revista(
+                    tipo_licencia=tipo_licencia, cargo=cargo_target
+                )
+            except forms.ValidationError as exc:
+                self.add_error("tipo_licencia", exc)
 
         return cleaned_data
 
@@ -342,3 +383,90 @@ class JustificacionDiferidaForm(TailwindForm):
 
 
 JustificacionDiferidaRangoForm = JustificacionDiferidaForm
+
+
+class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
+    """
+    Formulario oficial para registro y solicitud de licencias docentes (Ticket 16.1).
+    Ticket 17.1: Filtra el catálogo de tipos de licencia según el régimen
+    del cargo (TIT, INT, SUP) y bloquea en backend ante tipos incompatibles.
+    """
+
+    class Meta:
+        model = LicenciaOtorgada
+        fields = [
+            "docente",
+            "cargo",
+            "tipo_licencia",
+            "fecha_desde",
+            "fecha_hasta_prevista",
+            "estado",
+            "porcentaje_goce",
+            "instrumento_legal",
+            "observaciones",
+        ]
+        widgets = {
+            "fecha_desde": forms.DateInput(attrs={"type": "date"}),
+            "fecha_hasta_prevista": forms.DateInput(attrs={"type": "date"}),
+            "observaciones": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(
+        self,
+        *args,
+        cargo=None,
+        situacion_revista=None,
+        docente=None,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        target_cargo = cargo or (
+            self.instance.cargo if self.instance.pk else None
+        )
+        target_docente = docente or (
+            self.instance.docente if self.instance.pk else None
+        )
+        target_revista = situacion_revista
+        if not target_revista and target_cargo:
+            target_revista = getattr(target_cargo, "situacion_revista", None)
+
+        if target_revista:
+            from apps.licencias.validaciones import (
+                filtrar_tipos_licencia_por_regimen,
+            )
+
+            self.fields["tipo_licencia"].queryset = (
+                filtrar_tipos_licencia_por_regimen(
+                    situacion_revista=target_revista
+                )
+            )
+
+        if target_docente:
+            self.fields["cargo"].queryset = CargoDocente.objects.filter(
+                docente=target_docente, activo=True
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cargo = cleaned_data.get("cargo")
+        tipo_licencia = cleaned_data.get("tipo_licencia")
+        docente = cleaned_data.get("docente")
+
+        if cargo and tipo_licencia:
+            from apps.licencias.validaciones import validar_regimen_revista
+
+            try:
+                validar_regimen_revista(
+                    tipo_licencia=tipo_licencia, cargo=cargo
+                )
+            except forms.ValidationError as exc:
+                self.add_error("tipo_licencia", exc)
+
+        if docente and cargo and cargo.docente != docente:
+            self.add_error(
+                "cargo",
+                f"El cargo '{cargo}' no pertenece al docente {docente}.",
+            )
+
+        return cleaned_data

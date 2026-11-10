@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitud de Licencia - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header y Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <a href="{% url 'licencias:tipolicencia_list' %}" class="hover:text-slate-800 transition-colors">Licencias</a>
+                <span>/</span>
+                <a href="{% url 'licencias:licenciaotorgada_list' %}" class="hover:text-slate-800 transition-colors">Solicitudes</a>
+                <span>/</span>
+                <span class="text-slate-700 font-medium">Nueva Solicitud</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registrar Solicitud de Licencia</h1>
+            <p class="text-sm text-slate-500">Gestión de licencias docentes y validación estatutaria por régimen de revista (Ley 647-E).</p>
+        </div>
+        <div>
+            <a href="{% url 'licencias:licenciaotorgada_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver al Listado
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjeta del Formulario -->
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <!-- Sección 1: Docente y Cargo -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>1. Docente y Cargo Afectado</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-1 space-y-1.5">
+                        <label for="{{ form.docente.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Docente <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.docente }}
+                        {% if form.docente.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.docente.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="sm:col-span-1 space-y-1.5">
+                        <label for="{{ form.cargo.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Cargo Docente / Materia (Opcional)
+                        </label>
+                        {{ form.cargo }}
+                        <p class="text-xs text-slate-500">Determina el régimen de revista (TIT, INT, SUP) para la validación estatutaria.</p>
+                        {% if form.cargo.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cargo.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 2: Tipo de Licencia y Período -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>2. Tipo de Licencia y Período</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Tipo de Licencia Estatutaria <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.tipo_licencia }}
+                        <p id="regimen-info" class="text-xs text-slate-500">Seleccione el tipo aplicable al régimen del docente según Estatuto Docente.</p>
+                        {% if form.tipo_licencia.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_licencia.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="{{ form.fecha_desde.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Fecha Desde <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.fecha_desde }}
+                        {% if form.fecha_desde.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_desde.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="{{ form.fecha_hasta_prevista.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Fecha Hasta Prevista <span class="text-rose-500">*</span>
+                        </label>
+                        {{ form.fecha_hasta_prevista }}
+                        {% if form.fecha_hasta_prevista.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_hasta_prevista.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección 3: Datos Administrativos -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-institucional-600"></span>
+                    <span>3. Estado e Instrumento Legal</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="space-y-1.5">
+                        <label for="{{ form.estado.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Estado
+                        </label>
+                        {{ form.estado }}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="{{ form.porcentaje_goce.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            % de Goce (Opcional)
+                        </label>
+                        {{ form.porcentaje_goce }}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="{{ form.instrumento_legal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Instrumento Legal
+                        </label>
+                        {{ form.instrumento_legal }}
+                    </div>
+
+                    <div class="sm:col-span-3 space-y-1.5">
+                        <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Observaciones
+                        </label>
+                        {{ form.observaciones }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200">
+                <a href="{% url 'licencias:licenciaotorgada_list' %}" class="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-institucional-600 hover:bg-institucional-700 text-white text-sm font-medium shadow-sm transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-institucional-600">
+                    Guardar Solicitud
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

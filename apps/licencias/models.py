@@ -240,6 +240,28 @@ class TipoLicencia(models.Model):
             feriados=feriados,
         )
 
+    def es_aplicable_a_regimen(self, situacion_revista=None, cargo=None):
+        """
+        Verifica si este tipo de licencia es aplicable al régimen de revista
+        especificado o al régimen del cargo docente (Ticket 17.1).
+        """
+        from apps.licencias.validaciones import es_regimen_compatible
+
+        return es_regimen_compatible(
+            tipo_licencia=self,
+            situacion_revista=situacion_revista,
+            cargo=cargo,
+        )
+
+    def obtener_regimenes_permitidos(self):
+        """
+        Retorna el conjunto de códigos de régimen ('TIT', 'INT', 'SUP')
+        admitidos normativamente para esta licencia (Ticket 17.1).
+        """
+        from apps.licencias.validaciones import obtener_regimenes_permitidos
+
+        return obtener_regimenes_permitidos(self)
+
     class Meta:
         verbose_name = "Tipo de Licencia"
         verbose_name_plural = "Tipos de Licencias"
@@ -715,7 +737,50 @@ class LicenciaOtorgada(AuditoriaModel):
             return (self.fecha_hasta_prevista - self.fecha_desde).days + 1
         return 0
 
+    def clean(self):
+        """
+        Valida que el tipo de licencia sea compatible con la situación de revista
+        del cargo docente (Ticket 17.1) y que el cargo pertenezca al docente.
+        """
+        super().clean()
+        from django.core.exceptions import ValidationError
+
+        tipo_lic = None
+        if hasattr(self, "tipo_licencia_id") and self.tipo_licencia_id:
+            try:
+                tipo_lic = self.tipo_licencia
+            except Exception:
+                tipo_lic = None
+
+        cargo = None
+        if hasattr(self, "cargo_id") and self.cargo_id:
+            try:
+                cargo = self.cargo
+            except Exception:
+                cargo = None
+
+        docente = None
+        if hasattr(self, "docente_id") and self.docente_id:
+            try:
+                docente = self.docente
+            except Exception:
+                docente = None
+
+        if tipo_lic and cargo:
+            from apps.licencias.validaciones import validar_regimen_revista
+
+            validar_regimen_revista(
+                tipo_licencia=tipo_lic,
+                cargo=cargo,
+            )
+
+        if docente and cargo and cargo.docente != docente:
+            raise ValidationError(
+                f"El cargo '{cargo}' no pertenece al docente {docente}."
+            )
+
     def save(self, *args, **kwargs):
+        self.clean()
         if isinstance(self.porcentaje_goce, str):
             val = self.porcentaje_goce.replace("%", "").strip()
             if val.lower() in ["sin goce", "sin_goce"]:

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitudes de Licencia - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header y Acciones -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <a href="{% url 'licencias:tipolicencia_list' %}" class="hover:text-slate-800 transition-colors">Licencias</a>
+                <span>/</span>
+                <span class="text-slate-700 font-medium">Solicitudes Otorgadas</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Licencias Solicitadas y Otorgadas</h1>
+            <p class="text-sm text-slate-500">Historial y estado de licencias gestionadas con control de régimen estatutario.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Ver Catálogo Normativo
+            </a>
+            <a href="{% url 'licencias:licenciaotorgada_create' %}" class="inline-flex items-center px-4 py-2 bg-institucional-600 hover:bg-institucional-700 text-white text-sm font-medium rounded-lg shadow-xs transition-colors">
+                + Nueva Solicitud
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabla de Licencias -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Docente</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Cargo / Régimen</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Licencia</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Período</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Días</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Goce</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for lic in licencias %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {{ lic.docente.nombre_completo }}
+                            <div class="text-xs text-slate-500">DNI: {{ lic.docente.dni }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                            {% if lic.cargo %}
+                                <span>{{ lic.cargo }}</span>
+                                <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                    {% if lic.cargo.situacion_revista == 'TIT' %}bg-indigo-50 text-indigo-700
+                                    {% elif lic.cargo.situacion_revista == 'INT' %}bg-emerald-50 text-emerald-700
+                                    {% else %}bg-purple-50 text-purple-700{% endif %}">
+                                    {{ lic.cargo.get_situacion_revista_display }}
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400">Institucional general</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                            <span class="font-semibold">{{ lic.tipo_licencia.codigo }}</span>
+                            <div class="text-xs text-slate-500">{{ lic.tipo_licencia.descripcion|truncatechars:35 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                            {{ lic.fecha_desde|date:"d/m/Y" }} &rarr; {{ lic.fecha_hasta_prevista|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">
+                            {{ lic.dias_duracion_prevista }} días
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if lic.estado == 'OTORGADA' %}bg-emerald-100 text-emerald-800
+                                {% elif lic.estado == 'SOLICITADA' %}bg-amber-100 text-amber-800
+                                {% elif lic.estado == 'RECHAZADA' %}bg-rose-100 text-rose-800
+                                {% else %}bg-slate-100 text-slate-700{% endif %}">
+                                {{ lic.get_estado_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                            {{ lic.porcentaje_goce }}%
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">
+                            No se registran licencias solicitadas ni otorgadas aún.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

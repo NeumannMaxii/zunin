@@ -85,4 +85,26 @@ urlpatterns = [
         views.CalcularFechasLicenciaAPIView.as_view(),
         name="calcular_fechas",
     ),
+    # API Validación de Régimen de Revista (Ticket 17.1)
+    path(
+        "api/validar-regimen/",
+        views.ValidarRegimenLicenciaAPIView.as_view(),
+        name="api_validar_regimen",
+    ),
+    path(
+        "validar-regimen/",
+        views.ValidarRegimenLicenciaAPIView.as_view(),
+        name="validar_regimen",
+    ),
+    # Solicitudes y Otorgamientos (Ticket 16.1 / 17.1)
+    path(
+        "solicitudes/",
+        views.LicenciaOtorgadaListView.as_view(),
+        name="licenciaotorgada_list",
+    ),
+    path(
+        "solicitudes/nueva/",
+        views.LicenciaOtorgadaCreateView.as_view(),
+        name="licenciaotorgada_create",
+    ),
 ]
