@@ -6,12 +6,51 @@ Justificaciones por Lote (Ticket 7), y Consulta Avanzada (Ticket 12.6).
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
 from django.utils.dateparse import parse_date
 from apps.asistencia.models import RegistroAsistencia
 from apps.core.audit import audit_save
-from apps.licencias.models import TipoLicencia
+from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
+
+
+def rectificar_planillas_por_fechas(fechas, usuario=None):
+    """
+    Regla de Integridad Histórica (RN-03):
+    Si alguno de los meses de las fechas indicadas ya cuenta con renglones
+    en RenglonPlanillaMensual, marca los renglones previos del período como
+    desactualizados (preservando historial y números de instrumento) y regenera
+    los renglones vigentes del mes.
+
+    Retorna una lista ordenada de tuplas (mes, anio) rectificadas.
+    """
+    from apps.licencias.services import generar_planilla_mes
+
+    periodos = sorted(
+        {(f.month, f.year) for f in fechas if f is not None},
+        key=lambda item: (item[1], item[0]),
+    )
+    if not periodos:
+        return []
+
+    def _rectificar():
+        periodos_rectificados = []
+        for mes, anio in periodos:
+            planillas_mes = RenglonPlanillaMensual.objects.filter(
+                mes=mes, anio=anio
+            )
+            if planillas_mes.exists():
+                planillas_mes.filter(desactualizada=False).update(
+                    desactualizada=True
+                )
+                generar_planilla_mes(mes=mes, anio=anio, usuario=usuario)
+                periodos_rectificados.append((mes, anio))
+        return periodos_rectificados
+
+    if connection.in_atomic_block:
+        return _rectificar()
+    with transaction.atomic():
+        return _rectificar()
 
 
 def guardar_asistencia_diaria_masiva(lote_datos, usuario=None, request=None):
@@ -133,6 +172,12 @@ def justificar_lote_asistencias(lote_datos, usuario=None, request=None):
                     usuario=usuario,
                 )
                 registros_justificados.append(asistencia)
+
+            if registros_justificados:
+                rectificar_planillas_por_fechas(
+                    [reg.fecha for reg in registros_justificados],
+                    usuario=usuario,
+                )
 
             return registros_justificados
 

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="hover:text-slate-800 transition-colors">Asistencia</a>
+                <span>/</span>
+                <span class="text-slate-700 font-medium">Editar Registro</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ titulo }}</h1>
+            <p class="text-sm text-slate-500">Modifica únicamente este registro por docente, cargo y fecha sin alterar el resto de la jornada.</p>
+        </div>
+        <div>
+            <a href="{{ next_url }}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Contexto del Registro (Solo Lectura) -->
+    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Docente</span>
+            <p class="font-semibold text-slate-900 mt-0.5">{{ registro.docente.apellido }}, {{ registro.docente.nombre }}</p>
+            <p class="text-xs text-slate-500 font-mono">DNI: {{ registro.docente.dni|default:"-" }}</p>
+        </div>
+        <div>
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Fecha del Parte</span>
+            <p class="font-mono font-semibold text-slate-900 mt-0.5">{{ registro.fecha|date:"d/m/Y" }}</p>
+            {% if registro.numero_disposicion %}
+            <p class="text-xs text-slate-500 font-mono">Instrumento actual: {{ registro.numero_disposicion }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Materia / Cargo</span>
+            {% if registro.cargo %}
+                <p class="font-medium text-slate-900 mt-0.5">
+                    {% if registro.cargo.materia %}
+                        {{ registro.cargo.materia.nombre }}
+                    {% elif registro.cargo.cargo_catalogo %}
+                        {{ registro.cargo.cargo_catalogo.descripcion }}
+                    {% else %}
+                        {{ registro.cargo.situacion_revista|default:"Cargo Docente" }}
+                    {% endif %}
+                </p>
+                <p class="text-xs text-slate-500">
+                    Turno: {{ registro.cargo.get_turno_display|default:registro.cargo.turno|default:"-" }}
+                    {% if registro.cargo.situacion_revista %} | {{ registro.cargo.situacion_revista }}{% endif %}
+                </p>
+            {% else %}
+                <p class="text-slate-600 italic mt-0.5">Jornada Completa</p>
+            {% endif %}
+        </div>
+        <div>
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Estado Actual</span>
+            <div class="mt-1 flex items-center space-x-2">
+                <span class="font-bold font-mono text-xs text-institucional-700 bg-white px-2 py-0.5 rounded border border-slate-200">{{ registro.marca_diaria|default:"-" }}</span>
+                {% if registro.estado == 'PRESENTE' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span>
+                {% elif registro.estado == 'LICENCIA' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Licencia</span>
+                {% elif registro.estado == 'JUSTIFICADO' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Justificado</span>
+                {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Ausente</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if planilla_existente %}
+    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
+        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div>
+            <p class="font-semibold">Planilla mensual {{ registro.fecha|date:"m/Y" }} ya generada (RN-03)</p>
+            <p class="mt-0.5 text-amber-800">
+                Al guardar esta rectificación, los renglones vigentes previos del período se marcarán automáticamente como <strong>Rectificados</strong> (conservando los números de instrumento históricos) y se regenerará la planilla mensual vigente con los datos actualizados.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tarjeta del Formulario -->
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+
+            {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <!-- Campo Estado -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.estado.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                        Estado de Asistencia <span class="text-rose-500">*</span>
+                    </label>
+                    {{ form.estado }}
+                    {% if form.estado.errors %}
+                    <div class="text-xs text-rose-600 font-medium mt-1">
+                        {{ form.estado.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Campo Marca Diaria -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.marca_diaria.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                        Marca en Planilla
+                    </label>
+                    {{ form.marca_diaria }}
+                    <p class="text-xs text-slate-500">Se sincroniza automáticamente según el estado seleccionado.</p>
+                    {% if form.marca_diaria.errors %}
+                    <div class="text-xs text-rose-600 font-medium mt-1">
+                        {{ form.marca_diaria.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Campo Tipo de Licencia -->
+            <div id="campo-tipo-licencia" class="space-y-1.5">
+                <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                    Tipo de Licencia
+                    <span id="licencia-req-badge" class="text-rose-500 {% if form.estado.value != 'LICENCIA' %}hidden{% endif %}">*</span>
+                </label>
+                {{ form.tipo_licencia }}
+                <p id="licencia-ayuda" class="text-xs text-slate-500">
+                    Obligatorio cuando el estado es Licencia; opcional para Permiso / Justificado.
+                </p>
+                {% if form.tipo_licencia.errors %}
+                <div class="text-xs text-rose-600 font-medium mt-1">
+                    {{ form.tipo_licencia.errors }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Número de Disposición / Resolución -->
+            <div class="space-y-1.5">
+                <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                    N&deg; de Disposición / Resolución
+                </label>
+                {{ form.numero_disposicion }}
+                <p class="text-xs text-slate-500">
+                    Opcional. Para resoluciones ministeriales ingrese ej. &laquo;Res. MEC 1450/2026&raquo;. Si cambia a Presente sin editarlo, una disposición previa automática se limpiará.
+                </p>
+                {% if form.numero_disposicion.errors %}
+                <div class="text-xs text-rose-600 font-medium mt-1">
+                    {{ form.numero_disposicion.errors }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Observaciones -->
+            <div class="space-y-1.5">
+                <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                    Observaciones / Motivo
+                </label>
+                {{ form.observaciones }}
+                {% if form.observaciones.errors %}
+                <div class="text-xs text-rose-600 font-medium mt-1">
+                    {{ form.observaciones.errors }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Acciones -->
+            <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-end items-center gap-3">
+                <a href="{{ next_url }}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs transition-colors cursor-pointer">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {{ accion|default:"Guardar Cambios" }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selEstado = document.getElementById('{{ form.estado.id_for_label }}');
+        const selMarca = document.getElementById('{{ form.marca_diaria.id_for_label }}');
+        const selLicencia = document.getElementById('{{ form.tipo_licencia.id_for_label }}');
+        const campoLicencia = document.getElementById('campo-tipo-licencia');
+        const reqBadge = document.getElementById('licencia-req-badge');
+        const licenciaAyuda = document.getElementById('licencia-ayuda');
+        const hasLicenciaErrors = {{ form.tipo_licencia.errors|yesno:"true,false" }};
+
+        if (!selEstado || !selMarca || !selLicencia || !campoLicencia) {
+            return;
+        }
+
+        function inferirMarcaLicencia() {
+            const idx = selLicencia.selectedIndex;
+            const texto = idx >= 0 ? (selLicencia.options[idx].text || '').toUpperCase() : '';
+            if (texto.includes('LT') || texto.includes('LARGO TRATAMIENTO') || texto.includes('340B') || texto.includes('340-B')) {
+                return 'LT';
+            }
+            return 'LIC';
+        }
+
+        function actualizarUI(alCambiarEstado) {
+            const estado = selEstado.value;
+
+            if (estado === 'PRESENTE') {
+                if (alCambiarEstado) {
+                    selMarca.value = 'PR';
+                    selLicencia.value = '';
+                }
+                selLicencia.required = false;
+                if (reqBadge) reqBadge.classList.add('hidden');
+                if (!hasLicenciaErrors) campoLicencia.classList.add('hidden');
+            } else if (estado === 'AUSENTE') {
+                if (alCambiarEstado) {
+                    selMarca.value = 'I';
+                    selLicencia.value = '';
+                }
+                selLicencia.required = false;
+                if (reqBadge) reqBadge.classList.add('hidden');
+                if (!hasLicenciaErrors) campoLicencia.classList.add('hidden');
+            } else if (estado === 'LICENCIA') {
+                campoLicencia.classList.remove('hidden');
+                selLicencia.required = true;
+                if (reqBadge) reqBadge.classList.remove('hidden');
+                if (licenciaAyuda) {
+                    licenciaAyuda.textContent = 'Obligatorio: seleccione el artículo o tipo de licencia correspondiente.';
+                }
+                if (alCambiarEstado && !['LIC', 'LIC.', 'LT'].includes(selMarca.value)) {
+                    selMarca.value = inferirMarcaLicencia();
+                }
+            } else if (estado === 'JUSTIFICADO') {
+                campoLicencia.classList.remove('hidden');
+                selLicencia.required = false;
+                if (reqBadge) reqBadge.classList.add('hidden');
+                if (licenciaAyuda) {
+                    licenciaAyuda.textContent = 'Opcional para Permiso / Justificado reglamentario.';
+                }
+                if (alCambiarEstado && !['P', 'PERM'].includes(selMarca.value)) {
+                    selMarca.value = 'P';
+                }
+            }
+        }
+
+        selEstado.addEventListener('change', function() {
+            actualizarUI(true);
+        });
+
+        selLicencia.addEventListener('change', function() {
+            if (selEstado.value === 'LICENCIA') {
+                const marcaSugerida = inferirMarcaLicencia();
+                if (marcaSugerida === 'LT' || selMarca.value === 'LT' || !['LIC', 'LIC.', 'LT'].includes(selMarca.value)) {
+                    selMarca.value = marcaSugerida;
+                }
+            }
+        });
+
+        actualizarUI(false);
+    });
+    </script>
+</div>
+{% endblock %}
+

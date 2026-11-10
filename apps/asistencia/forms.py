@@ -5,9 +5,12 @@ Aplica diseño Tailwind CSS y validaciones con delegación a las reglas de model
 """
 
 from django import forms
+from django.db.models import Q
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import filtrar_asistencias_multicriterio
 from apps.core.forms import TailwindForm, TailwindModelForm
+from apps.licencias.models import TipoLicencia
+from apps.licencias.services import determinar_marca_licencia
 from apps.personal.models import CargoDocente
 
 
@@ -183,6 +186,115 @@ class RegistroAsistenciaForm(TailwindModelForm):
                 )
 
         return cleaned_data
+
+
+class RegistroAsistenciaUpdateForm(TailwindModelForm):
+    """
+    Formulario operativo para rectificar un registro individual de asistencia
+    sin afectar otros cargos ni otras fechas, manteniendo coherencia entre
+    estado, marca diaria, tipo de licencia y justificación.
+    """
+
+    class Meta:
+        model = RegistroAsistencia
+        fields = [
+            "estado",
+            "marca_diaria",
+            "tipo_licencia",
+            "numero_disposicion",
+            "observaciones",
+        ]
+        widgets = {
+            "observaciones": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": (
+                        "Motivo de rectificación, certificado o detalle..."
+                    ),
+                }
+            ),
+            "numero_disposicion": forms.TextInput(
+                attrs={"placeholder": "Ej: Disp. 024/2026 o Res. 1450/2026"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["marca_diaria"].required = False
+        self.fields["tipo_licencia"].required = False
+        self.fields["numero_disposicion"].required = False
+        self.fields["observaciones"].required = False
+
+        choices_map = dict(RegistroAsistencia.MARCA_DIARIA_CHOICES)
+        orden_marcas = ["PR", "I", "LIC", "LT", "P", "LIC.", "INA", "PERM"]
+        self.fields["marca_diaria"].choices = [
+            (cod, choices_map[cod]) for cod in orden_marcas if cod in choices_map
+        ]
+
+        qs_tipos = TipoLicencia.objects.filter(activo=True)
+        if self.instance and getattr(self.instance, "tipo_licencia_id", None):
+            qs_tipos = TipoLicencia.objects.filter(
+                Q(activo=True) | Q(pk=self.instance.tipo_licencia_id)
+            )
+        self.fields["tipo_licencia"].queryset = qs_tipos.order_by(
+            "cuadro_mensual", "codigo"
+        )
+        self.fields["tipo_licencia"].empty_label = "-- Sin licencia --"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        estado = cleaned_data.get("estado")
+        marca = cleaned_data.get("marca_diaria")
+        tipo_licencia = cleaned_data.get("tipo_licencia")
+
+        prev_disp = (
+            (self.instance.numero_disposicion or "").strip()
+            if self.instance and self.instance.pk
+            else ""
+        )
+        new_disp = (cleaned_data.get("numero_disposicion") or "").strip()
+
+        if estado == "PRESENTE":
+            cleaned_data["marca_diaria"] = "PR"
+            cleaned_data["tipo_licencia"] = None
+            if (
+                self.instance
+                and self.instance.estado != "PRESENTE"
+                and new_disp == prev_disp
+            ):
+                cleaned_data["numero_disposicion"] = ""
+        elif estado == "AUSENTE":
+            if marca not in ("I", "INA"):
+                cleaned_data["marca_diaria"] = "I"
+            cleaned_data["tipo_licencia"] = None
+            if (
+                self.instance
+                and self.instance.estado == "LICENCIA"
+                and new_disp == prev_disp
+            ):
+                cleaned_data["numero_disposicion"] = ""
+        elif estado == "LICENCIA":
+            if marca not in ("LIC", "LIC.", "LT"):
+                cleaned_data["marca_diaria"] = determinar_marca_licencia(
+                    tipo_licencia
+                )
+        elif estado == "JUSTIFICADO":
+            if marca not in ("P", "PERM"):
+                cleaned_data["marca_diaria"] = "P"
+
+        return cleaned_data
+
+    def _post_clean(self):
+        estado = self.cleaned_data.get("estado")
+        if estado:
+            self.instance.justifica = estado != "AUSENTE"
+            if (
+                estado == "AUSENTE"
+                and self.instance.fecha_hasta
+                and self.instance.fecha_hasta != self.instance.fecha
+            ):
+                self.instance.fecha_hasta = None
+        super()._post_clean()
 
 
 class ConsultaAsistenciaForm(TailwindForm):

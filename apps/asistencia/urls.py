@@ -15,6 +15,11 @@ urlpatterns = [
         name="asistencia_list",
     ),
     path(
+        "<int:pk>/editar/",
+        views.RegistroAsistenciaUpdateView.as_view(),
+        name="asistencia_update",
+    ),
+    path(
         "consulta/",
         views.ConsultaAsistenciaView.as_view(),
         name="consulta_asistencia",

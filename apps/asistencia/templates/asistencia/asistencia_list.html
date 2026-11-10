@@ -91,6 +91,9 @@
                         <th class="px-6 py-3">Materia / Cargo</th>
                         <th class="px-6 py-3">Estado / Marca</th>
                         <th class="px-6 py-3">Justifica</th>
+                        {% if user|puede_gestionar_asistencia %}
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -130,11 +133,16 @@
                                         Licencia{% if a.tipo_licencia %} ({{ a.tipo_licencia.codigo }}){% endif %}
                                     </span>
                                 {% elif a.estado == 'JUSTIFICADO' %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Justificado</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                        Justificado{% if a.tipo_licencia %} ({{ a.tipo_licencia.codigo }}){% endif %}
+                                    </span>
                                 {% else %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Ausente</span>
                                 {% endif %}
                             </div>
+                            {% if a.numero_disposicion %}
+                            <div class="text-[11px] text-slate-500 font-mono mt-1">Inst: {{ a.numero_disposicion }}</div>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4">
                             {% if a.justifica %}
@@ -143,10 +151,18 @@
                                 <span class="text-rose-600 font-semibold text-xs">&cross; No</span>
                             {% endif %}
                         </td>
+                        {% if user|puede_gestionar_asistencia %}
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <a href="{% url 'asistencia:asistencia_update' a.pk %}?next={{ request.get_full_path|urlencode }}"
+                               class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:text-institucional-700 hover:border-institucional-200 transition-colors">
+                                Editar
+                            </a>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">No se encontraron registros de asistencia.</td>
+                        <td colspan="{% if user|puede_gestionar_asistencia %}6{% else %}5{% endif %}" class="px-6 py-8 text-center text-slate-400">No se encontraron registros de asistencia.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
