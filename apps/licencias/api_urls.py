@@ -8,6 +8,7 @@ from apps.licencias.views import (
     CalcularFechasLicenciaAPIView,
     ValidarAntiguedadLicenciaAPIView,
     ValidarRegimenLicenciaAPIView,
+    ValidarSaldosLicenciaAPIView,
     ValidarSolapamientoLicenciaAPIView,
 )
 
@@ -63,5 +64,15 @@ urlpatterns = [
         "licencias/validar-solapamiento/",
         ValidarSolapamientoLicenciaAPIView.as_view(),
         name="licencias_validar_solapamiento",
+    ),
+    path(
+        "validar-saldos/",
+        ValidarSaldosLicenciaAPIView.as_view(),
+        name="validar_saldos",
+    ),
+    path(
+        "licencias/validar-saldos/",
+        ValidarSaldosLicenciaAPIView.as_view(),
+        name="licencias_validar_saldos",
     ),
 ]
