@@ -115,7 +115,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-ORD-312-MAT',
         "regimen": 'TIT',
         "articulo": 'Art. 312',
-        "descripcion": 'Gravidez y maternidad (180 días corridos)',
+        "descripcion": 'Gravidez y maternidad',
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 180,
@@ -200,7 +200,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-ORD-314-FAM',
         "regimen": 'TIT',
         "articulo": 'Art. 314',
-        "descripcion": 'Atención de familiar enfermo (28 días corridos)',
+        "descripcion": 'Atención de familiar enfermo',
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 28,
@@ -236,7 +236,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-ORD-316-ADOP',
         "regimen": 'TIT',
         "articulo": 'Art. 316',
-        "descripcion": 'Tenencia con fines de adopción (180 días corridos)',
+        "descripcion": 'Tenencia con fines de adopción',
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 180,
@@ -253,7 +253,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-EXT-318-A',
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. a',
-        "descripcion": 'Asuntos particulares (sin goce, hasta 1 año por decenio)',
+        "descripcion": 'Asuntos particulares',
         "categoria": 'Extraordinaria',
         "forma_goce": 'Sin goce',
         "duracion_maxima": 365,
@@ -271,7 +271,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. b',
         "descripcion": (
-            'Fuerza mayor o grave asunto de familia (sin goce, hasta 90 días)'
+            'Fuerza mayor o grave asunto de familia'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": 'Sin goce',
@@ -290,7 +290,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. c',
         "descripcion": (
-            'Estudios de perfeccionamiento docente mayor a 20 días (hasta 3 años)'
+            'Estudios de perfeccionamiento docente mayor a 20 días'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
@@ -309,7 +309,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. c',
         "descripcion": (
-            'Estudios de perfeccionamiento docente menor a 20 días (con goce)'
+            'Estudios de perfeccionamiento docente'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
@@ -374,7 +374,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-EXT-318-G',
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. g',
-        "descripcion": 'Matrimonio del docente (10 días hábiles)',
+        "descripcion": 'Matrimonio del docente',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 10,
@@ -392,7 +392,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. h',
         "descripcion": (
-            'Exámenes preventivos de salud / ginecológicos (1 día laborable)'
+            'Exámenes preventivos de salud / ginecológicos'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
@@ -410,7 +410,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-EXT-318-I',
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. i',
-        "descripcion": 'Rendir exámenes de perfeccionamiento o grado (hasta 30 días)',
+        "descripcion": 'Rendir exámenes de perfeccionamiento o grado',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 30,
@@ -427,7 +427,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-EXT-318-J',
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. j',
-        "descripcion": 'Participación en concursos docentes (15 días hábiles)',
+        "descripcion": 'Participación en concursos docentes',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 15,
@@ -445,7 +445,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. k',
         "descripcion": (
-            'Incompatibilidad por cargo o función de mayor jerarquía (hasta 2 años)'
+            'Incompatibilidad por cargo o función de mayor jerarquía'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": 'Sin goce',
@@ -463,7 +463,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-EXT-318-L',
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. l',
-        "descripcion": 'Donación de órganos o trasplantes (con goce)',
+        "descripcion": 'Donación de órganos o trasplantes',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": None,
@@ -479,7 +479,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 318 inc. m',
         "descripcion": (
-            'Comité Provincial de Prevención de la Tortura (Ley 6483, con goce)'
+            'Comité Provincial de Prevención de la Tortura (Ley 6483)'
         ),
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
@@ -530,7 +530,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. a',
         "descripcion": (
-            'Nacimiento de hijo para cónyuge / no gestante (15 días hábiles)'
+            'Nacimiento de hijo para cónyuge / no gestante'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -549,7 +549,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. a',
         "descripcion": (
-            'Nacimiento de hijo parto múltiple o prematuro (30 días hábiles)'
+            'Nacimiento de hijo parto múltiple o prematuro'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -567,7 +567,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-B',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. b',
-        "descripcion": 'Guarda judicial con fines de adopción (30 días corridos)',
+        "descripcion": 'Guarda judicial con fines de adopción',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 30,
@@ -584,7 +584,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-C',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. c',
-        "descripcion": 'Donación de sangre (1 día laborable)',
+        "descripcion": 'Donación de sangre',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -620,7 +620,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-E',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. e',
-        "descripcion": 'Matrimonio de hijo (5 días corridos)',
+        "descripcion": 'Matrimonio de hijo',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 5,
@@ -638,7 +638,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. f',
         "descripcion": (
-            'Duelo por familiar de primer grado: cónyuge, padres, hijos (8 días)'
+            'Duelo por familiar de primer grado: cónyuge, padres, hijos'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -657,7 +657,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. f',
         "descripcion": (
-            'Duelo por familiar de segundo grado: hermanos, abuelos, nietos (2 días)'
+            'Duelo por familiar de segundo grado: hermanos, abuelos, nietos'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -676,7 +676,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. f',
         "descripcion": (
-            'Duelo por familiar de tercer grado: tíos, sobrinos, primos (1 día)'
+            'Duelo por familiar de tercer grado: tíos, sobrinos, primos'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -713,7 +713,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-G',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. g',
-        "descripcion": 'Permiso de Salida y Asistencia Técnica - PSA (1 día)',
+        "descripcion": 'Permiso de Salida y Asistencia Técnica - PSA',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -730,7 +730,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-H',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. h',
-        "descripcion": 'Día de natalicio o cumpleaños del docente (1 día)',
+        "descripcion": 'Día de natalicio o cumpleaños del docente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -747,7 +747,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'TIT-PER-320-I',
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. i',
-        "descripcion": 'Citación judicial o de autoridad competente (con goce)',
+        "descripcion": 'Citación judicial o de autoridad competente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": None,
@@ -763,7 +763,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'TIT',
         "articulo": 'Art. 320 inc. j',
         "descripcion": (
-            'Candidaturas a cargos electivos según cronograma electoral (con goce)'
+            'Candidaturas a cargos electivos según cronograma electoral'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -909,7 +909,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'INT',
         "articulo": 'Art. 332',
         "descripcion": (
-            'Ampliación maternidad nacimiento con discapacidad interino (90 días)'
+            'Ampliación maternidad nacimiento con discapacidad interino'
         ),
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
@@ -927,7 +927,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-ORD-332-DEF',
         "regimen": 'INT',
         "articulo": 'Art. 332',
-        "descripcion": 'Maternidad por defunción intrauterina interino (60 días)',
+        "descripcion": 'Maternidad por defunción intrauterina interino',
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 60,
@@ -945,7 +945,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'INT',
         "articulo": 'Art. 332',
         "descripcion": (
-            'Paternidad equivalente por fallecimiento de la madre interino (180 días)'
+            'Paternidad equivalente por fallecimiento de la madre interino'
         ),
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
@@ -964,7 +964,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'INT',
         "articulo": 'Art. 333',
         "descripcion": (
-            'Tenencia con fines de adopción interino (180 días con cobro si cesa)'
+            'Tenencia con fines de adopción interino'
         ),
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
@@ -1001,7 +1001,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-EXT-335-MATR',
         "regimen": 'INT',
         "articulo": 'Art. 335',
-        "descripcion": 'Matrimonio del docente interino (10 días hábiles)',
+        "descripcion": 'Matrimonio del docente interino',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 10,
@@ -1018,7 +1018,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-EXT-335-PREV',
         "regimen": 'INT',
         "articulo": 'Art. 335',
-        "descripcion": 'Exámenes preventivos de salud / ginecológicos interino (1 día)',
+        "descripcion": 'Exámenes preventivos de salud / ginecológicos interino',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1035,7 +1035,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-EXT-335-EXAM',
         "regimen": 'INT',
         "articulo": 'Art. 335',
-        "descripcion": 'Rendir exámenes de estudio interino (hasta 16 días laborales)',
+        "descripcion": 'Rendir exámenes de estudio interino',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 16,
@@ -1069,7 +1069,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-NAC',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Nacimiento de hijo interino (15 días hábiles)',
+        "descripcion": 'Nacimiento de hijo interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 15,
@@ -1087,7 +1087,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'INT',
         "articulo": 'Art. 336',
         "descripcion": (
-            'Nacimiento hijo prematuro o múltiple interino (30 días hábiles)'
+            'Nacimiento hijo prematuro o múltiple interino'
         ),
         "categoria": 'Permiso',
         "forma_goce": '100%',
@@ -1105,7 +1105,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-ADOP',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Guarda judicial con fines de adopción interino (30 días)',
+        "descripcion": 'Guarda judicial con fines de adopción interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 30,
@@ -1122,7 +1122,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-SANG',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Donación de sangre interino (1 día laborable)',
+        "descripcion": 'Donación de sangre interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1156,7 +1156,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-DUEL-1',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Duelo familiar de primer grado interino (8 días)',
+        "descripcion": 'Duelo familiar de primer grado interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 8,
@@ -1173,7 +1173,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-DUEL-2',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Duelo familiar de segundo grado interino (2 días)',
+        "descripcion": 'Duelo familiar de segundo grado interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 2,
@@ -1190,7 +1190,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-DUEL-3',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Duelo familiar de tercer grado interino (1 día)',
+        "descripcion": 'Duelo familiar de tercer grado interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1207,7 +1207,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'INT-PER-336-DUEL-TR',
         "regimen": 'INT',
         "articulo": 'Art. 336',
-        "descripcion": 'Prórroga de duelo por traslado interino (2 días)',
+        "descripcion": 'Prórroga de duelo por traslado interino',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 2,
@@ -1348,7 +1348,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "regimen": 'SUP',
         "articulo": 'Art. 342',
         "descripcion": (
-            'Tenencia con fines de adopción suplente (180 días con cobro si cesa)'
+            'Tenencia con fines de adopción suplente'
         ),
         "categoria": 'Ordinaria',
         "forma_goce": '100%',
@@ -1385,7 +1385,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-EXT-344-PERF',
         "regimen": 'SUP',
         "articulo": 'Art. 344',
-        "descripcion": 'Perfeccionamiento docente suplente (hasta 10 días laborales)',
+        "descripcion": 'Perfeccionamiento docente suplente',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 10,
@@ -1402,7 +1402,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-EXT-344-MATR',
         "regimen": 'SUP',
         "articulo": 'Art. 344',
-        "descripcion": 'Matrimonio del docente suplente (2 días hábiles)',
+        "descripcion": 'Matrimonio del docente suplente',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 2,
@@ -1419,7 +1419,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-EXT-344-PREV',
         "regimen": 'SUP',
         "articulo": 'Art. 344',
-        "descripcion": 'Exámenes preventivos de salud / ginecológicos suplente (1 día)',
+        "descripcion": 'Exámenes preventivos de salud / ginecológicos suplente',
         "categoria": 'Extraordinaria',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1453,7 +1453,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-NAC',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Nacimiento de hijo suplente (15 días hábiles)',
+        "descripcion": 'Nacimiento de hijo suplente, no gestante',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 15,
@@ -1470,7 +1470,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-SANG',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Donación de sangre suplente (1 día laborable)',
+        "descripcion": 'Donación de sangre suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1504,7 +1504,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-MATH',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Matrimonio de hijo suplente (5 días corridos)',
+        "descripcion": 'Matrimonio de hijo suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 5,
@@ -1521,7 +1521,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-DUEL-1',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Duelo familiar de primer grado suplente (8 días)',
+        "descripcion": 'Duelo familiar de primer grado suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 8,
@@ -1538,7 +1538,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-DUEL-2',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Duelo familiar de segundo grado suplente (2 días)',
+        "descripcion": 'Duelo familiar de segundo grado suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 2,
@@ -1555,7 +1555,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-DUEL-3',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Duelo familiar de tercer grado suplente (1 día)',
+        "descripcion": 'Duelo familiar de tercer grado suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 1,
@@ -1572,7 +1572,7 @@ CATALOGO_NORMATIVO_LEY_647E = (
         "codigo": 'SUP-PER-345-DUEL-TR',
         "regimen": 'SUP',
         "articulo": 'Art. 345',
-        "descripcion": 'Prórroga de duelo por traslado suplente (2 días)',
+        "descripcion": 'Prórroga de duelo por traslado suplente',
         "categoria": 'Permiso',
         "forma_goce": '100%',
         "duracion_maxima": 2,
