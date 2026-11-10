@@ -1447,6 +1447,257 @@ class GranularidadMultiTurnoAsistenciaTests(TestCase):
         )
 
 
+class JustificacionesLoteViewTests(TestCase):
+    """
+    Pruebas integrales de la vista JustificacionesLoteView (GET/POST),
+    validación de estado/licencias, preservación de selección ante errores
+    y atomicidad del procesamiento por lote.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from apps.personal.models import CargoCatalogo, CargoDocente, EspacioCurricular
+
+        User = get_user_model()
+        grupo_bedelia, _ = Group.objects.get_or_create(name="Bedelia_Operadoras")
+        self.user_bedelia = User.objects.create_user(
+            username="bedelia_lote", password="password123"
+        )
+        self.user_bedelia.groups.add(grupo_bedelia)
+        self.client.login(username="bedelia_lote", password="password123")
+
+        self.docente = Docente.objects.create(
+            dni="31222333",
+            apellido="Benítez",
+            nombre="Sofía",
+            sexo="F",
+            activo=True,
+        )
+        self.materia = EspacioCurricular.objects.create(
+            codigo="IA-101",
+            nombre="Matemática Aplicada a IA",
+            carrera="IA",
+            anio=1,
+            turno="MANANA",
+        )
+        self.cargo_materia = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=self.materia,
+            situacion_revista="TIT",
+            activo=True,
+        )
+        self.cargo_catalogo = CargoCatalogo.objects.create(
+            codigo="BED-T",
+            descripcion="Bedel de Turno Tarde",
+        )
+        self.cargo_adm = CargoDocente.objects.create(
+            docente=self.docente,
+            tipo_cargo="CARGO_ADM",
+            cargo_catalogo=self.cargo_catalogo,
+            situacion_revista="INT",
+            activo=True,
+        )
+
+        self.tipo_lic = TipoLicencia.objects.create(
+            codigo="TIT-ORD-311-A",
+            articulo="Art. 311 inc. a",
+            descripcion="Enfermedad común titular hasta 45 días corridos",
+            categoria="Ordinaria",
+            cuadro_mensual="IL-01",
+            activo=True,
+        )
+
+        self.ausente_1 = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_materia,
+            fecha=datetime.date(2026, 10, 20),
+            estado="AUSENTE",
+            marca_diaria="I",
+            justifica=False,
+        )
+        self.ausente_2 = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_adm,
+            fecha=datetime.date(2026, 10, 21),
+            estado="AUSENTE",
+            marca_diaria="INA",
+            justifica=False,
+        )
+        self.presente = RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo_materia,
+            fecha=datetime.date(2026, 10, 22),
+            estado="PRESENTE",
+            marca_diaria="PR",
+            justifica=True,
+        )
+
+    def test_get_justificaciones_lote_renderiza_200_sin_field_error(self):
+        """
+        Verifica que GET /asistencia/justificaciones-lote/ responda HTTP 200
+        mostrando inasistencias pendientes (con materia y cargo de catálogo)
+        y omitiendo registros ya presentes.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "asistencia/justificaciones_lote.html")
+        self.assertEqual(response.context["total_pendientes"], 2)
+        self.assertContains(response, "Benítez, Sofía")
+        self.assertContains(response, "Matemática Aplicada a IA")
+        self.assertContains(response, "Bedel de Turno Tarde")
+        self.assertContains(response, "TIT-ORD-311-A (Art. 311 inc. a)")
+        self.assertContains(response, 'value="LT"')
+        self.assertNotContains(response, f'value="{self.presente.id}"')
+
+    def test_post_justificar_lote_con_permiso_p(self):
+        """
+        Verifica que seleccionar inasistencias con marca 'P' las justifique
+        correctamente y deje las no seleccionadas intactas.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.post(
+            url,
+            {
+                "nueva_marca": "P",
+                "tipo_licencia": "",
+                "items": [str(self.ausente_1.id)],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("asistencia:asistencia_list"))
+
+        self.ausente_1.refresh_from_db()
+        self.ausente_2.refresh_from_db()
+
+        self.assertEqual(self.ausente_1.estado, "JUSTIFICADO")
+        self.assertEqual(self.ausente_1.marca_diaria, "P")
+        self.assertTrue(self.ausente_1.justifica)
+        self.assertEqual(self.ausente_1.modificado_por, self.user_bedelia)
+
+        # No seleccionado permanece pendiente
+        self.assertEqual(self.ausente_2.estado, "AUSENTE")
+        self.assertFalse(self.ausente_2.justifica)
+
+    def test_post_justificar_lote_con_lic_y_lt(self):
+        """
+        Verifica la justificación por lote con marcas 'LIC' y 'LT'
+        asociando el TipoLicencia elegido.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+
+        resp_lic = self.client.post(
+            url,
+            {
+                "nueva_marca": "LIC",
+                "tipo_licencia": str(self.tipo_lic.id),
+                "items": [str(self.ausente_1.id)],
+            },
+        )
+        self.assertEqual(resp_lic.status_code, 302)
+        self.ausente_1.refresh_from_db()
+        self.assertEqual(self.ausente_1.estado, "LICENCIA")
+        self.assertEqual(self.ausente_1.marca_diaria, "LIC")
+        self.assertEqual(self.ausente_1.tipo_licencia, self.tipo_lic)
+        self.assertTrue(self.ausente_1.justifica)
+
+        resp_lt = self.client.post(
+            url,
+            {
+                "nueva_marca": "LT",
+                "tipo_licencia": str(self.tipo_lic.id),
+                "items": [str(self.ausente_2.id)],
+            },
+        )
+        self.assertEqual(resp_lt.status_code, 302)
+        self.ausente_2.refresh_from_db()
+        self.assertEqual(self.ausente_2.estado, "LICENCIA")
+        self.assertEqual(self.ausente_2.marca_diaria, "LT")
+        self.assertEqual(self.ausente_2.tipo_licencia, self.tipo_lic)
+        self.assertTrue(self.ausente_2.justifica)
+
+    def test_post_lic_sin_tipo_licencia_devuelve_400_y_preserva_seleccion(self):
+        """
+        Verifica que enviar 'LIC' sin tipo_licencia responda HTTP 400 (sin 500),
+        no modifique ningún registro y preserve la selección del usuario.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.post(
+            url,
+            {
+                "nueva_marca": "LIC",
+                "tipo_licencia": "",
+                "items": [str(self.ausente_1.id)],
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.context["error"])
+        self.assertIn(str(self.ausente_1.id), response.context["selected_ids"])
+        self.assertEqual(response.context["selected_nueva_marca"], "LIC")
+
+        self.ausente_1.refresh_from_db()
+        self.assertEqual(self.ausente_1.estado, "AUSENTE")
+        self.assertFalse(self.ausente_1.justifica)
+
+    def test_post_items_vacios_permanece_en_justificaciones_lote(self):
+        """
+        Verifica que al enviar sin seleccionar inasistencias se redirija a
+        justificaciones_lote con mensaje de advertencia.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.post(url, {"nueva_marca": "P"})
+        self.assertRedirects(response, url)
+
+    def test_post_lote_mixto_fallo_en_segundo_registro_revierte_primero(self):
+        """
+        Verifica atomicidad vía HTTP POST: si el lote mezcla un ausente y un
+        presente, el ausente no debe persistir justificado.
+        """
+        url = reverse("asistencia:justificaciones_lote")
+        response = self.client.post(
+            url,
+            {
+                "nueva_marca": "P",
+                "items": [str(self.ausente_1.id), str(self.presente.id)],
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+        self.ausente_1.refresh_from_db()
+        self.assertEqual(self.ausente_1.estado, "AUSENTE")
+        self.assertEqual(self.ausente_1.marca_diaria, "I")
+        self.assertFalse(self.ausente_1.justifica)
+
+    def test_post_items_json_con_respaldo_de_marca_y_licencia_id(self):
+        """
+        Verifica compatibilidad cuando items contiene JSON parcial delegando
+        nueva_marca y tipo_licencia al servicio de justificación.
+        """
+        import json
+
+        url = reverse("asistencia:justificaciones_lote")
+        payload = json.dumps({
+            "asistencia": self.ausente_1.id,
+            "tipo_licencia": self.tipo_lic.id,
+        })
+        response = self.client.post(
+            url,
+            {
+                "nueva_marca": "LIC",
+                "items": [payload],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        self.ausente_1.refresh_from_db()
+        self.assertEqual(self.ausente_1.estado, "LICENCIA")
+        self.assertEqual(self.ausente_1.marca_diaria, "LIC")
+        self.assertEqual(self.ausente_1.tipo_licencia, self.tipo_lic)
+
+
 # Importación de pruebas del Ticket 12.6 (Consulta Avanzada Multicriterio)
 from apps.asistencia.tests_ticket_12_6 import (  # noqa: F401, E402
     ConsultaAvanzadaMulticriterioTests,

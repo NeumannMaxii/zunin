@@ -37,19 +37,22 @@
                     </label>
                     <select name="nueva_marca" id="nueva_marca" 
                             class="w-full text-xs font-semibold rounded-lg border-slate-300 py-2 px-3 bg-white focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
-                        <option value="P">P — Permiso / Justificación Reglamentaria</option>
-                        <option value="LIC">LIC — Licencia Médica o Especial</option>
+                        <option value="P" {% if selected_nueva_marca == 'P' or not selected_nueva_marca %}selected{% endif %}>P — Permiso / Justificación Reglamentaria</option>
+                        <option value="LIC" {% if selected_nueva_marca == 'LIC' %}selected{% endif %}>LIC — Licencia Médica o Especial</option>
+                        <option value="LT" {% if selected_nueva_marca == 'LT' %}selected{% endif %}>LT — Licencia de Largo Tratamiento</option>
                     </select>
                 </div>
                 <div id="contenedor-tipo-licencia">
                     <label for="tipo_licencia" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        Tipo de Licencia (Requerido para LIC):
+                        Tipo de Licencia <span id="tipo-licencia-ayuda" class="text-slate-400 font-normal normal-case">(Opcional para P / Requerido para LIC y LT)</span>:
                     </label>
                     <select name="tipo_licencia" id="tipo_licencia" 
                             class="w-full text-xs rounded-lg border-slate-300 py-2 px-3 bg-white focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
                         <option value="">-- Seleccionar Tipo de Licencia --</option>
                         {% for tl in tipos_licencia %}
-                        <option value="{{ tl.id }}">{{ tl.codigo }} - {{ tl.descripcion|truncatechars:35 }}</option>
+                        <option value="{{ tl.id }}" {% if selected_tipo_licencia == tl.id|stringformat:"s" %}selected{% endif %}>
+                            {{ tl.codigo }}{% if tl.articulo %} ({{ tl.articulo }}){% endif %} — {{ tl.descripcion|truncatechars:85 }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -65,7 +68,11 @@
                     </div>
                     <input type="text" id="filtro-docente-lote" 
                            placeholder="Buscar inasistencia por docente, DNI o materia..." 
-                           class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
+                           class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
+                    <button type="button" id="btn-limpiar-filtro-lote" title="Limpiar búsqueda"
+                            class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
+                        &times;
+                    </button>
                 </div>
                 <div class="text-xs text-slate-500 flex items-center space-x-2">
                     <span id="contador-seleccionados" class="font-semibold text-institucional-700">0 seleccionados</span>
@@ -81,7 +88,7 @@
                         <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                             <tr>
                                 <th class="px-4 py-3 text-center w-10">
-                                    <input type="checkbox" id="check-todos" class="rounded text-institucional-600 focus:ring-institucional-500">
+                                    <input type="checkbox" id="check-todos" class="rounded text-institucional-600 focus:ring-institucional-500" {% if not inasistencias %}disabled{% endif %}>
                                 </th>
                                 <th class="px-4 py-3">Fecha</th>
                                 <th class="px-4 py-3">Docente</th>
@@ -92,20 +99,25 @@
                         <tbody class="divide-y divide-slate-200 bg-white">
                             {% for reg in inasistencias %}
                             <tr class="fila-inasistencia hover:bg-slate-50/75 transition-colors" 
-                                data-docente="{{ reg.docente.apellido|lower }} {{ reg.docente.nombre|lower }} {{ reg.docente.dni }} {{ reg.cargo.espacio_curricular.nombre|default:''|lower }}">
+                                data-docente="{{ reg.docente.apellido|lower }} {{ reg.docente.nombre|lower }} {{ reg.docente.dni|default:'' }} {{ reg.cargo.nombre_mostrar|default:''|lower }} {{ reg.cargo.situacion_revista|default:''|lower }}">
                                 <td class="px-4 py-3 text-center">
-                                    <input type="checkbox" name="items" value="{{ reg.id }}" class="check-item rounded text-institucional-600 focus:ring-institucional-500">
+                                    <input type="checkbox" name="items" value="{{ reg.id }}" class="check-item rounded text-institucional-600 focus:ring-institucional-500 cursor-pointer" {% if reg.id|stringformat:"s" in selected_ids %}checked{% endif %}>
                                 </td>
                                 <td class="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">
                                     {{ reg.fecha|date:"d/m/Y" }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="font-medium text-slate-900">{{ reg.docente.apellido }}, {{ reg.docente.nombre }}</div>
-                                    <div class="text-xs text-slate-500 font-mono">DNI: {{ reg.docente.dni }}</div>
+                                    <div class="text-xs text-slate-500 font-mono">DNI: {{ reg.docente.dni|default:"-" }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-slate-700">
-                                    {{ reg.cargo.espacio_curricular.nombre|default:reg.cargo.situacion_revista|default:"Sin materia asignada" }}
+                                    <span class="font-medium text-slate-800">{{ reg.cargo.nombre_mostrar|default:"Sin materia asignada" }}</span>
                                     <span class="text-slate-400">({{ reg.cargo.get_turno_display|default:reg.cargo.turno|default:"-" }})</span>
+                                    {% if reg.cargo.situacion_revista %}
+                                    <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                        {{ reg.cargo.situacion_revista }}
+                                    </span>
+                                    {% endif %}
                                 </td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
@@ -125,11 +137,11 @@
                 </div>
             </div>
 
-            <div class="pt-4 flex justify-between items-center">
+            <div class="pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <span class="text-xs text-slate-400">Seleccione al menos una inasistencia para habilitar el guardado.</span>
                 <div class="flex space-x-3">
                     <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50">Cancelar</a>
-                    <button type="submit" id="btn-aplicar" class="px-4 py-2 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs cursor-pointer">
+                    <button type="submit" id="btn-aplicar" class="px-4 py-2 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" {% if not selected_ids or not inasistencias %}disabled{% endif %}>
                         Aplicar Justificaciones
                     </button>
                 </div>
@@ -138,19 +150,110 @@
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const selectMarca = document.getElementById('nueva_marca');
+            const selectTipoLicencia = document.getElementById('tipo_licencia');
+            const ayudaTipoLicencia = document.getElementById('tipo-licencia-ayuda');
             const checkTodos = document.getElementById('check-todos');
             const checks = document.querySelectorAll('.check-item');
             const contadorSel = document.getElementById('contador-seleccionados');
+            const btnAplicar = document.getElementById('btn-aplicar');
             const inputFiltro = document.getElementById('filtro-docente-lote');
+            const btnLimpiarFiltro = document.getElementById('btn-limpiar-filtro-lote');
             const filas = document.querySelectorAll('.fila-inasistencia');
             const contadorVis = document.getElementById('contador-visibles');
             const total = filas.length;
 
-            function actualizarContador() {
+            function normalizarTexto(txt) {
+                return (txt || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .trim()
+                    .toLowerCase();
+            }
+
+            function actualizarMarcaUI() {
+                if (!selectMarca || !selectTipoLicencia) return;
+                const requiereLicencia = selectMarca.value === 'LIC' || selectMarca.value === 'LT';
+                selectTipoLicencia.required = requiereLicencia;
+                if (ayudaTipoLicencia) {
+                    ayudaTipoLicencia.classList.toggle('text-amber-700', requiereLicencia);
+                    ayudaTipoLicencia.classList.toggle('font-semibold', requiereLicencia);
+                    ayudaTipoLicencia.classList.toggle('text-slate-400', !requiereLicencia);
+                    ayudaTipoLicencia.classList.toggle('font-normal', !requiereLicencia);
+                }
+            }
+
+            function actualizarEstado() {
                 const seleccionados = document.querySelectorAll('.check-item:checked').length;
                 if (contadorSel) {
-                    contadorSel.textContent = `${seleccionados} seleccionados`;
+                    contadorSel.textContent = seleccionados === 1
+                        ? '1 seleccionado'
+                        : `${seleccionados} seleccionados`;
                 }
+                if (btnAplicar) {
+                    btnAplicar.disabled = seleccionados === 0;
+                }
+
+                filas.forEach(function(fila) {
+                    const c = fila.querySelector('.check-item');
+                    if (c) {
+                        fila.classList.toggle('bg-institucional-50/40', c.checked);
+                    }
+                });
+
+                if (checkTodos) {
+                    const checksVisibles = [];
+                    filas.forEach(function(fila) {
+                        if (fila.style.display !== 'none') {
+                            const c = fila.querySelector('.check-item');
+                            if (c) checksVisibles.push(c);
+                        }
+                    });
+                    const visiblesMarcados = checksVisibles.filter(function(c) {
+                        return c.checked;
+                    }).length;
+
+                    if (checksVisibles.length === 0) {
+                        checkTodos.disabled = true;
+                        checkTodos.checked = false;
+                        checkTodos.indeterminate = false;
+                    } else {
+                        checkTodos.disabled = false;
+                        checkTodos.checked = visiblesMarcados === checksVisibles.length;
+                        checkTodos.indeterminate = visiblesMarcados > 0 && visiblesMarcados < checksVisibles.length;
+                    }
+                }
+            }
+
+            function filtrarFilas() {
+                if (!inputFiltro) return;
+                const q = normalizarTexto(inputFiltro.value);
+                let vis = 0;
+
+                if (btnLimpiarFiltro) {
+                    btnLimpiarFiltro.classList.toggle('hidden', !q);
+                }
+
+                filas.forEach(function(fila) {
+                    const datos = normalizarTexto(fila.getAttribute('data-docente'));
+                    if (!q || datos.includes(q)) {
+                        fila.style.display = '';
+                        vis++;
+                    } else {
+                        fila.style.display = 'none';
+                    }
+                });
+
+                if (contadorVis) {
+                    contadorVis.textContent = q
+                        ? `Mostrando ${vis} de ${total} inasistencias`
+                        : `Mostrando ${total} inasistencias`;
+                }
+                actualizarEstado();
+            }
+
+            if (selectMarca) {
+                selectMarca.addEventListener('change', actualizarMarcaUI);
             }
 
             if (checkTodos) {
@@ -162,32 +265,28 @@
                             if (c) c.checked = checked;
                         }
                     });
-                    actualizarContador();
+                    actualizarEstado();
                 });
             }
 
             checks.forEach(function(c) {
-                c.addEventListener('change', actualizarContador);
+                c.addEventListener('change', actualizarEstado);
             });
 
             if (inputFiltro) {
-                inputFiltro.addEventListener('input', function() {
-                    const q = this.value.trim().toLowerCase();
-                    let vis = 0;
-                    filas.forEach(function(fila) {
-                        const datos = fila.getAttribute('data-docente') || '';
-                        if (!q || datos.includes(q)) {
-                            fila.style.display = '';
-                            vis++;
-                        } else {
-                            fila.style.display = 'none';
-                        }
-                    });
-                    if (contadorVis) {
-                        contadorVis.textContent = q ? `Mostrando ${vis} de ${total} inasistencias` : `Mostrando ${total} inasistencias`;
-                    }
+                inputFiltro.addEventListener('input', filtrarFilas);
+            }
+
+            if (btnLimpiarFiltro && inputFiltro) {
+                btnLimpiarFiltro.addEventListener('click', function() {
+                    inputFiltro.value = '';
+                    filtrarFilas();
+                    inputFiltro.focus();
                 });
             }
+
+            actualizarMarcaUI();
+            actualizarEstado();
         });
         </script>
     </div>
