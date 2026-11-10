@@ -11,6 +11,7 @@ Implementa:
 import csv
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -19,6 +20,7 @@ from django.views import View
 from django.views.generic import FormView, ListView
 from apps.core.audit import audit_save
 from apps.core.mixins import PermisosEstrictosMixin
+from apps.licencias.calculador import calcular_fechas_licencia
 from apps.licencias.forms import (
     JustificacionDiferidaForm,
     TipoLicenciaSearchForm,
@@ -556,3 +558,78 @@ class AutocompletarLicenciaAPIView(View):
 
 
 autocompletar_licencia_api = AutocompletarLicenciaAPIView.as_view()
+
+
+class CalcularFechasLicenciaAPIView(View):
+    """
+    Endpoint API para calcular automáticamente fecha de reintegro y días
+    consumidos según la unidad del tipo (Ticket 16.2).
+    Ruta: GET o POST /api/licencias/calcular-fechas/
+
+    Parámetros (GET query params o POST body/form):
+    - fecha_desde: YYYY-MM-DD (Obligatorio)
+    - dias: int (Opcional si se especifica fecha_hasta)
+    - fecha_hasta: YYYY-MM-DD (Opcional si se especifica dias)
+    - unidad: 'HABILES' o 'CORRIDOS' (Opcional)
+    - tipo_licencia: ID o código de TipoLicencia (Opcional)
+
+    Responde:
+    200 OK con JSON de CalculoFechasLicencia.to_dict()
+    400 Bad Request ante parámetros inválidos o errores de validación.
+    """
+
+    def _procesar(self, params):
+        fecha_desde = params.get("fecha_desde")
+        if not fecha_desde:
+            return JsonResponse(
+                {"error": "El parámetro 'fecha_desde' es obligatorio."},
+                status=400,
+            )
+
+        dias = params.get("dias")
+        fecha_hasta = params.get("fecha_hasta")
+
+        if not dias and not fecha_hasta:
+            return JsonResponse(
+                {
+                    "error": (
+                        "Debe especificar 'dias' o 'fecha_hasta' para "
+                        "calcular el período."
+                    )
+                },
+                status=400,
+            )
+
+        tipo_lic_id = params.get("tipo_licencia")
+        tipo_lic = None
+        if tipo_lic_id:
+            if str(tipo_lic_id).isdigit():
+                tipo_lic = TipoLicencia.objects.filter(pk=int(tipo_lic_id)).first()
+            else:
+                tipo_lic = TipoLicencia.objects.filter(codigo=tipo_lic_id).first()
+
+        unidad = params.get("unidad")
+
+        try:
+            resultado = calcular_fechas_licencia(
+                fecha_desde=fecha_desde,
+                dias=dias,
+                fecha_hasta=fecha_hasta,
+                unidad=unidad,
+                tipo_licencia=tipo_lic,
+            )
+            return JsonResponse({"status": "success", "data": resultado.to_dict()})
+        except ValidationError as exc:
+            msg = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+            return JsonResponse({"status": "error", "error": msg}, status=400)
+        except Exception as exc:
+            return JsonResponse({"status": "error", "error": str(exc)}, status=400)
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        return self._procesar(request.POST)
+
+
+calcular_fechas_licencia_api = CalcularFechasLicenciaAPIView.as_view()

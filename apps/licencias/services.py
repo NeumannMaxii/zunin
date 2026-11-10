@@ -10,6 +10,19 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from apps.core.audit import audit_save
+from apps.licencias.calculador import (  # noqa: F401
+    CalculoFechasLicencia,
+    MotorCalculoLicencia,
+    UNIDAD_CORRIDOS,
+    UNIDAD_HABILES,
+    calcular_fecha_reintegro,
+    calcular_fechas_licencia,
+    contar_dias_corridos,
+    contar_dias_habiles,
+    es_dia_habil,
+    normalizar_unidad,
+    obtener_siguiente_dia_habil,
+)
 
 
 def generar_planilla_mes(mes, anio, usuario=None):

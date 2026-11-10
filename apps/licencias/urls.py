@@ -74,4 +74,15 @@ urlpatterns = [
         views.AutocompletarLicenciaAPIView.as_view(),
         name="autocompletar",
     ),
+    # API Cálculo de Fechas y Reintegro (Ticket 16.2)
+    path(
+        "api/calcular-fechas/",
+        views.CalcularFechasLicenciaAPIView.as_view(),
+        name="api_calcular_fechas",
+    ),
+    path(
+        "calcular-fechas/",
+        views.CalcularFechasLicenciaAPIView.as_view(),
+        name="calcular_fechas",
+    ),
 ]
