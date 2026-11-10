@@ -3,6 +3,8 @@ Modelos del módulo de Licencias y Planillas Mensuales para el IESETyFP.
 Gestiona el catálogo de licencias estatutarias y la consolidación de novedades.
 """
 
+import datetime
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from apps.core.models import AuditoriaModel
@@ -586,3 +588,124 @@ class RenglonPlanillaMensual(AuditoriaModel):
         from .services import generar_planilla_mes as generar_servicio
 
         return generar_servicio(mes=mes, anio=anio, usuario=usuario)
+
+
+class LicenciaOtorgada(AuditoriaModel):
+    """
+    Registra formalmente las solicitudes y otorgamientos de licencias
+    vinculadas a docentes y cargos institucionales (Ticket 16.1).
+    """
+
+    ESTADO_CHOICES = [
+        ("SOLICITADA", "Solicitada"),
+        ("OTORGADA", "Otorgada"),
+        ("RECHAZADA", "Rechazada"),
+        ("FINALIZADA", "Finalizada"),
+        ("CANCELADA", "Cancelada"),
+    ]
+
+    docente = models.ForeignKey(
+        "personal.Docente",
+        on_delete=models.PROTECT,
+        related_name="licencias_otorgadas",
+        verbose_name="Docente",
+    )
+    cargo = models.ForeignKey(
+        "personal.CargoDocente",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="licencias_otorgadas",
+        verbose_name="Cargo Docente",
+        help_text="Cargo docente específico al que aplica la licencia.",
+    )
+    tipo_licencia = models.ForeignKey(
+        TipoLicencia,
+        on_delete=models.PROTECT,
+        related_name="licencias_otorgadas",
+        verbose_name="Tipo de Licencia",
+    )
+    fecha_solicitud = models.DateField(
+        default=datetime.date.today,
+        verbose_name="Fecha de Solicitud",
+    )
+    fecha_desde = models.DateField(
+        verbose_name="Fecha Desde",
+    )
+    fecha_hasta_prevista = models.DateField(
+        verbose_name="Fecha Hasta Prevista",
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default="OTORGADA",
+        verbose_name="Estado",
+    )
+    porcentaje_goce = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Porcentaje de Goce",
+        help_text="Porcentaje de haberes (ej: 100.00, 50.00, 0.00).",
+    )
+    instrumento_legal = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="Instrumento Legal",
+        help_text="Acto administrativo que otorga la licencia (ej: Resol. 1234/26).",
+    )
+    observaciones = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Observaciones",
+    )
+
+    class Meta:
+        verbose_name = "Licencia Otorgada"
+        verbose_name_plural = "Licencias Otorgadas"
+        ordering = ["-fecha_desde", "-creado_en"]
+        indexes = [
+            models.Index(fields=["docente", "estado"]),
+            models.Index(fields=["fecha_desde", "fecha_hasta_prevista"]),
+        ]
+
+    def __str__(self):
+        cargo_str = f" - {self.cargo}" if self.cargo else ""
+        return (
+            f"Licencia {self.tipo_licencia.codigo if self.tipo_licencia else 'S/T'} "
+            f"para {self.docente} ({self.fecha_desde} a {self.fecha_hasta_prevista})"
+            f"{cargo_str}"
+        )
+
+    @property
+    def dias_duracion_prevista(self):
+        """Calcula los días calendario previstos para la licencia."""
+        if self.fecha_desde and self.fecha_hasta_prevista:
+            return (self.fecha_hasta_prevista - self.fecha_desde).days + 1
+        return 0
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.porcentaje_goce, str):
+            val = self.porcentaje_goce.replace("%", "").strip()
+            if val.lower() in ["sin goce", "sin_goce"]:
+                self.porcentaje_goce = Decimal("0.00")
+            else:
+                try:
+                    self.porcentaje_goce = Decimal(val)
+                except Exception:
+                    self.porcentaje_goce = Decimal("100.00")
+        elif self.porcentaje_goce is None:
+            if self.tipo_licencia and self.tipo_licencia.forma_goce == "50%":
+                self.porcentaje_goce = Decimal("50.00")
+            elif self.tipo_licencia and self.tipo_licencia.forma_goce in [
+                "Sin goce",
+                "SIN_GOCE",
+            ]:
+                self.porcentaje_goce = Decimal("0.00")
+            else:
+                self.porcentaje_goce = Decimal("100.00")
+
+        super().save(*args, **kwargs)

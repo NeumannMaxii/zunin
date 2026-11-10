@@ -4,7 +4,11 @@ Gestiona el Catálogo de Tipos de Licencias y los Renglones de Planilla Mensual.
 """
 
 from django.contrib import admin
-from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
+from apps.licencias.models import (
+    LicenciaOtorgada,
+    RenglonPlanillaMensual,
+    TipoLicencia,
+)
 
 
 @admin.register(TipoLicencia)
@@ -74,3 +78,35 @@ class RenglonPlanillaMensualAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(LicenciaOtorgada)
+class LicenciaOtorgadaAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "docente",
+        "cargo",
+        "tipo_licencia",
+        "fecha_desde",
+        "fecha_hasta_prevista",
+        "estado",
+        "porcentaje_goce",
+        "instrumento_legal",
+    )
+    list_filter = (
+        "estado",
+        "porcentaje_goce",
+        "tipo_licencia__regimen",
+        "tipo_licencia__categoria",
+        "fecha_desde",
+    )
+    search_fields = (
+        "docente__apellido",
+        "docente__nombre",
+        "docente__dni",
+        "tipo_licencia__codigo",
+        "tipo_licencia__articulo",
+        "instrumento_legal",
+    )
+    date_hierarchy = "fecha_desde"
+    ordering = ("-fecha_desde", "-creado_en")
