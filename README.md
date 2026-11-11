@@ -169,7 +169,7 @@ sudo certbot --nginx -d zunin.iesetyfp.edu.ar
 El proyecto cuenta con una cobertura integral de pruebas unitarias, de integración y End-to-End:
 
 ```bash
-# Ejecutar la suite completa de pruebas (242 tests)
+# Ejecutar la suite completa de pruebas (414 tests)
 python manage.py test
 
 # Ejecutar el test E2E con simulación temporal (Ticket 14)
