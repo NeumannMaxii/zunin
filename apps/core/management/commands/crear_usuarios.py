@@ -1,7 +1,7 @@
 """
 Management command para crear y configurar usuarios y grupos base del sistema.
 
-Población inicial de seguridad (Ticket 0 / Ticket 3.9.4):
+Población inicial de seguridad:
 - Grupos: Admin_Institucional, Bedelia_Operadoras, Consulta_Directiva
 - Usuarios: admin, director, zaquino, mudarte, msosa
 - Contraseña predeterminada: admin123

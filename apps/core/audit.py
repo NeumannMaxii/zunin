@@ -1,8 +1,4 @@
-"""
-Helper de Auditoría Polimórfico y Defensivo (Ticket 0.5).
-Provee funciones y mixins para registrar trazabilidad de usuarios y timestamps
-en modelos heterogéneos (legacy y modernos) sin fallar por ausencia de campos.
-"""
+
 
 from django.http import HttpResponseRedirect
 from django.utils import timezone
