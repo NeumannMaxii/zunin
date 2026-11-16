@@ -6,10 +6,16 @@ Implementa:
 - Ticket 8: Pantalla 2 — Catálogo Licencias con filtros y búsqueda.
 - Ticket 9: Pantalla Mensual (Planillas), exportación CSV y cambio de artículo
   preservando número de instrumento.
+- Ticket 18.5: Exportación Oficial a Excel (.xlsx) Formateado según IL-01 e IL-02.
 """
 
 import csv
 import datetime
+import io
+import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
@@ -129,6 +135,12 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     def get(self, request, *args, **kwargs):
         if request.GET.get("export") == "csv" or request.GET.get("format") == "csv":
             export_view = ExportarPlanillaCSVView.as_view()
+            return export_view(request, *args, **kwargs)
+        if request.GET.get("export") in [
+            "excel",
+            "xlsx",
+        ] or request.GET.get("format") in ["excel", "xlsx"]:
+            export_view = ExportarPlanillaExcelView.as_view()
             return export_view(request, *args, **kwargs)
         return super().get(request, *args, **kwargs)
 
@@ -258,6 +270,400 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
             ]
             writer.writerow(fila)
 
+        return response
+
+
+MESES_NOMBRES_OFICIALES = {
+    1: "ENERO",
+    2: "FEBRERO",
+    3: "MARZO",
+    4: "ABRIL",
+    5: "MAYO",
+    6: "JUNIO",
+    7: "JULIO",
+    8: "AGOSTO",
+    9: "SEPTIEMBRE",
+    10: "OCTUBRE",
+    11: "NOVIEMBRE",
+    12: "DICIEMBRE",
+}
+
+COLUMNAS_EXCEL_BEDELIA = [
+    "D.N.I",
+    "APELLIDO Y NOMBRE",
+    "SEXO",
+    "SIT. DE REVISTA",
+    "COD. DE CARGOS",
+    "DESCRIPCIÓN DE CARGOS",
+    "HORAS",
+    "COD. LIC.",
+    "ART.",
+    "TIPO INSTRUMENTO",
+    "OFICINA",
+    "N° INSTRUMENTO",
+    "AÑO",
+    "DESDE",
+    "HASTA",
+]
+
+
+def construir_libro_excel_planillas(
+    renglones_il01,
+    renglones_il02,
+    mes,
+    anio,
+    oficina="1452",
+):
+    """
+    Construye un libro de cálculo openpyxl estructurado en dos secciones:
+    IL-01 (Salud arriba) e IL-02 (Otros / Permisos abajo) con membretes
+    institucionales y espaciador intermedio (Ticket 18.5).
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Planilla {mes}_{anio}"[:31]
+
+    if str(mes).isdigit() and int(mes) in MESES_NOMBRES_OFICIALES:
+        mes_nombre = MESES_NOMBRES_OFICIALES[int(mes)]
+    else:
+        mes_nombre = str(mes).upper()
+
+    font_sello = Font(name="Calibri", size=9, bold=True, color="475569")
+    font_titulo_il01 = Font(name="Calibri", size=12, bold=True, color="0369A1")
+    font_titulo_il02 = Font(name="Calibri", size=12, bold=True, color="4338CA")
+    font_meta_label = Font(name="Calibri", size=9, bold=True, color="334155")
+    font_meta_val = Font(name="Calibri", size=9, color="0F172A")
+    font_header = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    font_data = Font(name="Calibri", size=9, color="1E293B")
+    font_empty = Font(name="Calibri", size=9, italic=True, color="64748B")
+
+    fill_header_il01 = PatternFill(
+        start_color="0369A1", end_color="0369A1", fill_type="solid"
+    )
+    fill_header_il02 = PatternFill(
+        start_color="4338CA", end_color="4338CA", fill_type="solid"
+    )
+
+    thin_side = Side(border_style="thin", color="CBD5E1")
+    border_cell = Border(
+        left=thin_side, right=thin_side, top=thin_side, bottom=thin_side
+    )
+    border_header = Border(
+        left=Side(border_style="thin", color="94A3B8"),
+        right=Side(border_style="thin", color="94A3B8"),
+        top=Side(border_style="thin", color="94A3B8"),
+        bottom=Side(border_style="medium", color="0F172A"),
+    )
+
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_header = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    inst_educativa = (
+        "INSTITUTO DE EDUCACIÓN SUPERIOR DE EDUCACIÓN TÉCNICA "
+        "Y FORMACIÓN PROFESIONAL"
+    )
+    oficina_val = int(oficina) if str(oficina).isdigit() else oficina
+
+    membrete_rows = set()
+
+    def escribir_bloque(fila_inicio, titulo, font_titulo, fill_header, renglones):
+        r = fila_inicio
+
+        # Membrete Fila 1: Sello Regional y Título de Sección
+        ws.cell(row=r, column=1, value="SELLO REGIONAL").font = font_sello
+        ws.cell(row=r, column=1).alignment = align_center
+
+        cell_tit = ws.cell(row=r, column=2, value=titulo)
+        cell_tit.font = font_titulo
+        cell_tit.alignment = align_left
+        membrete_rows.add(r)
+
+        # Membrete Fila 2: Mes, Código y Unidad Educativa
+        ws.cell(row=r + 1, column=2, value=f"MES: {mes_nombre}").font = font_meta_label
+        ws.cell(row=r + 1, column=4, value="CÓDIGO").font = font_meta_label
+        ws.cell(row=r + 1, column=6, value="CÓDIGO").font = font_meta_label
+        ws.cell(row=r + 1, column=8, value="UNIDAD EDUCATIVA").font = font_meta_label
+        membrete_rows.add(r + 1)
+
+        # Membrete Fila 3: Año, Número de Oficina, Anexo e Institución
+        ws.cell(row=r + 2, column=2, value=f"AÑO: {anio}").font = font_meta_label
+        ws.cell(row=r + 2, column=4, value="DE OFICINA:").font = font_meta_label
+        ws.cell(row=r + 2, column=5, value=oficina_val).font = font_meta_val
+        ws.cell(row=r + 2, column=6, value="ANEXO:").font = font_meta_label
+        ws.cell(row=r + 2, column=7, value=0).font = font_meta_val
+        cell_inst = ws.cell(row=r + 2, column=8, value=inst_educativa)
+        cell_inst.font = font_meta_val
+        membrete_rows.add(r + 2)
+
+        # Membrete Fila 4: Sello ASN
+        ws.cell(
+            row=r + 3, column=1, value="A.S. Nº (------_-------_-------)"
+        ).font = font_meta_label
+        membrete_rows.add(r + 3)
+
+        # Fila 5: Cabecera estilizada de la tabla
+        r_header = r + 4
+        ws.row_dimensions[r_header].height = 26
+        for idx, col_name in enumerate(COLUMNAS_EXCEL_BEDELIA, start=1):
+            c = ws.cell(row=r_header, column=idx, value=col_name)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_header
+            c.border = border_header
+
+        # Filas de datos
+        r_actual = r_header + 1
+        if not renglones:
+            ws.cell(
+                row=r_actual,
+                column=2,
+                value="Sin novedades registradas para este cuadro en el período.",
+            ).font = font_empty
+            for c_idx in range(1, len(COLUMNAS_EXCEL_BEDELIA) + 1):
+                ws.cell(row=r_actual, column=c_idx).border = border_cell
+            r_actual += 1
+        else:
+            for item in renglones:
+                sit = ""
+                cod_cargo = ""
+                desc_cargo = ""
+                if item.cargo:
+                    if item.cargo.situacion_revista:
+                        s_rev = str(item.cargo.situacion_revista).upper()
+                        if "TIT" in s_rev:
+                            sit = "TIT"
+                        elif "INT" in s_rev:
+                            sit = "INT"
+                        elif "SUP" in s_rev:
+                            sit = "SUP"
+                        else:
+                            sit = item.cargo.situacion_revista
+                    if item.cargo.codigo_cargo:
+                        cod_cargo = str(item.cargo.codigo_cargo)
+                    elif (
+                        item.cargo.cargo_catalogo
+                        and item.cargo.cargo_catalogo.codigo
+                    ):
+                        cod_cargo = str(item.cargo.cargo_catalogo.codigo)
+                    if item.cargo.materia and item.cargo.materia.nombre:
+                        desc_cargo = item.cargo.materia.nombre
+                    elif (
+                        item.cargo.cargo_catalogo
+                        and item.cargo.cargo_catalogo.descripcion
+                    ):
+                        desc_cargo = item.cargo.cargo_catalogo.descripcion
+                    else:
+                        desc_cargo = str(item.cargo)
+
+                cod_lic = (
+                    item.tipo_licencia.codigo
+                    if item.tipo_licencia
+                    else (item.marca_origen or "")
+                )
+                art_lic = (
+                    item.tipo_licencia.articulo if item.tipo_licencia else ""
+                )
+                tipo_inst = (
+                    "RESOLUCIÓN"
+                    if item.tipo_instrumento == "RESOLUCION"
+                    else "DISPOSICIÓN"
+                )
+                num_inst = item.numero_instrumento or ""
+                desde_str = (
+                    item.desde.strftime("%d/%m/%Y") if item.desde else ""
+                )
+                hasta_str = (
+                    item.hasta.strftime("%d/%m/%Y") if item.hasta else ""
+                )
+
+                row_vals = [
+                    str(item.docente.dni) if item.docente else "",
+                    item.docente.nombre_completo if item.docente else "",
+                    item.docente.sexo if item.docente else "",
+                    sit,
+                    cod_cargo,
+                    desc_cargo,
+                    item.horas_afectadas,
+                    cod_lic,
+                    art_lic,
+                    tipo_inst,
+                    item.oficina or oficina_val,
+                    num_inst,
+                    item.anio,
+                    desde_str,
+                    hasta_str,
+                ]
+
+                ws.row_dimensions[r_actual].height = 20
+                for c_idx, val in enumerate(row_vals, start=1):
+                    cell = ws.cell(row=r_actual, column=c_idx, value=val)
+                    cell.font = font_data
+                    cell.border = border_cell
+                    if c_idx in [1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+                        cell.alignment = align_center
+                    else:
+                        cell.alignment = align_left
+                r_actual += 1
+
+        return r_actual
+
+    # Bloque IL-01 (Salud)
+    tit_il01 = "INFORME MENSUAL DE LICENCIAS POR ENFERMEDAD (IL-01) - ANEXO I"
+    fila_fin_il01 = escribir_bloque(
+        fila_inicio=1,
+        titulo=tit_il01,
+        font_titulo=font_titulo_il01,
+        fill_header=fill_header_il01,
+        renglones=renglones_il01,
+    )
+
+    # Espaciador intermedio (2 filas en blanco)
+    fila_inicio_il02 = fila_fin_il01 + 2
+
+    # Bloque IL-02 (Otros / Permisos)
+    tit_il02 = "INFORME MENSUAL DE LICENCIAS Y OTROS (IL-02) - ANEXO I"
+    escribir_bloque(
+        fila_inicio=fila_inicio_il02,
+        titulo=tit_il02,
+        font_titulo=font_titulo_il02,
+        fill_header=fill_header_il02,
+        renglones=renglones_il02,
+    )
+
+    # Ajuste dinámico de anchos de columna para evitar textos recortados
+    for col in ws.columns:
+        col_letter = get_column_letter(col[0].column)
+        max_len = 0
+        for cell in col:
+            if cell.row in membrete_rows:
+                continue
+            val_str = str(cell.value or "")
+            if len(val_str) > max_len:
+                max_len = len(val_str)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 11)
+
+    return wb
+
+
+class ExportarPlanillaExcelView(LoginRequiredMixin, View):
+    """
+    Ticket 18.5: Exportación oficial a Excel (.xlsx) estructurado según cuadros
+    IL-01 (Salud) e IL-02 (Otras causales y permisos).
+    Recepción de parámetros ?mes= y ?anio= con ajuste dinámico de anchos y
+    membretes oficiales institucionales.
+    """
+
+    def get(self, request, *args, **kwargs):
+        mes_param = request.GET.get("mes")
+        anio_param = request.GET.get("anio")
+        cuadro_param = (request.GET.get("cuadro") or "").strip().upper()
+
+        vigentes = RenglonPlanillaMensual.objects.vigentes().select_related(
+            "docente",
+            "cargo__materia",
+            "cargo__cargo_catalogo",
+            "tipo_licencia",
+        )
+
+        mes = None
+        anio = None
+
+        if mes_param and str(mes_param).isdigit():
+            mes = int(mes_param)
+        if anio_param and str(anio_param).isdigit():
+            anio = int(anio_param)
+
+        if mes is None or anio is None:
+            ultimo = vigentes.order_by("-anio", "-mes").first()
+            if mes is None:
+                mes = (
+                    ultimo.mes
+                    if ultimo
+                    else datetime.date.today().month
+                )
+            if anio is None:
+                anio = (
+                    ultimo.anio
+                    if ultimo
+                    else datetime.date.today().year
+                )
+
+        base_qs = vigentes.filter(mes=mes, anio=anio).order_by(
+            "numero_instrumento",
+            "docente__apellido",
+            "desde",
+        )
+
+        oficina = getattr(settings, "DEFAULT_OFICINA_CODE", "1452")
+        primer_con_oficina = base_qs.exclude(oficina="").first()
+        if primer_con_oficina and primer_con_oficina.oficina:
+            oficina = primer_con_oficina.oficina
+
+        if cuadro_param == "IL-01":
+            renglones_il01 = [
+                r
+                for r in base_qs
+                if r.cuadro == "IL-01"
+                or (
+                    r.tipo_licencia
+                    and r.tipo_licencia.cuadro_mensual == "IL-01"
+                )
+            ]
+            renglones_il02 = []
+        elif cuadro_param == "IL-02":
+            renglones_il01 = []
+            renglones_il02 = [
+                r
+                for r in base_qs
+                if r.cuadro == "IL-02"
+                or (
+                    r.tipo_licencia
+                    and r.tipo_licencia.cuadro_mensual == "IL-02"
+                )
+            ]
+        else:
+            renglones_il01 = [
+                r
+                for r in base_qs
+                if r.cuadro == "IL-01"
+                or (
+                    r.tipo_licencia
+                    and r.tipo_licencia.cuadro_mensual == "IL-01"
+                )
+            ]
+            renglones_il02 = [r for r in base_qs if r not in renglones_il01]
+
+        wb = construir_libro_excel_planillas(
+            renglones_il01=renglones_il01,
+            renglones_il02=renglones_il02,
+            mes=mes,
+            anio=anio,
+            oficina=oficina,
+        )
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+        )
+        mes_slug = (
+            str(mes_param)
+            if (mes_param and str(mes_param).isdigit())
+            else str(mes)
+        )
+        anio_slug = (
+            str(anio_param)
+            if (anio_param and str(anio_param).isdigit())
+            else str(anio)
+        )
+        filename = f"Planilla_Mensual_{mes_slug}_{anio_slug}.xlsx"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
 
 

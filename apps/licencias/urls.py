@@ -25,6 +25,17 @@ urlpatterns = [
         name="exportar_planilla_csv",
     ),
     path(
+        "planillas/exportar-excel/",
+        views.ExportarPlanillaExcelView.as_view(),
+        name="exportar_planilla_excel",
+    ),
+    path(
+        "planillas/excel/",
+        RedirectView.as_view(
+            pattern_name="licencias:exportar_planilla_excel", permanent=True
+        ),
+    ),
+    path(
         "planillas/exportar/",
         RedirectView.as_view(
             pattern_name="licencias:exportar_planilla_csv", permanent=True
