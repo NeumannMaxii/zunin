@@ -346,10 +346,31 @@ class TipoLicencia(models.Model):
             }
 
         art_clean = str(articulo_str).strip()
+        art_core = (
+            art_clean.replace("Art.", "")
+            .replace("Art", "")
+            .replace("art.", "")
+            .strip()
+        )
         coincidencia = (
             cls.objects.filter(articulo__iexact=art_clean).first()
-            or cls.objects.filter(articulo__icontains=art_clean).first()
             or cls.objects.filter(codigo__iexact=art_clean).first()
+            or (
+                cls.objects.filter(articulo__iexact=art_core).first()
+                if art_core
+                else None
+            )
+            or (
+                cls.objects.filter(articulo__iexact=f"Art. {art_core}").first()
+                if art_core
+                else None
+            )
+            or (
+                cls.objects.filter(articulo__icontains=art_core).first()
+                if art_core
+                else None
+            )
+            or cls.objects.filter(codigo__icontains=art_clean).first()
         )
         if coincidencia:
             cuadro = (
