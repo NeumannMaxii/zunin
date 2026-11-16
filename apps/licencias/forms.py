@@ -177,7 +177,11 @@ class JustificacionDiferidaForm(TailwindForm):
         queryset=CargoDocente.objects.filter(activo=True),
         required=False,
         label="Cargo / Materia (Opcional)",
-        help_text="Especifique si la justificación aplica a un cargo particular.",
+        help_text=(
+            "Dejar en blanco para aplicar automáticamente a todas las "
+            "materias que el docente dicte en el período según su "
+            "horario semanal."
+        ),
     )
     registro = forms.ModelChoiceField(
         queryset=RegistroAsistencia.objects.all(),

@@ -1,5 +1,5 @@
 """
-Mixins de autenticación y autorización estricta para el sistema Zunin (Ticket 11).
+Mixins de autenticación y autorización estricta para el sistema Zunin.
 """
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied
 
 class PermisosEstrictosMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
-    Mixin base para permisos estrictos en vistas operativas (Ticket 11).
+    Mixin base para permisos estrictos.
     - Protección Global: Los usuarios anónimos son redirigidos al
       formulario de login institucional (HTTP 302).
     - Permisos de Escritura y Acceso: Los usuarios autenticados que carezcan

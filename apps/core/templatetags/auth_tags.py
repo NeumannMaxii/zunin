@@ -1,7 +1,3 @@
-"""
-Filtros y etiquetas de plantilla para control de acceso y grupos de usuarios.
-"""
-
 from django import template
 
 register = template.Library()

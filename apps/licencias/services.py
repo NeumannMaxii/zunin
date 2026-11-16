@@ -245,7 +245,14 @@ def generar_planilla_mes(mes, anio, usuario=None):
 
             # 5. Generación de renglones por bloque
             for bloque in bloques:
-                if bloque["cargo_fijado"]:
+                cargos_registros = []
+                for r in bloque["registros"]:
+                    if r.cargo and r.cargo not in cargos_registros:
+                        cargos_registros.append(r.cargo)
+
+                if cargos_registros:
+                    cargos_a_evaluar = cargos_registros
+                elif bloque["cargo_fijado"]:
                     cargos_a_evaluar = [bloque["cargo_fijado"]]
                 else:
                     cargos_a_evaluar = list(docente.cargos.filter(activo=True))
@@ -406,6 +413,7 @@ def procesar_justificacion_rango(
     DiaNoLaborable = apps.get_model("asistencia", "DiaNoLaborable")
     RegistroAsistencia = apps.get_model("asistencia", "RegistroAsistencia")
     RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
+    CargoDocente = apps.get_model("personal", "CargoDocente")
 
     # Precarga de feriados y asuetos en el rango
     feriados_fechas = set(
@@ -414,29 +422,58 @@ def procesar_justificacion_rango(
         ).values_list("fecha", flat=True)
     )
 
-    # Identificar días con carga horaria a justificar (Ticket 10.7)
+    # Identificar días con carga horaria a justificar (Ticket 10.7 y Ticket 18.3)
     dias_a_justificar = []
     dia_cursor = fecha_desde
+
+    registros_previos_fechas = set(
+        RegistroAsistencia.objects.filter(
+            docente=docente,
+            fecha__range=[fecha_desde, fecha_hasta],
+        ).values_list("fecha", flat=True)
+    )
+
+    cargos_activos_docente = (
+        list(docente.cargos.filter(activo=True))
+        if hasattr(docente, "cargos")
+        else []
+    )
+    tiene_horas_configuradas = any(
+        c.total_horas_semanales > 0 for c in cargos_activos_docente
+    )
+
     while dia_cursor <= fecha_hasta:
         # Evaluación dinámica: verificar si el cargo tiene clases en la fecha
         if cargo:
-            tiene_clases = cargo.obtener_horas_en_fecha(dia_cursor) > 0
+            if getattr(cargo, "total_horas_semanales", 0) > 0:
+                tiene_clases = cargo.obtener_horas_en_fecha(dia_cursor) > 0
+            else:
+                tiene_clases = dia_cursor.weekday() < 5
         else:
-            cargos_activos = (
-                list(docente.cargos.filter(activo=True))
-                if hasattr(docente, "cargos")
-                else []
-            )
-            if cargos_activos:
+            if cargos_activos_docente and tiene_horas_configuradas:
                 tiene_clases = any(
-                    c.obtener_horas_en_fecha(dia_cursor) > 0 for c in cargos_activos
+                    c.obtener_horas_en_fecha(dia_cursor) > 0
+                    for c in cargos_activos_docente
+                    if not hasattr(c, "es_designacion_vigente")
+                    or c.es_designacion_vigente(dia_cursor)
                 )
             else:
                 tiene_clases = dia_cursor.weekday() < 5
 
-        if tiene_clases and dia_cursor not in feriados_fechas:
+        if (
+            tiene_clases or (dia_cursor in registros_previos_fechas)
+        ) and dia_cursor not in feriados_fechas:
             dias_a_justificar.append(dia_cursor)
+
         dia_cursor += datetime.timedelta(days=1)
+
+    # Contingencia si el rango fue en días hábiles sin feriados
+    if not dias_a_justificar and fecha_desde not in feriados_fechas:
+        cursor_temp = fecha_desde
+        while cursor_temp <= fecha_hasta:
+            if cursor_temp.weekday() < 5 and cursor_temp not in feriados_fechas:
+                dias_a_justificar.append(cursor_temp)
+            cursor_temp += datetime.timedelta(days=1)
 
     num_final = numero_disposicion
     if tipo_instrumento == "RESOLUCION" and numero_disposicion:
@@ -451,58 +488,120 @@ def procesar_justificacion_rango(
         registros_guardados = []
         meses_afectados = set()
 
-        # Ticket 10.5: Precargar todas las asistencias del intervalo con
-        # fecha__range en una sola consulta
-        asistencias_map = {
-            r.fecha: r
-            for r in RegistroAsistencia.objects.filter(
+        # Ticket 18.3: Precargar asistencias del intervalo para el docente
+        asistencias_existentes = list(
+            RegistroAsistencia.objects.filter(
                 docente=docente,
                 fecha__range=[fecha_desde, fecha_hasta],
             )
+        )
+        asistencias_por_cargo_y_fecha = {
+            (r.cargo_id, r.fecha): r for r in asistencias_existentes
         }
+        asistencias_por_fecha = {}
+        for r in asistencias_existentes:
+            asistencias_por_fecha.setdefault(r.fecha, []).append(r)
+
+        registros_usados_ids = set()
 
         for dia in dias_a_justificar:
             meses_afectados.add((dia.month, dia.year))
 
-            reg = asistencias_map.get(dia)
+            if cargo is not None:
+                cargos_a_procesar = [cargo]
+            else:
+                # Ticket 18.3: Consultar los cargos activos y vigentes del docente
+                cargos_activos = list(docente.cargos.filter(activo=True))
+                cargos_vigentes = [
+                    c
+                    for c in cargos_activos
+                    if not hasattr(c, "es_designacion_vigente")
+                    or c.es_designacion_vigente(dia)
+                ]
+                if not cargos_vigentes:
+                    cargos_vigentes = cargos_activos
+
+                # Filtrar los cargos que tengan horas asignadas en ese día puntual
+                cargos_con_horas = [
+                    c
+                    for c in cargos_vigentes
+                    if c.obtener_horas_en_fecha(dia) > 0
+                ]
+                if cargos_con_horas:
+                    cargos_a_procesar = cargos_con_horas
+                else:
+                    # Si ningún cargo tiene horas ese día pero era día
+                    # hábil a justificar: asignar al primer cargo activo
+                    # (first_cargo) como contingencia.
+                    first_cargo = (
+                        cargos_vigentes[0]
+                        if cargos_vigentes
+                        else (
+                            docente.cargos.first()
+                            if hasattr(docente, "cargos")
+                            else None
+                        )
+                    )
+                    if not first_cargo:
+                        first_cargo = CargoDocente.objects.create(
+                            docente=docente,
+                            situacion_revista="TIT",
+                            activo=True,
+                        )
+                    cargos_a_procesar = [first_cargo]
 
             estado_destino = (
-                "LICENCIA" if nueva_marca in ["LIC", "LIC.", "LT"] else "JUSTIFICADO"
+                "LICENCIA"
+                if nueva_marca in ["LIC", "LIC.", "LT"]
+                else "JUSTIFICADO"
             )
 
-            if reg is not None:
-                # Actualización de registro existente
-                reg.estado = estado_destino
-                reg.marca_diaria = nueva_marca
-                reg.tipo_licencia = tipo_licencia
-                reg.justifica = True
-                if cargo and not reg.cargo:
-                    reg.cargo = cargo
-                if num_final:
-                    reg.numero_disposicion = num_final
-                if observaciones:
-                    if reg.observaciones:
-                        reg.observaciones = f"{reg.observaciones} | {observaciones}"
-                    else:
-                        reg.observaciones = observaciones
-                audit_save(reg, user=usuario, created=False)
-                registros_guardados.append(reg)
-            else:
-                # Creación de nuevo registro justificado
-                nuevo_reg = RegistroAsistencia(
-                    docente=docente,
-                    cargo=cargo,
-                    fecha=dia,
-                    estado=estado_destino,
-                    marca_diaria=nueva_marca,
-                    tipo_licencia=tipo_licencia,
-                    justifica=True,
-                    numero_disposicion=num_final,
-                    observaciones=observaciones or "",
-                    oficina=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
-                )
-                audit_save(nuevo_reg, user=usuario, created=True)
-                registros_guardados.append(nuevo_reg)
+            for target_cargo in cargos_a_procesar:
+                # Buscar registro existente exacto o pendiente de asignar
+                reg = asistencias_por_cargo_y_fecha.get((target_cargo.id, dia))
+                if reg is None:
+                    candidatos = asistencias_por_fecha.get(dia, [])
+                    for cand in candidatos:
+                        if cand.pk not in registros_usados_ids:
+                            reg = cand
+                            break
+
+                if reg is not None:
+                    registros_usados_ids.add(reg.pk)
+                    reg.cargo = target_cargo
+                    reg.estado = estado_destino
+                    reg.marca_diaria = nueva_marca
+                    reg.tipo_licencia = tipo_licencia
+                    reg.justifica = True
+                    if num_final:
+                        reg.numero_disposicion = num_final
+                    if observaciones:
+                        if reg.observaciones:
+                            reg.observaciones = (
+                                f"{reg.observaciones} | {observaciones}"
+                            )
+                        else:
+                            reg.observaciones = observaciones
+                    audit_save(reg, user=usuario, created=False)
+                    registros_guardados.append(reg)
+                else:
+                    nuevo_reg = RegistroAsistencia(
+                        docente=docente,
+                        cargo=target_cargo,
+                        fecha=dia,
+                        estado=estado_destino,
+                        marca_diaria=nueva_marca,
+                        tipo_licencia=tipo_licencia,
+                        justifica=True,
+                        numero_disposicion=num_final,
+                        observaciones=observaciones or "",
+                        oficina=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
+                    )
+                    audit_save(nuevo_reg, user=usuario, created=True)
+                    registros_usados_ids.add(nuevo_reg.pk)
+                    asistencias_por_cargo_y_fecha[(target_cargo.id, dia)] = nuevo_reg
+                    asistencias_por_fecha.setdefault(dia, []).append(nuevo_reg)
+                    registros_guardados.append(nuevo_reg)
 
         # Regla de Integridad Histórica RN-03:
         # Si un mes ya tiene planilla mensual consolidada emitida,

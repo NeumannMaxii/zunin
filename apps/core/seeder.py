@@ -500,7 +500,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
         # 2. Carlos Benítez: Inasistencias ('I') el 08/10 y 27/10
         # 3. Mariana Castillo: Licencia por duelo (LIC-344) del 14 al 16
         # 4. Roberto Domínguez: Asistencia perfecta ('P') todo el mes
-        # 5. Silvia Espínola: Permiso exámenes ('P' justificado) el 06/10 e 'I' el 22/10
+        # 5. Silvia Espínola: Permiso exámenes ('P' justificado) el 06/10 e
+        #    'I' el 22/10
 
         for fecha_actual in dias_mes:
             for dni, docente in docente_map.items():
@@ -572,7 +573,9 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
 
         # 5. Opcional: Generar planilla mensual para demo
         if generar_planilla:
-            renglones = generar_planilla_mes(mes=10, anio=2026, usuario=usuario)
+            renglones = generar_planilla_mes(
+                mes=10, anio=2026, usuario=usuario
+            )
             resumen["renglones_planilla"] = len(renglones)
 
     return resumen
