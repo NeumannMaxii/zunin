@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Planes de Estudio - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 mb-1">
+                <a href="{% url 'personal:catalogos_hub' %}" class="text-xs font-semibold text-institucional-600 hover:text-institucional-800 transition-colors">
+                    &larr; Catálogos Institucionales
+                </a>
+                <span class="text-slate-300">/</span>
+                <span class="text-xs text-slate-500">Planes de Estudio</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Catálogo de Planes de Estudio</h1>
+            <p class="text-sm text-slate-500">Gestión de resoluciones y planes curriculares ministeriales por carrera (Ticket 19.1).</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'personal:catalogos_hub' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Panel Catálogos
+            </a>
+            <a href="{% url 'personal:planestudio_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo Plan de Estudio
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda -->
+    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+        <form method="get" class="flex flex-col sm:flex-row gap-3">
+            <!-- Selector de Carrera -->
+            <div class="w-full sm:w-64">
+                <select name="carrera" class="block w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:bg-white transition-colors">
+                    <option value="">-- Todas las Carreras --</option>
+                    {% for c in carreras %}
+                    <option value="{{ c.id }}" {% if carrera_seleccionada == c.id|stringformat:"i" %}selected{% endif %}>
+                        {{ c.codigo }} - {{ c.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Búsqueda por texto -->
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Buscar por nombre, resolución o carrera..."
+                    class="block w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:bg-white transition-colors"
+                >
+            </div>
+            <div class="flex items-center space-x-2">
+                <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors cursor-pointer">
+                    Filtrar
+                </button>
+                {% if q or carrera_seleccionada %}
+                <a href="{% url 'personal:planestudio_list' %}" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                    Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla de Planes de Estudio -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3">Carrera</th>
+                        <th class="px-6 py-3">Plan / Código</th>
+                        <th class="px-6 py-3">Resolución Aprobatoria</th>
+                        <th class="px-6 py-3">Año Inicio</th>
+                        <th class="px-6 py-3 text-center">Materias</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 text-sm">
+                    {% for plan in planes %}
+                    <tr class="hover:bg-slate-50/75 transition-colors">
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold font-mono bg-slate-100 text-slate-700">
+                                {{ plan.carrera.codigo }}
+                            </span>
+                            <span class="ml-2 font-medium text-slate-900">{{ plan.carrera.nombre }}</span>
+                        </td>
+                        <td class="px-6 py-4 font-semibold text-slate-900">{{ plan.nombre }}</td>
+                        <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ plan.resolucion|default:"-" }}</td>
+                        <td class="px-6 py-4 font-mono text-slate-700">{{ plan.anio_implementacion|default:"-" }}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                {{ plan.espacios_curriculares.count }} asignadas
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if plan.activo %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                            <a href="{% url 'personal:planestudio_update' plan.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
+                                Editar
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-400">
+                            {% if q or carrera_seleccionada %}
+                                No se encontraron planes de estudio que coincidan con los filtros aplicados.
+                            {% else %}
+                                No hay planes de estudio registrados en el catálogo.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 bg-slate-50">
+            <span>Página {{ page_obj.number }} de {{ paginator.num_pages }} ({{ paginator.count }} registros)</span>
+            <div class="flex items-center space-x-1">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if carrera_seleccionada %}&carrera={{ carrera_seleccionada }}{% endif %}" class="px-2.5 py-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium">Anterior</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if carrera_seleccionada %}&carrera={{ carrera_seleccionada }}{% endif %}" class="px-2.5 py-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium">Siguiente</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

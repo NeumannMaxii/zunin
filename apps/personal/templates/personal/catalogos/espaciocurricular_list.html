@@ -89,6 +89,13 @@
                             {% if esp.carrera %}
                                 <span class="font-medium text-slate-800">{{ esp.carrera.codigo }}</span>
                                 <span class="text-xs text-slate-500 block truncate max-w-xs">{{ esp.carrera.nombre }}</span>
+                                {% if esp.plan_estudio_ref %}
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
+                                        {{ esp.plan_estudio_ref.nombre }}
+                                    </span>
+                                {% elif esp.plan_estudio %}
+                                    <span class="text-[11px] text-slate-400 block mt-0.5 font-mono">{{ esp.plan_estudio }}</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-slate-400 italic">Sin carrera</span>
                             {% endif %}

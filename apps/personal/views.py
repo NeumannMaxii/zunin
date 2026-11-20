@@ -8,6 +8,7 @@ import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views import View
@@ -23,6 +24,7 @@ from apps.personal.forms import (
     DocenteForm,
     EspacioCurricularForm,
     ImportarCSVForm,
+    PlanEstudioForm,
     TipoAutorizacionForm,
 )
 from apps.personal.importer import importar_legajos_csv
@@ -32,6 +34,7 @@ from apps.personal.models import (
     Carrera,
     Docente,
     EspacioCurricular,
+    PlanEstudio,
     TipoAutorizacion,
 )
 
@@ -536,6 +539,8 @@ class CatalogosHubView(SoloAdminInstitucionalMixin, TemplateView):
         context["autorizaciones_activas"] = TipoAutorizacion.objects.filter(
             activo=True
         ).count()
+        context["total_planes"] = PlanEstudio.objects.count()
+        context["planes_activos"] = PlanEstudio.objects.filter(activo=True).count()
         context["total_espacios"] = EspacioCurricular.objects.count()
         return context
 
@@ -630,6 +635,127 @@ class CarreraUpdateView(SoloAdminInstitucionalMixin, AuditoriaFormMixin, UpdateV
             "actualizada con éxito.",
         )
         return response
+
+
+# ==============================================================================
+# Catálogo de Planes de Estudio (Ticket 19.1)
+# ==============================================================================
+
+
+class PlanEstudioListView(SoloAdminInstitucionalMixin, ListView):
+    """
+    Vista de listado para el catálogo de Planes de Estudio (Ticket 19.1).
+    Paginación obligatoria de 25 registros por página.
+    """
+
+    model = PlanEstudio
+    template_name = "personal/catalogos/planestudio_list.html"
+    context_object_name = "planes"
+    paginate_by = 25
+    ordering = ["carrera__codigo", "-anio_implementacion", "nombre"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("carrera")
+        q = self.request.GET.get("q", "").strip()
+        carrera_id = self.request.GET.get("carrera", "").strip()
+        if carrera_id:
+            queryset = queryset.filter(carrera_id=carrera_id)
+        if q:
+            queryset = queryset.filter(
+                Q(nombre__icontains=q)
+                | Q(resolucion__icontains=q)
+                | Q(carrera__nombre__icontains=q)
+                | Q(carrera__codigo__icontains=q)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Catálogo de Planes de Estudio"
+        context["carreras"] = Carrera.objects.filter(activo=True).order_by("nombre")
+        context["carrera_seleccionada"] = self.request.GET.get("carrera", "").strip()
+        context["q"] = self.request.GET.get("q", "").strip()
+        context["total_encontrados"] = (
+            context["paginator"].count
+            if "paginator" in context
+            else context["planes"].count()
+        )
+        return context
+
+
+class PlanEstudioCreateView(
+    SoloAdminInstitucionalMixin, AuditoriaFormMixin, CreateView
+):
+    """
+    Vista para dar de alta un nuevo Plan de Estudio ministerial o institucional.
+    """
+
+    model = PlanEstudio
+    form_class = PlanEstudioForm
+    template_name = "personal/catalogos/catalogo_form.html"
+    success_url = reverse_lazy("personal:planestudio_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Nuevo Plan de Estudio"
+        context["catalogo_nombre"] = "Plan de Estudio"
+        context["list_url"] = reverse_lazy("personal:planestudio_list")
+        context["accion"] = "Registrar Plan de Estudio"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Plan de estudio '{self.object.nombre}' para "
+            f"'{self.object.carrera.nombre}' registrado con éxito.",
+        )
+        return response
+
+
+class PlanEstudioUpdateView(
+    SoloAdminInstitucionalMixin, AuditoriaFormMixin, UpdateView
+):
+    """
+    Vista para actualizar un Plan de Estudio existente.
+    """
+
+    model = PlanEstudio
+    form_class = PlanEstudioForm
+    template_name = "personal/catalogos/catalogo_form.html"
+    success_url = reverse_lazy("personal:planestudio_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = f"Editar Plan de Estudio: {self.object.nombre}"
+        context["catalogo_nombre"] = "Plan de Estudio"
+        context["list_url"] = reverse_lazy("personal:planestudio_list")
+        context["accion"] = "Guardar Cambios"
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Plan de estudio '{self.object.nombre}' actualizado con éxito.",
+        )
+        return response
+
+
+def planes_por_carrera_api(request):
+    """
+    Endpoint JSON que retorna planes activos de una carrera (Ticket 19.1).
+    Uso: GET /personal/api/planes-por-carrera/?carrera_id=1
+    """
+    carrera_id = request.GET.get("carrera_id")
+    if not carrera_id:
+        return JsonResponse({"planes": []})
+    planes = (
+        PlanEstudio.objects.filter(carrera_id=carrera_id, activo=True)
+        .order_by("-anio_implementacion", "nombre")
+        .values("id", "nombre", "resolucion", "anio_implementacion")
+    )
+    return JsonResponse({"planes": list(planes)})
 
 
 # ==============================================================================
@@ -842,7 +968,7 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
     ordering = ["carrera__codigo", "anio", "codigo"]
 
     def get_queryset(self):
-        queryset = super().get_queryset().select_related("carrera")
+        queryset = super().get_queryset().select_related("carrera", "plan_estudio_ref")
         q = self.request.GET.get("q", "").strip()
         if q:
             queryset = queryset.filter(
@@ -850,6 +976,9 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
                 | Q(nombre__icontains=q)
                 | Q(carrera__nombre__icontains=q)
                 | Q(carrera__codigo__icontains=q)
+                | Q(plan_estudio_ref__nombre__icontains=q)
+                | Q(plan_estudio_ref__resolucion__icontains=q)
+                | Q(plan_estudio__icontains=q)
             )
         return queryset
 

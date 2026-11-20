@@ -13,6 +13,7 @@ from apps.personal.models import (
     Carrera,
     Docente,
     EspacioCurricular,
+    PlanEstudio,
     TipoAutorizacion,
 )
 
@@ -490,10 +491,82 @@ class TipoAutorizacionForm(TailwindModelForm):
         return nombre
 
 
+class PlanEstudioForm(TailwindModelForm):
+    """
+    Formulario para el catálogo de Planes de Estudio institucionales (Ticket 19.1).
+    """
+
+    class Meta:
+        model = PlanEstudio
+        fields = [
+            "carrera",
+            "nombre",
+            "resolucion",
+            "anio_implementacion",
+            "activo",
+            "descripcion",
+        ]
+        widgets = {
+            "nombre": forms.TextInput(
+                attrs={"placeholder": "Ej: Plan 2022 o Res. 542/19"}
+            ),
+            "resolucion": forms.TextInput(
+                attrs={"placeholder": "Ej: Res. 542/19 - MECCyT"}
+            ),
+            "anio_implementacion": forms.NumberInput(
+                attrs={"placeholder": "Ej: 2022", "min": 1990, "max": 2100}
+            ),
+            "descripcion": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": (
+                        "Observaciones sobre el plan, incumbencias o transición"
+                    ),
+                }
+            ),
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre", "").strip()
+        if not nombre:
+            raise forms.ValidationError(
+                "El nombre o código del plan de estudio es obligatorio."
+            )
+        return nombre
+
+    def clean(self):
+        cleaned_data = super().clean()
+        carrera = cleaned_data.get("carrera")
+        nombre = cleaned_data.get("nombre")
+        if carrera and nombre:
+            qs = PlanEstudio.objects.filter(
+                carrera=carrera, nombre__iexact=nombre
+            )
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    "nombre",
+                    (
+                        f"Ya existe un plan con el nombre '{nombre}' "
+                        f"para la carrera '{carrera.nombre}'."
+                    ),
+                )
+        return cleaned_data
+
+
 class EspacioCurricularForm(TailwindModelForm):
     """
     Formulario para el catálogo de espacios curriculares / materias.
+    Soporta la asociación formal a Carrera y Plan de Estudio (Ticket 19.1).
     """
+
+    plan_estudio_ref = forms.ModelChoiceField(
+        queryset=PlanEstudio.objects.none(),
+        required=False,
+        label="Plan de Estudio Formal",
+        help_text="Plan curricular al que pertenece la asignatura",
+    )
 
     class Meta:
         model = EspacioCurricular
@@ -501,6 +574,7 @@ class EspacioCurricularForm(TailwindModelForm):
             "codigo",
             "nombre",
             "carrera",
+            "plan_estudio_ref",
             "anio",
             "comision",
             "turno",
@@ -519,7 +593,7 @@ class EspacioCurricularForm(TailwindModelForm):
                 attrs={"placeholder": "Ej: Laboratorio 1"}
             ),
             "plan_estudio": forms.TextInput(
-                attrs={"placeholder": "Ej: Res. 125/20"}
+                attrs={"placeholder": "Texto libre o referencia secundaria"}
             ),
         }
 
@@ -531,6 +605,42 @@ class EspacioCurricularForm(TailwindModelForm):
         self.fields["turno"].initial = "MANANA"
         self.fields["aula"].required = False
         self.fields["plan_estudio"].required = False
+
+        carrera_id = None
+        if "carrera" in self.data:
+            try:
+                carrera_id = int(self.data.get("carrera"))
+            except (ValueError, TypeError):
+                pass
+        elif self.instance and self.instance.pk and self.instance.carrera_id:
+            carrera_id = self.instance.carrera_id
+        elif self.initial.get("carrera"):
+            initial_carrera = self.initial.get("carrera")
+            carrera_id = getattr(initial_carrera, "pk", initial_carrera)
+
+        if carrera_id:
+            self.fields["plan_estudio_ref"].queryset = PlanEstudio.objects.filter(
+                carrera_id=carrera_id, activo=True
+            ).order_by("-anio_implementacion", "nombre")
+        else:
+            self.fields["plan_estudio_ref"].queryset = PlanEstudio.objects.filter(
+                activo=True
+            ).order_by("carrera__codigo", "nombre")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        carrera = cleaned_data.get("carrera")
+        plan_ref = cleaned_data.get("plan_estudio_ref")
+        if plan_ref and carrera:
+            if plan_ref.carrera_id != carrera.id:
+                self.add_error(
+                    "plan_estudio_ref",
+                    (
+                        f"El plan de estudio '{plan_ref.nombre}' no pertenece "
+                        f"a la carrera '{carrera.nombre}'."
+                    ),
+                )
+        return cleaned_data
 
     def clean_codigo(self):
         codigo = self.cleaned_data.get("codigo", "").strip().upper()

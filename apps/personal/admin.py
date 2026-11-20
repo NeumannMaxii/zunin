@@ -10,6 +10,7 @@ from apps.personal.models import (
     Carrera,
     Docente,
     EspacioCurricular,
+    PlanEstudio,
     TipoAutorizacion,
 )
 
@@ -20,6 +21,14 @@ class CarreraAdmin(admin.ModelAdmin):
     list_filter = ("activo",)
     search_fields = ("codigo", "nombre")
     ordering = ("nombre",)
+
+
+@admin.register(PlanEstudio)
+class PlanEstudioAdmin(admin.ModelAdmin):
+    list_display = ("carrera", "nombre", "resolucion", "anio_implementacion", "activo")
+    list_filter = ("activo", "carrera")
+    search_fields = ("nombre", "resolucion", "carrera__nombre", "carrera__codigo")
+    ordering = ("carrera__codigo", "-anio_implementacion", "nombre")
 
 
 @admin.register(CargoCatalogo)
