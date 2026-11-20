@@ -97,3 +97,44 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selectCarrera = document.getElementById("id_carrera");
+    const selectPlan = document.getElementById("id_plan_estudio_ref");
+
+    if (selectCarrera && selectPlan) {
+        selectCarrera.addEventListener("change", function () {
+            const carreraId = this.value;
+            const currentPlanId = selectPlan.value;
+
+            if (!carreraId) {
+                selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
+                return;
+            }
+
+            fetch("{% url 'personal:api_planes_por_carrera' %}?carrera_id=" + carreraId)
+                .then(response => response.json())
+                .then(data => {
+                    selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
+                    if (data.planes && data.planes.length > 0) {
+                        data.planes.forEach(plan => {
+                            const opt = document.createElement("option");
+                            opt.value = plan.id;
+                            const resText = plan.resolucion ? ` (${plan.resolucion})` : "";
+                            opt.textContent = `${plan.nombre}${resText}`;
+                            if (String(plan.id) === String(currentPlanId)) {
+                                opt.selected = true;
+                            }
+                            selectPlan.appendChild(opt);
+                        });
+                    }
+                })
+                .catch(err => console.error("Error al cargar planes de estudio:", err));
+        });
+    }
+});
+</script>
+{% endblock %}
+

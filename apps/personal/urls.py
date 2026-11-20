@@ -161,4 +161,25 @@ urlpatterns = [
         views.EspacioCurricularUpdateView.as_view(),
         name="espaciocurricular_update",
     ),
+    # Planes de Estudio (Ticket 19.1)
+    path(
+        "catalogos/planes/",
+        views.PlanEstudioListView.as_view(),
+        name="planestudio_list",
+    ),
+    path(
+        "catalogos/planes/crear/",
+        views.PlanEstudioCreateView.as_view(),
+        name="planestudio_create",
+    ),
+    path(
+        "catalogos/planes/<int:pk>/editar/",
+        views.PlanEstudioUpdateView.as_view(),
+        name="planestudio_update",
+    ),
+    path(
+        "api/planes-por-carrera/",
+        views.planes_por_carrera_api,
+        name="api_planes_por_carrera",
+    ),
 ]

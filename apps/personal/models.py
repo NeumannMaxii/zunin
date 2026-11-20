@@ -28,6 +28,73 @@ class Carrera(models.Model):
         return f"{self.codigo} - {self.nombre}"
 
 
+class PlanEstudio(models.Model):
+    """
+    Plan de Estudio ministerial o institucional formalmente asociado a una Carrera.
+    Contempla la evolución curricular en el tiempo (Ticket 19.1).
+    """
+
+    carrera = models.ForeignKey(
+        Carrera,
+        on_delete=models.PROTECT,
+        related_name="planes_estudio",
+        verbose_name="Carrera",
+        help_text="Carrera o tecnicatura a la que pertenece este plan curricular",
+    )
+    nombre = models.CharField(
+        max_length=150,
+        verbose_name="Nombre / Código del Plan",
+        help_text="Ej: Plan 2018, Plan 2022, Res. 542/19",
+    )
+    resolucion = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Resolución de Aprobación",
+        help_text=(
+            "Acto administrativo ministerial de aprobación "
+            "(ej: Res. 542/19 - MECCyT)"
+        ),
+    )
+    anio_implementacion = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Año de Implementación",
+        help_text="Año calendario de entrada en vigencia en el instituto",
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Activo",
+        help_text="Indica si el plan de estudio continúa con cohortes o cursado activo",
+    )
+    descripcion = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Descripción / Observaciones",
+        help_text=(
+            "Observaciones sobre incumbencias, régimen de transición "
+            "o equivalencias"
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Plan de Estudio"
+        verbose_name_plural = "Planes de Estudio"
+        ordering = ["carrera__codigo", "-anio_implementacion", "nombre"]
+        db_table = "gestion_asistencia_planestudio"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["carrera", "nombre"],
+                name="unique_plan_estudio_por_carrera",
+            )
+        ]
+
+    def __str__(self):
+        res_str = f" ({self.resolucion})" if self.resolucion else ""
+        carrera_cod = self.carrera.codigo if self.carrera else "S/C"
+        return f"{carrera_cod} - {self.nombre}{res_str}"
+
+
 class CargoCatalogo(models.Model):
     """Catálogo administrable de cargos o funciones docentes."""
 
@@ -364,6 +431,18 @@ class EspacioCurricular(models.Model):
         null=True,
         verbose_name="Plan de Estudio",
     )
+    plan_estudio_ref = models.ForeignKey(
+        PlanEstudio,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="espacios_curriculares",
+        verbose_name="Plan de Estudio Formal",
+        help_text=(
+            "Plan de estudio ministerial al que pertenece "
+            "formalmente la materia (Ticket 19.1)"
+        ),
+    )
     fecha_creacion = models.DateTimeField(
         auto_now_add=True, verbose_name="Fecha de Creación"
     )
@@ -399,11 +478,44 @@ class EspacioCurricular(models.Model):
             kwargs["carrera"] = carrera_obj
         super().__init__(*args, **kwargs)
 
+    def clean(self):
+        super().clean()
+        if self.plan_estudio_ref_id and self.carrera_id:
+            if self.plan_estudio_ref.carrera_id != self.carrera_id:
+                raise ValidationError({
+                    "plan_estudio_ref": (
+                        f"El Plan de Estudio '{self.plan_estudio_ref.nombre}' "
+                        f"no pertenece a la carrera seleccionada "
+                        f"'{self.carrera.nombre}'."
+                    )
+                })
+
+    def save(self, *args, **kwargs):
+        if self.plan_estudio_ref_id:
+            self.plan_estudio = self.plan_estudio_ref.nombre
+        elif self.plan_estudio and self.carrera_id and not self.plan_estudio_ref_id:
+            plan_obj = PlanEstudio.objects.filter(
+                carrera_id=self.carrera_id,
+                nombre__iexact=self.plan_estudio.strip(),
+            ).first()
+            if plan_obj:
+                self.plan_estudio_ref = plan_obj
+        super().save(*args, **kwargs)
+
     def __str__(self):
         carrera_nom = (
             getattr(self.carrera, "nombre", str(self.carrera)) if self.carrera else ""
         )
-        return f"{self.codigo} - {self.nombre} ({carrera_nom} - {self.anio}° Año)"
+        if self.plan_estudio_ref:
+            plan_str = f" [{self.plan_estudio_ref.nombre}]"
+        elif self.plan_estudio:
+            plan_str = f" [{self.plan_estudio}]"
+        else:
+            plan_str = ""
+        return (
+            f"{self.codigo} - {self.nombre} "
+            f"({carrera_nom} - {self.anio}° Año){plan_str}"
+        )
 
 
 TURNO_CHOICES = EspacioCurricular.TURNO_CHOICES
