@@ -117,11 +117,57 @@
                     </div>
                 </div>
 
-                <!-- Sección 3: Datos Administrativos e Instrumento -->
+                <!-- Sección 3: Impacto Automático por Materia según Situación de Revista (Ticket 19.2) -->
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
+                            <h2 class="text-base font-semibold text-slate-900">3. Impacto Operativo según Situación de Revista</h2>
+                        </div>
+                        <span id="badge-total-materias" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">0 Materias</span>
+                    </div>
+                    <p class="text-xs text-slate-500">
+                        Evaluación automática por materia según normativa estatutaria (Ley 647-E). Se cruza el artículo con la situación de revista (<span class="font-semibold text-slate-700">Titular, Interino, Suplente</span>) para determinar la justificación y marca de asistencia diaria.
+                    </p>
+
+                    <!-- Estado Vacío -->
+                    <div id="impacto-revista-empty" class="p-4 rounded-xl bg-white border border-slate-200 text-center text-xs text-slate-500">
+                        Seleccione docente y causal estatutaria para previsualizar el impacto operativo en cada materia que dicta.
+                    </div>
+
+                    <!-- Tabla de Materias Afectadas -->
+                    <div id="impacto-revista-container" class="hidden space-y-3">
+                        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                            <table class="min-w-full divide-y divide-slate-200 text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-semibold text-left">
+                                    <tr>
+                                        <th class="px-3.5 py-2.5">Materia / Carrera</th>
+                                        <th class="px-3 py-2.5">Situación Revista</th>
+                                        <th class="px-3 py-2.5">Impacto en Asistencia</th>
+                                        <th class="px-3.5 py-2.5">Detalle Normativo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="impacto-revista-tbody" class="divide-y divide-slate-100">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Alerta Contextual si hay materias no aplicables -->
+                        <div id="impacto-alerta-incompatibilidad" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start space-x-2">
+                            <span class="text-base leading-none">⚠️</span>
+                            <div>
+                                <strong class="font-semibold">Resumen Operativo para Bedelía:</strong>
+                                <span id="impacto-alerta-msg">El docente dicta materias en situación de revista no habilitadas para este artículo. Se registrará la licencia con goce únicamente en las materias habilitadas; las restantes quedarán exceptuadas sin goce / ausentes.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 4: Datos Administrativos e Instrumento -->
                 <div>
                     <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
-                        <span>3. Estado e Instrumento Legal</span>
+                        <span>4. Estado e Instrumento Legal</span>
                     </h2>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div class="space-y-1.5">
@@ -322,6 +368,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const alertOk = document.getElementById('alert-ok');
     const alertOkMsg = document.getElementById('alert-ok-msg');
 
+    // Elementos Sección Impacto por Revista (Ticket 19.2)
+    const impactoEmpty = document.getElementById('impacto-revista-empty');
+    const impactoContainer = document.getElementById('impacto-revista-container');
+    const impactoTbody = document.getElementById('impacto-revista-tbody');
+    const badgeTotalMaterias = document.getElementById('badge-total-materias');
+    const impactoAlerta = document.getElementById('impacto-alerta-incompatibilidad');
+    const impactoAlertaMsg = document.getElementById('impacto-alerta-msg');
+
     let debounceTimer = null;
     let estadoValidacion = {
         bloqueado: false,
@@ -405,7 +459,100 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // 3. Validación y Cálculo de Saldos en Tiempo Real
+    // 3. Impacto Automático por Materia según Situación de Revista (Ticket 19.2)
+    async function actualizarImpactoPorRevista(docenteId, tipoLicenciaId, fechaDesde, fechaHasta, cargoId) {
+        if (!docenteId || !tipoLicenciaId) {
+            if (impactoEmpty) impactoEmpty.classList.remove('hidden');
+            if (impactoContainer) impactoContainer.classList.add('hidden');
+            if (badgeTotalMaterias) badgeTotalMaterias.textContent = '0 Materias';
+            return;
+        }
+
+        let url = `/api/licencias/evaluar-impacto-revista/?docente=${docenteId}&tipo_licencia=${tipoLicenciaId}`;
+        if (fechaDesde) url += `&fecha_desde=${fechaDesde}`;
+        if (fechaHasta) url += `&fecha_hasta=${fechaHasta}`;
+        if (cargoId) url += `&cargo=${cargoId}`;
+
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.status === 'success') {
+                if (badgeTotalMaterias) {
+                    badgeTotalMaterias.textContent = `${data.resumen.total} Materia${data.resumen.total !== 1 ? 's' : ''}`;
+                }
+
+                if (!data.cargos || data.cargos.length === 0) {
+                    if (impactoEmpty) impactoEmpty.classList.remove('hidden');
+                    if (impactoContainer) impactoContainer.classList.add('hidden');
+                    return;
+                }
+
+                if (impactoEmpty) impactoEmpty.classList.add('hidden');
+                if (impactoContainer) impactoContainer.classList.remove('hidden');
+
+                if (impactoTbody) {
+                    impactoTbody.innerHTML = '';
+                    data.cargos.forEach(c => {
+                        const tr = document.createElement('tr');
+                        tr.className = c.aplica ? 'hover:bg-emerald-50/40 transition-colors' : 'hover:bg-rose-50/40 bg-rose-50/20 transition-colors';
+
+                        // Badge Revista
+                        let badgeRevistaClass = 'bg-slate-100 text-slate-700';
+                        if (c.situacion_revista === 'TIT') badgeRevistaClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                        else if (c.situacion_revista === 'INT') badgeRevistaClass = 'bg-blue-100 text-blue-800 border border-blue-200';
+                        else if (c.situacion_revista === 'SUP') badgeRevistaClass = 'bg-amber-100 text-amber-800 border border-amber-200';
+
+                        // Badge Impacto
+                        let badgeImpactoHtml = '';
+                        if (c.aplica) {
+                            badgeImpactoHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-500"></span>${c.mensaje} (LIC)
+                            </span>`;
+                        } else {
+                            badgeImpactoHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
+                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-rose-500"></span>${c.mensaje} (AUSENTE)
+                            </span>`;
+                        }
+
+                        tr.innerHTML = `
+                            <td class="px-3.5 py-2.5 font-medium text-slate-900">
+                                <div>${c.materia}</div>
+                                ${c.carrera ? `<div class="text-[10px] text-slate-500 font-normal">${c.carrera}</div>` : ''}
+                            </td>
+                            <td class="px-3 py-2.5 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${badgeRevistaClass}">
+                                    ${c.situacion_revista_display}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2.5 whitespace-nowrap">
+                                ${badgeImpactoHtml}
+                            </td>
+                            <td class="px-3.5 py-2.5 text-slate-600">
+                                ${c.detalle || '—'}
+                            </td>
+                        `;
+                        impactoTbody.appendChild(tr);
+                    });
+                }
+
+                if (impactoAlerta) {
+                    if (data.resumen.tiene_incompatibilidad) {
+                        impactoAlerta.classList.remove('hidden');
+                        if (impactoAlertaMsg) {
+                            impactoAlertaMsg.textContent = `El docente posee ${data.resumen.no_aplicables} materia(s) en situación de revista que no habilitan este artículo. En esas materias no se asignará licencia con goce (se registrará inasistencia).`;
+                        }
+                    } else {
+                        impactoAlerta.classList.add('hidden');
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Error al evaluar impacto por situación de revista:', err);
+        }
+    }
+
+    // 4. Validación y Cálculo de Saldos en Tiempo Real
     async function validarEnTiempoReal() {
         const docenteId = docenteSelect ? docenteSelect.value : '';
         const cargoId = cargoSelect ? cargoSelect.value : '';
@@ -418,6 +565,9 @@ document.addEventListener('DOMContentLoaded', function () {
         alertTope.classList.add('hidden');
         alertAntiguedad.classList.add('hidden');
         alertOk.classList.add('hidden');
+
+        // Actualizar desglose operativo de materias según situación de revista
+        actualizarImpactoPorRevista(docenteId, tipoLicenciaId, fechaDesde, fechaHasta, cargoId);
 
         if (!tipoLicenciaId || !fechaDesde) {
             valDiasRestantes.textContent = '—';

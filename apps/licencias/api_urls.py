@@ -7,6 +7,7 @@ from apps.licencias.views import (
     AutocompletarLicenciaAPIView,
     CalcularFechasLicenciaAPIView,
     DocenteCargosAPIView,
+    EvaluarImpactoRevistaAPIView,
     TiposLicenciaPorRegimenAPIView,
     ValidarAntiguedadLicenciaAPIView,
     ValidarRegimenLicenciaAPIView,
@@ -96,5 +97,15 @@ urlpatterns = [
         "licencias/tipos-por-regimen/",
         TiposLicenciaPorRegimenAPIView.as_view(),
         name="licencias_tipos_por_regimen",
+    ),
+    path(
+        "evaluar-impacto-revista/",
+        EvaluarImpactoRevistaAPIView.as_view(),
+        name="evaluar_impacto_revista",
+    ),
+    path(
+        "licencias/evaluar-impacto-revista/",
+        EvaluarImpactoRevistaAPIView.as_view(),
+        name="licencias_evaluar_impacto_revista",
     ),
 ]

@@ -969,3 +969,179 @@ def validar_solicitud_licencia(
             instancia_actual=instancia_actual,
         )
     return True
+
+
+def evaluar_impacto_licencia_por_revista(
+    docente: Any,
+    tipo_licencia: Any,
+    fecha_desde: Optional[Any] = None,
+    fecha_hasta: Optional[Any] = None,
+    cargo: Optional[Any] = None,
+) -> list:
+    """
+    Ticket 19.2: Evalúa el impacto de una solicitud de licencia para cada uno
+    de los cargos vigentes que dicta el docente, cruzando el tipo de licencia
+    (artículo) con la situación de revista (Titular, Interino, Suplente)
+    y los requisitos normativos (antigüedad, topes) según Ley 647-E.
+    """
+    if docente is None and cargo is not None:
+        docente = getattr(cargo, "docente", None)
+
+    docente_id = _extraer_id_docente(docente)
+    docente_obj = docente if hasattr(docente, "cargos") else None
+    if not docente_obj and docente_id:
+        from apps.personal.models import Docente
+
+        docente_obj = Docente.objects.filter(pk=docente_id).first()
+
+    tipo_obj = tipo_licencia
+    if tipo_licencia is not None:
+        if isinstance(tipo_licencia, int) or (
+            isinstance(tipo_licencia, str) and str(tipo_licencia).isdigit()
+        ):
+            from apps.licencias.models import TipoLicencia
+
+            tipo_obj = TipoLicencia.objects.filter(pk=int(tipo_licencia)).first()
+        elif isinstance(tipo_licencia, str):
+            from apps.licencias.models import TipoLicencia
+
+            tipo_obj = TipoLicencia.objects.filter(codigo=tipo_licencia).first()
+
+    cargos = []
+    if cargo is not None:
+        if isinstance(cargo, int) or (
+            isinstance(cargo, str) and str(cargo).isdigit()
+        ):
+            from apps.personal.models import CargoDocente
+
+            c_obj = CargoDocente.objects.filter(pk=int(cargo)).first()
+            if c_obj:
+                cargos = [c_obj]
+        elif hasattr(cargo, "situacion_revista"):
+            cargos = [cargo]
+
+    if not cargos and docente_obj:
+        cargos = list(
+            docente_obj.cargos.filter(activo=True).select_related(
+                "materia", "materia__carrera"
+            )
+        )
+        if not cargos:
+            cargos = list(
+                docente_obj.cargos.all().select_related(
+                    "materia", "materia__carrera"
+                )
+            )
+
+    resultados = []
+    articulo_label = (
+        getattr(tipo_obj, "articulo", "")
+        or getattr(tipo_obj, "codigo", "Licencia")
+        if tipo_obj
+        else "Licencia"
+    )
+
+    for c in cargos:
+        revista_raw = getattr(c, "situacion_revista", "")
+        regimen_norm = normalizar_regimen(revista_raw) or REGIMEN_TIT
+        revista_disp = (
+            c.get_situacion_revista_display()
+            if hasattr(c, "get_situacion_revista_display")
+            else str(revista_raw)
+        )
+        materia_obj = getattr(c, "materia", None)
+        materia_nom = materia_obj.nombre if materia_obj else str(c)
+        carrera_nom = (
+            materia_obj.carrera.nombre
+            if (materia_obj and getattr(materia_obj, "carrera", None))
+            else ""
+        )
+
+        permitidos = (
+            obtener_regimenes_permitidos(tipo_obj)
+            if tipo_obj
+            else set(TODOS_LOS_REGIMENES)
+        )
+
+        if regimen_norm not in permitidos:
+            nombres_permitidos = [
+                REGIMEN_NOMBRES.get(r, r) for r in sorted(permitidos)
+            ]
+            aplica = False
+            mensaje = "No aplica por situación de revista"
+            detalle = (
+                f"Régimen {revista_disp} ({regimen_norm}) no habilitado "
+                f"estatutariamente para el Art. {articulo_label}. "
+                f"Habilitado únicamente para: {', '.join(nombres_permitidos)}."
+            )
+            tope_reducido = False
+        else:
+            aplica = True
+            mensaje = f"Aplica Licencia Art. {articulo_label}"
+            detalle = f"Habilitado estatutariamente para régimen {revista_disp}."
+            tope_reducido = False
+            if tipo_obj:
+                try:
+                    validar_antiguedad_minima(
+                        tipo_licencia=tipo_obj,
+                        docente=docente_obj,
+                        cargo=c,
+                        fecha_desde=fecha_desde,
+                        fecha_hasta=fecha_hasta,
+                    )
+                    info_tope = obtener_tope_efectivo_licencia(
+                        tipo_licencia=tipo_obj,
+                        cargo=c,
+                        docente=docente_obj,
+                        fecha_referencia=fecha_desde,
+                    )
+                    if info_tope.get("tope_reducido"):
+                        tope_reducido = True
+                        antig = info_tope.get("antiguedad_meses", 0)
+                        tope_d = info_tope.get("tope_dias", 0)
+                        detalle = (
+                            f"Aplica con tope reducido a {tope_d} días "
+                            f"(registra {antig} meses de antigüedad en este cargo)."
+                        )
+                except ValidationError as err:
+                    aplica = False
+                    mensaje = "No aplica por situación de revista"
+                    detalle = (
+                        err.messages[0]
+                        if hasattr(err, "messages")
+                        else str(err)
+                    )
+
+        if aplica:
+            estado_asistencia = "LICENCIA"
+            marca_diaria = "LIC"
+            if tipo_obj:
+                cod = str(getattr(tipo_obj, "codigo", "")).upper()
+                cuadro = str(getattr(tipo_obj, "cuadro_mensual", "")).upper()
+                if "LT" in cod or cuadro == "IL-02":
+                    marca_diaria = "LT"
+            justifica = True
+        else:
+            estado_asistencia = "AUSENTE"
+            marca_diaria = "I"
+            justifica = False
+
+        resultados.append(
+            {
+                "cargo_id": c.pk,
+                "cargo_str": str(c),
+                "materia": materia_nom,
+                "carrera": carrera_nom,
+                "situacion_revista": regimen_norm,
+                "situacion_revista_display": revista_disp,
+                "aplica": aplica,
+                "estado_asistencia": estado_asistencia,
+                "marca_diaria": marca_diaria,
+                "justifica": justifica,
+                "mensaje": mensaje,
+                "detalle": detalle,
+                "tope_reducido": tope_reducido,
+            }
+        )
+
+    return resultados

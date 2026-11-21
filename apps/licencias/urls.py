@@ -161,6 +161,17 @@ urlpatterns = [
         views.TiposLicenciaPorRegimenAPIView.as_view(),
         name="tipos_por_regimen",
     ),
+    # API Evaluación de Impacto por Situación de Revista (Ticket 19.2)
+    path(
+        "api/evaluar-impacto-revista/",
+        views.EvaluarImpactoRevistaAPIView.as_view(),
+        name="api_evaluar_impacto_revista",
+    ),
+    path(
+        "evaluar-impacto-revista/",
+        views.EvaluarImpactoRevistaAPIView.as_view(),
+        name="evaluar_impacto_revista",
+    ),
     # Vistas de Saldos por Docente (Ticket 18.2)
     path(
         "saldos/",
