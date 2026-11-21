@@ -39,6 +39,7 @@ from apps.licencias.validaciones import (  # noqa: F401
     calcular_saldo_licencia,
     es_licencia_enfermedad_comun,
     es_regimen_compatible,
+    evaluar_impacto_licencia_por_revista,
     filtrar_tipos_licencia_por_regimen,
     normalizar_regimen,
     obtener_fecha_alta_docente,
@@ -557,6 +558,43 @@ def procesar_justificacion_rango(
             )
 
             for target_cargo in cargos_a_procesar:
+                # Ticket 19.2: Evaluar si la situación de revista habilita la licencia
+                cargo_aplica = True
+                detalle_no_aplica = ""
+                if nueva_marca in ["LIC", "LIC.", "LT"] and tipo_licencia:
+                    eval_impacto = evaluar_impacto_licencia_por_revista(
+                        docente=docente,
+                        tipo_licencia=tipo_licencia,
+                        fecha_desde=dia,
+                        fecha_hasta=dia,
+                        cargo=target_cargo,
+                    )
+                    if eval_impacto:
+                        cargo_aplica = eval_impacto[0]["aplica"]
+                        detalle_no_aplica = eval_impacto[0].get("detalle", "")
+
+                if cargo_aplica:
+                    estado_final = estado_destino
+                    marca_final = nueva_marca
+                    tipo_lic_final = tipo_licencia
+                    justifica_final = True
+                    obs_final = observaciones
+                else:
+                    estado_final = "AUSENTE"
+                    marca_final = "I"
+                    tipo_lic_final = None
+                    justifica_final = False
+                    tag_no_aplica = (
+                        f"NO APLICA LICENCIA "
+                        f"({target_cargo.get_situacion_revista_display()}): "
+                        f"{detalle_no_aplica}"
+                    )
+                    obs_final = (
+                        f"{observaciones} | {tag_no_aplica}"
+                        if observaciones
+                        else tag_no_aplica
+                    )
+
                 # Buscar registro existente exacto o pendiente de asignar
                 reg = asistencias_por_cargo_y_fecha.get((target_cargo.id, dia))
                 if reg is None:
@@ -569,19 +607,19 @@ def procesar_justificacion_rango(
                 if reg is not None:
                     registros_usados_ids.add(reg.pk)
                     reg.cargo = target_cargo
-                    reg.estado = estado_destino
-                    reg.marca_diaria = nueva_marca
-                    reg.tipo_licencia = tipo_licencia
-                    reg.justifica = True
+                    reg.estado = estado_final
+                    reg.marca_diaria = marca_final
+                    reg.tipo_licencia = tipo_lic_final
+                    reg.justifica = justifica_final
                     if num_final:
                         reg.numero_disposicion = num_final
-                    if observaciones:
+                    if obs_final:
                         if reg.observaciones:
                             reg.observaciones = (
-                                f"{reg.observaciones} | {observaciones}"
+                                f"{reg.observaciones} | {obs_final}"
                             )
                         else:
-                            reg.observaciones = observaciones
+                            reg.observaciones = obs_final
                     audit_save(reg, user=usuario, created=False)
                     registros_guardados.append(reg)
                 else:
@@ -589,12 +627,12 @@ def procesar_justificacion_rango(
                         docente=docente,
                         cargo=target_cargo,
                         fecha=dia,
-                        estado=estado_destino,
-                        marca_diaria=nueva_marca,
-                        tipo_licencia=tipo_licencia,
-                        justifica=True,
+                        estado=estado_final,
+                        marca_diaria=marca_final,
+                        tipo_licencia=tipo_lic_final,
+                        justifica=justifica_final,
                         numero_disposicion=num_final,
-                        observaciones=observaciones or "",
+                        observaciones=obs_final or "",
                         oficina=getattr(settings, "DEFAULT_OFICINA_CODE", "1452"),
                     )
                     audit_save(nuevo_reg, user=usuario, created=True)
@@ -726,8 +764,27 @@ def sincronizar_licencia_con_asistencia(licencia, usuario=None):
     meses_afectados = set()
 
     with transaction.atomic():
+        # Ticket 19.2: Evaluar impacto normativo según situación de revista
+        # de cada cargo
+        evaluaciones = {
+            ev["cargo_id"]: ev
+            for ev in evaluar_impacto_licencia_por_revista(
+                docente=docente,
+                tipo_licencia=licencia.tipo_licencia,
+                fecha_desde=licencia.fecha_desde,
+                fecha_hasta=licencia.fecha_hasta_prevista,
+                cargo=licencia.cargo,
+            )
+        }
+
         for cargo in cargos:
             dias_a_sincronizar = obtener_dias_sincronizacion_licencia(licencia, cargo)
+            eval_cargo = evaluaciones.get(cargo.pk)
+            cargo_aplica = eval_cargo["aplica"] if eval_cargo else True
+            detalle_no_aplica = (
+                eval_cargo.get("detalle", "") if eval_cargo else ""
+            )
+
             for dia in dias_a_sincronizar:
                 meses_afectados.add((dia.month, dia.year))
                 reg = RegistroAsistencia.objects.filter(
@@ -736,39 +793,78 @@ def sincronizar_licencia_con_asistencia(licencia, usuario=None):
                     fecha=dia,
                 ).first()
 
-                if reg:
-                    # Si ya existía, respaldamos su marca previa en observaciones
-                    obs = reg.observaciones or ""
-                    if "PREV_MARCA:" not in obs:
-                        prev_info = (
-                            f"PREV_ESTADO:{reg.estado}|PREV_MARCA:{reg.marca_diaria}"
+                if cargo_aplica:
+                    # Aplica la licencia con goce de haberes
+                    if reg:
+                        obs = reg.observaciones or ""
+                        if "PREV_MARCA:" not in obs:
+                            prev_info = (
+                                f"PREV_ESTADO:{reg.estado}|"
+                                f"PREV_MARCA:{reg.marca_diaria}"
+                            )
+                            reg.observaciones = (
+                                f"{prev_info} | {obs}" if obs else prev_info
+                            )
+                        reg.estado = "LICENCIA"
+                        reg.marca_diaria = marca
+                        reg.tipo_licencia = licencia.tipo_licencia
+                        reg.justifica = True
+                        if licencia.instrumento_legal:
+                            reg.numero_disposicion = licencia.instrumento_legal
+                        if usuario:
+                            reg.modificado_por = usuario
+                        reg.save()
+                        registros_actualizados.append(reg)
+                    else:
+                        nuevo_reg = RegistroAsistencia(
+                            docente=docente,
+                            cargo=cargo,
+                            fecha=dia,
+                            estado="LICENCIA",
+                            marca_diaria=marca,
+                            tipo_licencia=licencia.tipo_licencia,
+                            justifica=True,
+                            numero_disposicion=licencia.instrumento_legal or "",
+                            observaciones=f"AUTO_SYNC_LICENCIA:{licencia.pk}",
+                            creado_por=usuario or licencia.creado_por,
                         )
-                        reg.observaciones = f"{prev_info} | {obs}" if obs else prev_info
-                    reg.estado = "LICENCIA"
-                    reg.marca_diaria = marca
-                    reg.tipo_licencia = licencia.tipo_licencia
-                    reg.justifica = True
-                    if licencia.instrumento_legal:
-                        reg.numero_disposicion = licencia.instrumento_legal
-                    if usuario:
-                        reg.modificado_por = usuario
-                    reg.save()
-                    registros_actualizados.append(reg)
+                        nuevo_reg.save()
+                        registros_actualizados.append(nuevo_reg)
                 else:
-                    nuevo_reg = RegistroAsistencia(
-                        docente=docente,
-                        cargo=cargo,
-                        fecha=dia,
-                        estado="LICENCIA",
-                        marca_diaria=marca,
-                        tipo_licencia=licencia.tipo_licencia,
-                        justifica=True,
-                        numero_disposicion=licencia.instrumento_legal or "",
-                        observaciones=f"AUTO_SYNC_LICENCIA:{licencia.pk}",
-                        creado_por=usuario or licencia.creado_por,
+                    # Ticket 19.2: No aplica por situación de revista
+                    tag_no_aplica = (
+                        f"NO_APLICA_REVISTA:{cargo.situacion_revista}|"
+                        f"LIC:{licencia.tipo_licencia.codigo}|{detalle_no_aplica}"
                     )
-                    nuevo_reg.save()
-                    registros_actualizados.append(nuevo_reg)
+                    if reg:
+                        reg.estado = "AUSENTE"
+                        reg.marca_diaria = "I"
+                        reg.tipo_licencia = None
+                        reg.justifica = False
+                        reg.observaciones = (
+                            f"{reg.observaciones} | {tag_no_aplica}"
+                            if reg.observaciones
+                            else tag_no_aplica
+                        )
+                        if usuario:
+                            reg.modificado_por = usuario
+                        reg.save()
+                        registros_actualizados.append(reg)
+                    else:
+                        nuevo_reg = RegistroAsistencia(
+                            docente=docente,
+                            cargo=cargo,
+                            fecha=dia,
+                            estado="AUSENTE",
+                            marca_diaria="I",
+                            tipo_licencia=None,
+                            justifica=False,
+                            numero_disposicion=licencia.instrumento_legal or "",
+                            observaciones=tag_no_aplica,
+                            creado_por=usuario or licencia.creado_por,
+                        )
+                        nuevo_reg.save()
+                        registros_actualizados.append(nuevo_reg)
 
         # Regla de Integridad Histórica RN-03:
         for mes, anio in meses_afectados:

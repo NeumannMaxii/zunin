@@ -1581,6 +1581,128 @@ class TiposLicenciaPorRegimenAPIView(View):
 tipos_licencia_por_regimen_api = TiposLicenciaPorRegimenAPIView.as_view()
 
 
+class EvaluarImpactoRevistaAPIView(View):
+    """
+    Ticket 19.2: Endpoint API para evaluar el impacto y desglose operativo
+    de una licencia por materia y situación de revista antes de confirmar.
+    Ruta: GET o POST /api/licencias/evaluar-impacto-revista/
+    """
+
+    def _procesar(self, params):
+        docente_param = params.get("docente") or params.get("docente_id")
+        tipo_param = (
+            params.get("tipo_licencia")
+            or params.get("tipo_id")
+            or params.get("codigo")
+        )
+        cargo_param = params.get("cargo") or params.get("cargo_id")
+        fecha_desde = params.get("fecha_desde")
+        fecha_hasta = params.get("fecha_hasta")
+
+        if not docente_param:
+            return JsonResponse(
+                {"status": "error", "error": "Parámetro 'docente' obligatorio."},
+                status=400,
+            )
+
+        if not tipo_param:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": "Parámetro 'tipo_licencia' obligatorio.",
+                },
+                status=400,
+            )
+
+        from apps.licencias.validaciones import (
+            evaluar_impacto_licencia_por_revista,
+        )
+        from apps.licencias.models import TipoLicencia
+        from apps.personal.models import Docente
+
+        doc_obj = (
+            Docente.objects.filter(pk=int(docente_param)).first()
+            if str(docente_param).isdigit()
+            else None
+        )
+        if not doc_obj:
+            return JsonResponse(
+                {"status": "error", "error": "Docente no encontrado."},
+                status=404,
+            )
+
+        tipo_obj = None
+        if str(tipo_param).isdigit():
+            tipo_obj = TipoLicencia.objects.filter(pk=int(tipo_param)).first()
+        else:
+            tipo_obj = TipoLicencia.objects.filter(codigo=tipo_param).first()
+
+        if not tipo_obj:
+            return JsonResponse(
+                {"status": "error", "error": "Tipo de licencia no encontrado."},
+                status=404,
+            )
+
+        cargo_id = (
+            int(cargo_param)
+            if (cargo_param and str(cargo_param).isdigit())
+            else None
+        )
+
+        cargos_evaluados = evaluar_impacto_licencia_por_revista(
+            docente=doc_obj,
+            tipo_licencia=tipo_obj,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            cargo=cargo_id,
+        )
+
+        total_cargos = len(cargos_evaluados)
+        aplicables = sum(1 for c in cargos_evaluados if c["aplica"])
+        no_aplicables = total_cargos - aplicables
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "docente": {
+                    "id": doc_obj.id,
+                    "nombre_completo": str(doc_obj),
+                },
+                "tipo_licencia": {
+                    "id": tipo_obj.id,
+                    "codigo": tipo_obj.codigo,
+                    "articulo": tipo_obj.articulo,
+                },
+                "cargos": cargos_evaluados,
+                "resumen": {
+                    "total": total_cargos,
+                    "aplicables": aplicables,
+                    "no_aplicables": no_aplicables,
+                    "todas_aplican": no_aplicables == 0,
+                    "tiene_incompatibilidad": no_aplicables > 0,
+                },
+            },
+            status=200,
+        )
+
+    def get(self, request, *args, **kwargs):
+        return self._procesar(request.GET)
+
+    def post(self, request, *args, **kwargs):
+        data = request.POST or {}
+        if not data and request.body:
+            import json
+
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = {}
+        return self._procesar(data)
+
+
+evaluar_impacto_revista_api = EvaluarImpactoRevistaAPIView.as_view()
+
+
 class DocenteSaldosView(LoginRequiredMixin, View):
     """
     Ticket 18.2: Vista institucional para la visualización integral de
