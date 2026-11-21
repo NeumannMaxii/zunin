@@ -315,35 +315,50 @@
                             </div>
                         </td>
 
-                        <!-- Selector de Tipo Licencia por Renglón -->
+                        <!-- Licencia Estatutaria por Renglón -->
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="text-xs mb-1.5 flex items-center space-x-1">
-                                <span class="font-mono font-bold text-institucional-700">{{ r.tipo_licencia.codigo }}</span>
-                                {% if r.tipo_licencia.articulo %}
-                                    <span class="text-slate-600 font-medium">({{ r.tipo_licencia.articulo }})</span>
-                                {% endif %}
-                                {% if r.tipo_licencia.forma_pago == 'CON_GOCE' %}
-                                    <span class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1 rounded border border-emerald-200">Con Goce</span>
-                                {% elif r.tipo_licencia.forma_pago == 'SIN_GOCE' %}
-                                    <span class="text-[10px] text-rose-700 font-semibold bg-rose-50 px-1 rounded border border-rose-200">Sin Goce</span>
-                                {% endif %}
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-mono font-bold text-xs text-institucional-700">{{ r.tipo_licencia.codigo }}</span>
+                                    {% if r.tipo_licencia.articulo %}
+                                        <span class="text-xs text-slate-600 font-medium">({{ r.tipo_licencia.articulo }})</span>
+                                    {% endif %}
+                                    {% if r.tipo_licencia.forma_pago == 'CON_GOCE' %}
+                                        <span class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Con Goce</span>
+                                    {% elif r.tipo_licencia.forma_pago == 'SIN_GOCE' %}
+                                        <span class="text-[10px] text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">Sin Goce</span>
+                                    {% endif %}
+                                </div>
+
+                                <details class="group text-xs">
+                                    <summary class="cursor-pointer text-institucional-600 hover:text-institucional-800 font-medium select-none text-[11px] inline-flex items-center space-x-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                        <span>Reclasificar Artículo</span>
+                                    </summary>
+                                    <form method="post" action="{% url 'licencias:renglon_cambiar_licencia' r.id %}" class="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2 shadow-xs min-w-[240px]">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Nuevo Artículo / Cuadro:</label>
+                                            <select name="tipo_licencia" 
+                                                    class="text-xs w-full py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                                                {% for tl in tipos_licencia %}
+                                                <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}>
+                                                    [{{ tl.cuadro_mensual }}] {{ tl.codigo }} - {{ tl.descripcion|truncatechars:26 }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="text-right pt-1">
+                                            <button type="submit" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer">
+                                                Guardar Cambio
+                                            </button>
+                                        </div>
+                                    </form>
+                                </details>
                             </div>
-                            <form method="post" action="{% url 'licencias:renglon_cambiar_licencia' r.id %}" class="flex items-center space-x-2">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <select name="tipo_licencia" 
-                                        class="text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[210px]">
-                                    {% for tl in tipos_licencia %}
-                                    <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}>
-                                        [{{ tl.cuadro_mensual }}] {{ tl.codigo }} - {{ tl.descripcion|truncatechars:22 }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" title="Guardar cambio de artículo" 
-                                        class="px-2.5 py-1.5 bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-700 font-semibold text-xs rounded-lg border border-slate-300 hover:border-emerald-600 shadow-2xs transition-colors cursor-pointer">
-                                    Guardar
-                                </button>
-                            </form>
                         </td>
                     </tr>
                     {% empty %}
