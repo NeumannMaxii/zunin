@@ -20,6 +20,11 @@ urlpatterns = [
         name="planilla_list",
     ),
     path(
+        "planillas/emitir/",
+        views.EmitirPlanillaMesView.as_view(),
+        name="planilla_emitir",
+    ),
+    path(
         "planillas/exportar-csv/",
         views.ExportarPlanillaCSVView.as_view(),
         name="exportar_planilla_csv",

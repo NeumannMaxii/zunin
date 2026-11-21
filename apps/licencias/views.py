@@ -158,18 +158,56 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         cuadro_actual = (self.request.GET.get("cuadro") or "").strip().upper()
+        mes_param = (self.request.GET.get("mes") or "").strip()
+        anio_param = (self.request.GET.get("anio") or "").strip()
+
         context["cuadro_actual"] = cuadro_actual
-        context["mes_actual"] = self.request.GET.get("mes", "")
-        context["anio_actual"] = self.request.GET.get("anio", "")
+        context["mes_actual"] = mes_param
+        context["anio_actual"] = anio_param
+
+        # Opciones de meses (1..12) con nombre oficial
+        context["meses_opciones"] = [
+            (str(num), nombre.capitalize())
+            for num, nombre in MESES_NOMBRES_OFICIALES.items()
+        ]
+
+        # Años registrados en el sistema o año en curso
+        anios_qs = list(
+            RenglonPlanillaMensual.objects.values_list("anio", flat=True).distinct()
+        )
+        current_year = datetime.date.today().year
+        if current_year not in anios_qs:
+            anios_qs.append(current_year)
+        anios_qs.sort(reverse=True)
+        context["anios_disponibles"] = [str(a) for a in anios_qs]
+
+        # Período formateado para cabeceras y badges
+        es_mes_valido = (
+            mes_param
+            and mes_param.isdigit()
+            and int(mes_param) in MESES_NOMBRES_OFICIALES
+        )
+        if es_mes_valido:
+            mes_nom = MESES_NOMBRES_OFICIALES[int(mes_param)]
+            context["mes_nombre_actual"] = mes_nom
+            context["periodo_nombre"] = f"{mes_nom} {anio_param}".strip()
+        else:
+            context["mes_nombre_actual"] = ""
+            context["periodo_nombre"] = "Consolidado (Todos los meses)"
+
         context["tipos_licencia"] = TipoLicencia.objects.filter(activo=True).order_by(
             "cuadro_mensual", "codigo"
         )
-        context["total_il01"] = (
-            RenglonPlanillaMensual.objects.vigentes().filter(cuadro="IL-01").count()
-        )
-        context["total_il02"] = (
-            RenglonPlanillaMensual.objects.vigentes().filter(cuadro="IL-02").count()
-        )
+
+        # Totales según el período filtrado
+        qs_totales = RenglonPlanillaMensual.objects.vigentes()
+        if mes_param and mes_param.isdigit():
+            qs_totales = qs_totales.filter(mes=int(mes_param))
+        if anio_param and anio_param.isdigit():
+            qs_totales = qs_totales.filter(anio=int(anio_param))
+
+        context["total_il01"] = qs_totales.filter(cuadro="IL-01").count()
+        context["total_il02"] = qs_totales.filter(cuadro="IL-02").count()
         return context
 
 
@@ -665,6 +703,87 @@ class ExportarPlanillaExcelView(LoginRequiredMixin, View):
         filename = f"Planilla_Mensual_{mes_slug}_{anio_slug}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+
+
+class EmitirPlanillaMesView(PermisosEstrictosMixin, View):
+    """
+    Emite o regenera la planilla mensual consolidada (RN-11) para un mes y año.
+    Ejecuta generar_planilla_mes(), preservando números correlativos de disposiciones
+    y sincronizando todas las novedades de asistencia acumuladas.
+    Restringido a roles operativos (Admin_Institucional o Bedelia_Operadoras).
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser
+            or user.groups.filter(
+                name__in=["Admin_Institucional", "Bedelia_Operadoras"]
+            ).exists()
+            or user.has_perm("licencias.add_renglonplanillamensual")
+        )
+
+    def post(self, request, *args, **kwargs):
+        mes_val = (request.POST.get("mes") or request.GET.get("mes") or "").strip()
+        anio_val = (request.POST.get("anio") or request.GET.get("anio") or "").strip()
+
+        today = datetime.date.today()
+        try:
+            mes = int(mes_val) if mes_val else today.month
+            anio = int(anio_val) if anio_val else today.year
+        except (ValueError, TypeError):
+            messages.error(
+                request,
+                "El mes y año especificados deben ser valores numéricos válidos.",
+            )
+            return redirect("licencias:planilla_list")
+
+        if not (1 <= mes <= 12):
+            messages.error(
+                request,
+                "El mes seleccionado debe estar comprendido entre 1 y 12.",
+            )
+            return redirect("licencias:planilla_list")
+
+        try:
+            from apps.licencias.services import generar_planilla_mes
+
+            renglones = generar_planilla_mes(mes=mes, anio=anio, usuario=request.user)
+            mes_nombre = MESES_NOMBRES_OFICIALES.get(mes, str(mes))
+            total = (
+                len(renglones)
+                if isinstance(renglones, (list, tuple))
+                else RenglonPlanillaMensual.objects.vigentes()
+                .filter(mes=mes, anio=anio)
+                .count()
+            )
+            messages.success(
+                request,
+                f"Planilla oficial de {mes_nombre} {anio} emitida exitosamente "
+                f"({total} renglones consolidados).",
+            )
+        except Exception as exc:
+            messages.error(request, f"Error al emitir la planilla mensual: {exc}")
+
+        return redirect(
+            f"{reverse('licencias:planilla_list')}?mes={mes}&anio={anio}&emitido=1"
+        )
+
+    def get(self, request, *args, **kwargs):
+        # Si se accede por GET, redirige a la lista preservando mes y anio si existen
+        mes = request.GET.get("mes", "")
+        anio = request.GET.get("anio", "")
+        params = []
+        if mes:
+            params.append(f"mes={mes}")
+        if anio:
+            params.append(f"anio={anio}")
+        qs_str = f"?{'&'.join(params)}" if params else ""
+        return redirect(f"{reverse('licencias:planilla_list')}{qs_str}")
 
 
 class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):

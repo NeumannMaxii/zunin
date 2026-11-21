@@ -1,85 +1,183 @@
 {% extends "base.html" %}
+{% load auth_tags %}
 
 {% block title %}Planillas Mensuales Consolidadas - IESETyFP Zunin{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Breadcrumb / Volver al Catálogo -->
+    <div>
+        <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-institucional-600 transition-colors">
+            <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Volver al Catálogo de Licencias
+        </a>
+    </div>
+
     <!-- Encabezado y Acciones -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Planillas Mensuales (Cuadros IL-01 e IL-02)</h1>
             <p class="text-sm text-slate-500">Consolidación de novedades por cargo, período y número correlativo de instrumento.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-            <!-- Botón Exportar CSV -->
-            <a href="{% url 'licencias:exportar_planilla_csv' %}{% if cuadro_actual %}?cuadro={{ cuadro_actual }}{% endif %}" 
-               class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-semibold rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                <svg class="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Exportar CSV
-            </a>
-            <!-- Botón Exportar Excel Oficial (.xlsx) -->
-            <a href="{% url 'licencias:exportar_planilla_excel' %}?{% if mes_actual %}mes={{ mes_actual }}&{% endif %}{% if anio_actual %}anio={{ anio_actual }}&{% endif %}{% if cuadro_actual %}cuadro={{ cuadro_actual }}{% endif %}" 
-               class="inline-flex items-center px-4 py-2 border border-emerald-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-                <svg class="w-4 h-4 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Exportar Excel Oficial (.xlsx)
-            </a>
-            <a href="{% url 'licencias:justificacion_diferida' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Botón Primario: Emitir Planilla del Mes -->
+            {% if perms.licencias.add_renglonplanillamensual or user.is_staff or user|has_group:"Bedelia_Operadoras" or user|has_group:"Admin_Institucional" %}
+            <button type="button" 
+                    onclick="document.getElementById('modal-emitir-planilla').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Emitir Planilla del Mes
+            </button>
+            {% endif %}
+
+            <!-- Dropdown Exportar Reportes -->
+            <div class="relative inline-block text-left" id="dropdown-exportar-container">
+                <button type="button" 
+                        id="btn-dropdown-exportar"
+                        onclick="toggleDropdownExportar()"
+                        class="inline-flex items-center px-4 py-2 border border-emerald-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Exportar Reporte</span>
+                    <svg class="w-4 h-4 ml-1.5 -mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div id="menu-dropdown-exportar" 
+                     class="hidden absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black/5 divide-y divide-slate-100 focus:outline-none z-30">
+                    <div class="py-1">
+                        <a href="{% url 'licencias:exportar_planilla_excel' %}?{% if mes_actual %}mes={{ mes_actual }}&{% endif %}{% if anio_actual %}anio={{ anio_actual }}&{% endif %}{% if cuadro_actual %}cuadro={{ cuadro_actual }}{% endif %}" 
+                           class="group flex items-center px-4 py-2.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 transition-colors">
+                            <svg class="w-4 h-4 mr-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <div>
+                                <span class="font-semibold block">Exportar Excel Oficial (.xlsx)</span>
+                                <span class="text-[10px] text-slate-400">Formato ministerial IL-01 / IL-02</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="py-1">
+                        <a href="{% url 'licencias:exportar_planilla_csv' %}?{% if mes_actual %}mes={{ mes_actual }}&{% endif %}{% if anio_actual %}anio={{ anio_actual }}&{% endif %}{% if cuadro_actual %}cuadro={{ cuadro_actual }}{% endif %}" 
+                           class="group flex items-center px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                            <svg class="w-4 h-4 mr-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <div>
+                                <span class="font-semibold block">Archivo Plano (CSV)</span>
+                                <span class="text-[10px] text-slate-400">Datos tabulares UTF-8</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Secundario: Justificación Diferida -->
+            <a href="{% url 'licencias:justificacion_diferida' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Justificación Diferida
             </a>
-            <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                &larr; Ver Catálogo
-            </a>
         </div>
     </div>
 
-    <!-- Filtros de Cuadro (IL-01 e IL-02) -->
-    <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-        <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-2">Cuadros:</span>
-            <a href="{% url 'licencias:planilla_list' %}" 
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if not cuadro_actual %}bg-slate-900 text-white shadow-2xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
-                Todos
-            </a>
-            <a href="{% url 'licencias:planilla_list' %}?cuadro=IL-01" 
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro_actual == 'IL-01' %}bg-sky-600 text-white shadow-2xs{% else %}bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200{% endif %}">
-                Cuadro IL-01 (Enfermedad)
-            </a>
-            <a href="{% url 'licencias:planilla_list' %}?cuadro=IL-02" 
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro_actual == 'IL-02' %}bg-indigo-600 text-white shadow-2xs{% else %}bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200{% endif %}">
-                Cuadro IL-02 (Otras Causales)
-            </a>
-        </div>
-        <div class="flex items-center space-x-4 text-xs text-slate-500">
-            <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium">
-                Período Planilla: {% if mes_actual and anio_actual %}{{ mes_actual }}/{{ anio_actual }}{% else %}Consolidado{% endif %}
-            </span>
-            <span>Total IL-01: <strong>{{ total_il01 }}</strong> | Total IL-02: <strong>{{ total_il02 }}</strong></span>
-        </div>
-    </div>
-
-    <!-- Barra de Búsqueda de Docentes en Planillas -->
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div class="relative flex-1 max-w-md">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    <!-- Banner de Éxito con Descarga Directa de Excel (cuando se emite una planilla) -->
+    {% if request.GET.emitido == '1' %}
+    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+        <div class="flex items-center space-x-3 text-emerald-950">
+            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             </div>
-            <input type="text" id="filtro-docente-planilla" 
-                   placeholder="Buscar en la planilla por docente, DNI, materia o instrumento..." 
-                   class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
+            <div>
+                <p class="font-bold text-sm text-emerald-900">¡Planilla oficial de {{ periodo_nombre }} emitida y consolidada!</p>
+                <p class="text-xs text-emerald-700">Se asignaron los números correlativos de disposición en la base de datos institucional.</p>
+            </div>
         </div>
-        <div class="text-xs text-slate-500">
-            <span id="contador-filas-planilla" class="font-medium bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                Mostrando {{ renglones|length }} renglones
-            </span>
+        <a href="{% url 'licencias:exportar_planilla_excel' %}?mes={{ mes_actual }}&anio={{ anio_actual }}" 
+           class="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg shadow-xs hover:shadow transition-all space-x-2 flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Descargar Excel Oficial (.xlsx) Ahora</span>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Barra Unificada de Filtros y Búsqueda -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+        <form method="get" class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <!-- Izquierda: Buscador en vivo -->
+            <div class="relative flex-1 min-w-[240px] max-w-lg">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input type="text" id="filtro-docente-planilla" 
+                       placeholder="Buscar docente, DNI, materia o instrumento..." 
+                       class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
+            </div>
+
+            <!-- Derecha: Desplegables de Mes, Año, Cuadro y Botón Filtrar -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Desplegable Mes -->
+                <select name="mes" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-700 focus:ring-2 focus:ring-institucional-600 focus:bg-white font-medium">
+                    <option value="" {% if not mes_actual %}selected{% endif %}>Todos los meses (Consolidado)</option>
+                    {% for num_m, nom_m in meses_opciones %}
+                    <option value="{{ num_m }}" {% if mes_actual == num_m %}selected{% endif %}>{{ nom_m }}</option>
+                    {% endfor %}
+                </select>
+
+                <!-- Desplegable Año -->
+                <select name="anio" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-700 focus:ring-2 focus:ring-institucional-600 focus:bg-white font-medium">
+                    {% for a in anios_disponibles %}
+                    <option value="{{ a }}" {% if anio_actual == a or not anio_actual and forloop.first %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+
+                <!-- Desplegable Cuadros -->
+                <select name="cuadro" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-700 focus:ring-2 focus:ring-institucional-600 focus:bg-white font-medium">
+                    <option value="" {% if not cuadro_actual %}selected{% endif %}>Todos los cuadros</option>
+                    <option value="IL-01" {% if cuadro_actual == 'IL-01' %}selected{% endif %}>Cuadro IL-01 (Enfermedad)</option>
+                    <option value="IL-02" {% if cuadro_actual == 'IL-02' %}selected{% endif %}>Cuadro IL-02 (Otras Causales)</option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors cursor-pointer">
+                    Filtrar
+                </button>
+                
+                {% if mes_actual or anio_actual or cuadro_actual %}
+                <a href="{% url 'licencias:planilla_list' %}" class="text-xs text-slate-500 hover:text-slate-800 underline px-1">
+                    Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Sub-barra sutil de estado: Período activo y contadores -->
+        <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200 text-[11px]">
+                    <span class="w-1.5 h-1.5 rounded-full {% if mes_actual %}bg-emerald-500{% else %}bg-indigo-500{% endif %} mr-1.5"></span>
+                    Período: <strong class="ml-1">{{ periodo_nombre }}</strong>
+                </span>
+                <span>IL-01: <strong class="text-slate-800">{{ total_il01 }}</strong></span>
+                <span class="text-slate-300">|</span>
+                <span>IL-02: <strong class="text-slate-800">{{ total_il02 }}</strong></span>
+            </div>
+            <div>
+                <span id="contador-filas-planilla" class="font-medium bg-slate-50 px-2.5 py-1 rounded text-[11px] text-slate-600 border border-slate-200">
+                    Mostrando {{ renglones|length }} renglones
+                </span>
+            </div>
         </div>
     </div>
 
@@ -261,8 +359,23 @@
         {% include "core/includes/paginator.html" %}
     </div>
 
-    <!-- Script de filtrado en tiempo real para Planilla -->
+    <!-- Script de filtrado en tiempo real para Planilla y Dropdown Exportar -->
     <script>
+    function toggleDropdownExportar() {
+        const menu = document.getElementById('menu-dropdown-exportar');
+        if (menu) {
+            menu.classList.toggle('hidden');
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('dropdown-exportar-container');
+        const menu = document.getElementById('menu-dropdown-exportar');
+        if (container && menu && !container.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         const inputFiltro = document.getElementById('filtro-docente-planilla');
         const contador = document.getElementById('contador-filas-planilla');
@@ -289,5 +402,54 @@
         }
     });
     </script>
+
+    <!-- Modal: Emitir Planilla del Mes -->
+    <div id="modal-emitir-planilla" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900">Emitir Planilla Mensual</h3>
+                </div>
+                <button type="button" onclick="document.getElementById('modal-emitir-planilla').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500">
+                Consolida las inasistencias y licencias del período seleccionado, computa las horas cátedra por materia y asigna la numeración correlativa oficial de instrumentos legales.
+            </p>
+            <form method="post" action="{% url 'licencias:planilla_emitir' %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="emitir-mes" class="block text-xs font-semibold text-slate-700 mb-1">Mes:</label>
+                        <select id="emitir-mes" name="mes" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                            {% for num_m, nom_m in meses_opciones %}
+                            <option value="{{ num_m }}" {% if mes_actual == num_m %}selected{% elif not mes_actual and num_m == '11' %}selected{% endif %}>{{ nom_m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="emitir-anio" class="block text-xs font-semibold text-slate-700 mb-1">Año:</label>
+                        <input type="number" id="emitir-anio" name="anio" value="{% if anio_actual %}{{ anio_actual }}{% else %}2026{% endif %}" min="2020" max="2035" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="document.getElementById('modal-emitir-planilla').classList.add('hidden')" class="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer">
+                        Generar Planilla Consolidada
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
