@@ -97,8 +97,8 @@
                 </svg>
             </div>
             <div>
-                <p class="font-bold text-sm text-emerald-900">¡Planilla oficial de {{ periodo_nombre }} emitida y consolidada!</p>
-                <p class="text-xs text-emerald-700">Se asignaron los números correlativos de disposición en la base de datos institucional.</p>
+                <p class="font-bold text-sm text-emerald-900">Planilla oficial de {{ periodo_nombre }} emitida exitosamente ({{ renglones|length }} renglones consolidados).</p>
+                <p class="text-xs text-emerald-700">Se asignaron los números correlativos oficiales de disposición en la base de datos institucional.</p>
             </div>
         </div>
         <a href="{% url 'licencias:exportar_planilla_excel' %}?mes={{ mes_actual }}&anio={{ anio_actual }}" 
