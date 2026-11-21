@@ -731,6 +731,17 @@ class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
         if nuevo_num is not None and nuevo_num.strip():
             renglon.numero_instrumento = nuevo_num.strip()
 
+        if renglon.tipo_instrumento == "DISPOSICION" and renglon.numero_instrumento:
+            from apps.licencias.services import (
+                confirmar_correlativo_disposicion,
+            )
+
+            confirmar_correlativo_disposicion(
+                renglon.numero_instrumento,
+                anio=renglon.anio,
+                usuario=request.user,
+            )
+
         audit_save(renglon, user=request.user, created=False)
 
         tipo_desc = (
@@ -1703,6 +1714,104 @@ class EvaluarImpactoRevistaAPIView(View):
 evaluar_impacto_revista_api = EvaluarImpactoRevistaAPIView.as_view()
 
 
+class SiguienteDisposicionAPIView(View):
+    """
+    Ticket 19.3: Endpoint API para obtener el siguiente número correlativo
+    anual disponible en formato NNN/AAAA sin consumirlo de inmediato.
+    Ruta: GET /api/licencias/siguiente-disposicion/?anio=2026
+    """
+
+    def get(self, request, *args, **kwargs):
+        anio_param = request.GET.get("anio")
+        target_anio = (
+            int(anio_param)
+            if (anio_param and str(anio_param).isdigit())
+            else None
+        )
+        from apps.licencias.services import (
+            obtener_siguiente_correlativo_disposicion,
+        )
+
+        siguiente = obtener_siguiente_correlativo_disposicion(
+            anio=target_anio,
+            reservar=False,
+        )
+        final_anio = target_anio or datetime.date.today().year
+        return JsonResponse(
+            {
+                "status": "success",
+                "siguiente": siguiente,
+                "anio": final_anio,
+            },
+            status=200,
+        )
+
+
+siguiente_disposicion_api = SiguienteDisposicionAPIView.as_view()
+
+
+class ValidarDisposicionAPIView(View):
+    """
+    Ticket 19.3: Endpoint API para verificar si un número de Disposición Interna
+    ya fue asignado en el año indicado o se encuentra disponible.
+    Ruta: GET /api/licencias/validar-disposicion/?numero=015/2026&anio=2026
+    """
+
+    def get(self, request, *args, **kwargs):
+        numero = request.GET.get("numero", "").strip()
+        anio_param = request.GET.get("anio")
+        lic_id = request.GET.get("licencia_id")
+        reng_id = request.GET.get("renglon_id")
+
+        if not numero:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": "Parámetro 'numero' obligatorio.",
+                },
+                status=400,
+            )
+
+        target_anio = (
+            int(anio_param)
+            if (anio_param and str(anio_param).isdigit())
+            else None
+        )
+        target_lic = (
+            int(lic_id)
+            if (lic_id and str(lic_id).isdigit())
+            else None
+        )
+        target_reng = (
+            int(reng_id)
+            if (reng_id and str(reng_id).isdigit())
+            else None
+        )
+
+        from apps.licencias.services import verificar_disposicion_duplicada
+
+        res = verificar_disposicion_duplicada(
+            numero_str=numero,
+            anio=target_anio,
+            excluir_licencia_id=target_lic,
+            excluir_renglon_id=target_reng,
+        )
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "duplicado": res["duplicado"],
+                "mensaje": res["mensaje"],
+                "numero": res.get("numero"),
+                "anio": res.get("anio"),
+            },
+            status=200,
+        )
+
+
+validar_disposicion_api = ValidarDisposicionAPIView.as_view()
+
+
 class DocenteSaldosView(LoginRequiredMixin, View):
     """
     Ticket 18.2: Vista institucional para la visualización integral de
@@ -1814,6 +1923,33 @@ class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
+        tipo_inst = getattr(form.instance, "tipo_instrumento", "DISPOSICION")
+        if tipo_inst == "DISPOSICION":
+            from apps.licencias.services import (
+                confirmar_correlativo_disposicion,
+                obtener_siguiente_correlativo_disposicion,
+            )
+
+            anio_lic = (
+                form.instance.fecha_desde.year
+                if form.instance.fecha_desde
+                else None
+            )
+            if not form.instance.instrumento_legal:
+                form.instance.instrumento_legal = (
+                    obtener_siguiente_correlativo_disposicion(
+                        anio=anio_lic,
+                        reservar=True,
+                        usuario=self.request.user,
+                    )
+                )
+            else:
+                confirmar_correlativo_disposicion(
+                    form.instance.instrumento_legal,
+                    anio=anio_lic,
+                    usuario=self.request.user,
+                )
+
         response = super().form_valid(form)
         if form.instance.estado in ("OTORGADA", "APROBADA"):
             form.instance.sincronizar_asistencia(usuario=self.request.user)

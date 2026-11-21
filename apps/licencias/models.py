@@ -725,6 +725,16 @@ class LicenciaOtorgada(AuditoriaModel):
         verbose_name="Porcentaje de Goce",
         help_text="Porcentaje de haberes (ej: 100.00, 50.00, 0.00).",
     )
+    tipo_instrumento = models.CharField(
+        max_length=20,
+        choices=[
+            ("DISPOSICION", "Disposición Interna IESETyFP"),
+            ("RESOLUCION", "Resolución Ministerial M.E.C.C.y T."),
+        ],
+        default="DISPOSICION",
+        blank=True,
+        verbose_name="Tipo de Instrumento Legal",
+    )
     instrumento_legal = models.CharField(
         max_length=100,
         blank=True,
@@ -892,8 +902,12 @@ class LicenciaOtorgada(AuditoriaModel):
 
         super().save(*args, **kwargs)
 
+        update_fields = kwargs.get("update_fields")
+        evitar_sync = update_fields is not None and "estado" not in update_fields
+
         if (
             sincronizar
+            and not evitar_sync
             and getattr(self, "fecha_desde", None)
             and getattr(self, "fecha_hasta_prevista", None)
         ):
@@ -956,4 +970,36 @@ class LicenciaOtorgada(AuditoriaModel):
         """
         from apps.licencias.calculador import calcular_fecha_reintegro
 
-        return calcular_fecha_reintegro(self.fecha_hasta_prevista, feriados=feriados)
+        return calcular_fecha_reintegro(
+            self.fecha_hasta_prevista, feriados=feriados
+        )
+
+
+class NumeradorDisposicion(AuditoriaModel):
+    """
+    Ticket 19.3: Registro y control correlativo anual de Disposiciones Internas
+    institucionales (IESETyFP). Garantiza numeración secuencial NNN/AAAA
+    atómica y concurrente segura.
+    """
+
+    anio = models.PositiveIntegerField(
+        unique=True,
+        verbose_name="Año Calendario",
+        db_index=True,
+    )
+    ultimo_numero = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Último Número Correlativo Asignado",
+    )
+
+    class Meta:
+        verbose_name = "Numerador de Disposiciones"
+        verbose_name_plural = "Numeradores de Disposiciones"
+        ordering = ["-anio"]
+        db_table = "gestion_asistencia_numeradordisposicion"
+
+    def __str__(self):
+        return (
+            f"Año {self.anio} - Último asignado: "
+            f"{self.ultimo_numero:03d}/{self.anio}"
+        )

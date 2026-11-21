@@ -4,6 +4,7 @@ Implementa el motor de generación mensual consolidada (RN-11).
 """
 
 import datetime
+import re
 import unicodedata
 from django.apps import apps
 from django.conf import settings
@@ -52,6 +53,234 @@ from apps.licencias.validaciones import (  # noqa: F401
     validar_solapamiento_licencias,
     validar_solicitud_licencia,
 )
+
+
+def extraer_numero_y_anio_disposicion(texto):
+    """
+    Ticket 19.3: Extrae la secuencia numérica y el año de un texto que represente
+    una Disposición Interna institucional (ej: '014/2026', 'Disp. 055/26',
+    'Disposición 014/2026', '015/2026').
+
+    Retorna (numero: int, anio: int) o (None, None) si no es un formato válido.
+    """
+    if not texto:
+        return None, None
+
+    texto_str = str(texto).strip()
+    # Si contiene 'res' o 'resoluci' (Resolución externa ministerial), ignorar
+    if re.search(r"\b(res|resoluci[oó]n)\b", texto_str, re.IGNORECASE):
+        return None, None
+
+    # Patrón general: número seguido de / y año de 2 o 4 dígitos
+    match = re.search(r"(\d+)\s*/\s*(\d{2,4})", texto_str)
+    if not match:
+        return None, None
+
+    num_int = int(match.group(1))
+    anio_raw = match.group(2)
+    if len(anio_raw) == 2:
+        anio_int = 2000 + int(anio_raw)
+    else:
+        anio_int = int(anio_raw)
+
+    return num_int, anio_int
+
+
+def obtener_max_disposicion_existente(anio=None):
+    """
+    Ticket 19.3: Determina el número correlativo más alto registrado
+    para el año consultando RenglonPlanillaMensual, LicenciaOtorgada,
+    RegistroAsistencia y NumeradorDisposicion.
+    """
+    target_anio = anio or datetime.date.today().year
+    max_num = 0
+
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
+    LicenciaOtorgada = apps.get_model("licencias", "LicenciaOtorgada")
+    NumeradorDisposicion = apps.get_model("licencias", "NumeradorDisposicion")
+
+    # 1. RenglonPlanillaMensual
+    inst_renglones = (
+        RenglonPlanillaMensual.objects.filter(anio=target_anio)
+        .exclude(numero_instrumento__isnull=True)
+        .exclude(numero_instrumento="")
+        .values_list("numero_instrumento", flat=True)
+    )
+    for s in inst_renglones:
+        n, a = extraer_numero_y_anio_disposicion(s)
+        if n and (a == target_anio or a == target_anio % 100):
+            if n > max_num:
+                max_num = n
+
+    # 2. LicenciaOtorgada
+    inst_licencias = (
+        LicenciaOtorgada.objects.filter(fecha_desde__year=target_anio)
+        .exclude(instrumento_legal__isnull=True)
+        .exclude(instrumento_legal="")
+        .values_list("instrumento_legal", flat=True)
+    )
+    for s in inst_licencias:
+        n, a = extraer_numero_y_anio_disposicion(s)
+        if n and (a == target_anio or a == target_anio % 100):
+            if n > max_num:
+                max_num = n
+
+    # 3. NumeradorDisposicion
+    num_obj = NumeradorDisposicion.objects.filter(anio=target_anio).first()
+    if num_obj and num_obj.ultimo_numero > max_num:
+        max_num = num_obj.ultimo_numero
+
+    return max_num
+
+
+def obtener_siguiente_correlativo_disposicion(
+    anio=None,
+    reservar=False,
+    usuario=None,
+):
+    """
+    Ticket 19.3: Retorna el siguiente número secuencial NNN/AAAA para
+    Disposiciones Internas institucionales, garantizando resolución
+    atómica con bloqueo concurrente (select_for_update).
+    """
+    target_anio = anio or datetime.date.today().year
+    NumeradorDisposicion = apps.get_model("licencias", "NumeradorDisposicion")
+
+    with transaction.atomic():
+        numerador, _ = NumeradorDisposicion.objects.select_for_update().get_or_create(
+            anio=target_anio,
+            defaults={"ultimo_numero": 0},
+        )
+        max_existente = obtener_max_disposicion_existente(target_anio)
+        if max_existente > numerador.ultimo_numero:
+            numerador.ultimo_numero = max_existente
+            audit_save(numerador, user=usuario, created=False)
+
+        siguiente = numerador.ultimo_numero + 1
+        if reservar:
+            numerador.ultimo_numero = siguiente
+            audit_save(numerador, user=usuario, created=False)
+
+    return f"{siguiente:03d}/{target_anio}"
+
+
+def confirmar_correlativo_disposicion(
+    numero_str_o_int,
+    anio=None,
+    usuario=None,
+):
+    """
+    Ticket 19.3: Actualiza de forma atómica el último correlativo asignado
+    en NumeradorDisposicion si el número provisto es superior.
+    """
+    target_anio = anio
+    num_int = None
+
+    if isinstance(numero_str_o_int, int):
+        num_int = numero_str_o_int
+    elif isinstance(numero_str_o_int, str):
+        n, a = extraer_numero_y_anio_disposicion(numero_str_o_int)
+        num_int = n
+        if a and not target_anio:
+            target_anio = a
+
+    if not num_int:
+        return
+
+    target_anio = target_anio or datetime.date.today().year
+    NumeradorDisposicion = apps.get_model("licencias", "NumeradorDisposicion")
+
+    with transaction.atomic():
+        numerador, _ = NumeradorDisposicion.objects.select_for_update().get_or_create(
+            anio=target_anio,
+            defaults={"ultimo_numero": 0},
+        )
+        if num_int > numerador.ultimo_numero:
+            numerador.ultimo_numero = num_int
+            audit_save(numerador, user=usuario, created=False)
+
+
+def verificar_disposicion_duplicada(
+    numero_str,
+    anio=None,
+    excluir_licencia_id=None,
+    excluir_renglon_id=None,
+):
+    """
+    Ticket 19.3: Comprueba si un número de Disposición Interna ingresado
+    manualmente ya existe en el año indicado.
+    """
+    num_int, anio_extraido = extraer_numero_y_anio_disposicion(numero_str)
+    if not num_int:
+        return {
+            "duplicado": False,
+            "mensaje": (
+                "Formato de instrumento externo no sujeto a "
+                "correlativo interno."
+            ),
+            "numero": None,
+            "anio": anio,
+        }
+
+    target_anio = anio_extraido or anio or datetime.date.today().year
+    variantes_busqueda = [
+        f"{num_int:03d}/{target_anio}",
+        f"{num_int}/{target_anio}",
+        f"{num_int:03d}/{str(target_anio)[2:]}",
+        f"{num_int}/{str(target_anio)[2:]}",
+    ]
+
+    RenglonPlanillaMensual = apps.get_model("licencias", "RenglonPlanillaMensual")
+    LicenciaOtorgada = apps.get_model("licencias", "LicenciaOtorgada")
+
+    # 1. Comprobar en Licencias Otorgadas
+    qs_lic = LicenciaOtorgada.objects.filter(
+        fecha_desde__year=target_anio,
+    ).exclude(estado__in=["CANCELADA", "ANULADA", "RECHAZADA"])
+    if excluir_licencia_id:
+        qs_lic = qs_lic.exclude(pk=excluir_licencia_id)
+
+    q_filtro = models.Q()
+    for var in variantes_busqueda:
+        q_filtro |= models.Q(instrumento_legal__icontains=var)
+    lic_dup = qs_lic.filter(q_filtro).first()
+    if lic_dup:
+        return {
+            "duplicado": True,
+            "mensaje": (
+                f"El número {numero_str} ya fue asignado en {target_anio} a la "
+                f"Licencia #{lic_dup.pk} ({lic_dup.docente})."
+            ),
+            "numero": num_int,
+            "anio": target_anio,
+        }
+
+    # 2. Comprobar en Renglones de Planilla Mensual
+    qs_reng = RenglonPlanillaMensual.objects.filter(anio=target_anio)
+    if excluir_renglon_id:
+        qs_reng = qs_reng.exclude(pk=excluir_renglon_id)
+
+    q_reng = models.Q()
+    for var in variantes_busqueda:
+        q_reng |= models.Q(numero_instrumento__icontains=var)
+    reng_dup = qs_reng.filter(q_reng).first()
+    if reng_dup:
+        return {
+            "duplicado": True,
+            "mensaje": (
+                f"El número {numero_str} ya fue asignado en la Planilla "
+                f"{reng_dup.mes}/{target_anio} a {reng_dup.docente}."
+            ),
+            "numero": num_int,
+            "anio": target_anio,
+        }
+
+    return {
+        "duplicado": False,
+        "mensaje": f"Número {num_int:03d}/{target_anio} disponible.",
+        "numero": num_int,
+        "anio": target_anio,
+    }
 
 
 def generar_planilla_mes(mes, anio, usuario=None):
@@ -358,6 +587,13 @@ def generar_planilla_mes(mes, anio, usuario=None):
                     )
                     renglones_resultado.append(renglon)
 
+        if correlativo > max_correlativo + 1:
+            confirmar_correlativo_disposicion(
+                correlativo - 1,
+                anio=anio,
+                usuario=usuario,
+            )
+
         return renglones_resultado
 
 
@@ -484,6 +720,10 @@ def procesar_justificacion_rango(
             num_final = f"Resolución {nd_str}"
         else:
             num_final = nd_str
+    elif tipo_instrumento == "DISPOSICION" and numero_disposicion:
+        confirmar_correlativo_disposicion(
+            num_final, anio=fecha_desde.year, usuario=usuario
+        )
 
     with transaction.atomic():
         registros_guardados = []
@@ -776,6 +1016,27 @@ def sincronizar_licencia_con_asistencia(licencia, usuario=None):
                 cargo=licencia.cargo,
             )
         }
+
+        # Ticket 19.3: Asignar o confirmar correlativo si es Disposición Interna
+        tipo_inst = getattr(licencia, "tipo_instrumento", "DISPOSICION")
+        if tipo_inst == "DISPOSICION":
+            if not licencia.instrumento_legal and licencia.fecha_desde:
+                licencia.instrumento_legal = (
+                    obtener_siguiente_correlativo_disposicion(
+                        anio=licencia.fecha_desde.year,
+                        reservar=True,
+                        usuario=usuario,
+                    )
+                )
+                licencia.__class__.objects.filter(pk=licencia.pk).update(
+                    instrumento_legal=licencia.instrumento_legal
+                )
+            elif licencia.instrumento_legal and licencia.fecha_desde:
+                confirmar_correlativo_disposicion(
+                    licencia.instrumento_legal,
+                    anio=licencia.fecha_desde.year,
+                    usuario=usuario,
+                )
 
         for cargo in cargos:
             dias_a_sincronizar = obtener_dias_sincronizacion_licencia(licencia, cargo)

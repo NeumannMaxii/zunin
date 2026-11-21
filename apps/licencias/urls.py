@@ -172,6 +172,27 @@ urlpatterns = [
         views.EvaluarImpactoRevistaAPIView.as_view(),
         name="evaluar_impacto_revista",
     ),
+    # API Numerador Correlativo y Validación Disposición (Ticket 19.3)
+    path(
+        "api/siguiente-disposicion/",
+        views.SiguienteDisposicionAPIView.as_view(),
+        name="api_siguiente_disposicion",
+    ),
+    path(
+        "siguiente-disposicion/",
+        views.SiguienteDisposicionAPIView.as_view(),
+        name="siguiente_disposicion",
+    ),
+    path(
+        "api/validar-disposicion/",
+        views.ValidarDisposicionAPIView.as_view(),
+        name="api_validar_disposicion",
+    ),
+    path(
+        "validar-disposicion/",
+        views.ValidarDisposicionAPIView.as_view(),
+        name="validar_disposicion",
+    ),
     # Vistas de Saldos por Docente (Ticket 18.2)
     path(
         "saldos/",

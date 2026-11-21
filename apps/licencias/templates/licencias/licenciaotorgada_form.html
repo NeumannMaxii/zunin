@@ -163,19 +163,22 @@
                     </div>
                 </div>
 
-                <!-- Sección 4: Datos Administrativos e Instrumento -->
+                <!-- Sección 4: Datos Administrativos e Instrumento (Ticket 19.3) -->
                 <div>
                     <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center space-x-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-institucional-600"></span>
                         <span>4. Estado e Instrumento Legal</span>
                     </h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="space-y-1.5">
                             <label for="{{ form.estado.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                                 Estado de la Solicitud
                             </label>
                             {{ form.estado }}
                             <p class="text-[11px] text-slate-500">Al aprobarse sincroniza marcas en asistencia diaria.</p>
+                            {% if form.estado.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.estado.errors }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="space-y-1.5">
@@ -183,20 +186,46 @@
                                 % de Goce de Haberes
                             </label>
                             {{ form.porcentaje_goce }}
+                            {% if form.porcentaje_goce.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.porcentaje_goce.errors }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="space-y-1.5">
-                            <label for="{{ form.instrumento_legal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                                Instrumento Legal (Resolución/Disp.)
+                            <label for="{{ form.tipo_instrumento.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                Tipo de Instrumento
                             </label>
-                            {{ form.instrumento_legal }}
+                            {{ form.tipo_instrumento }}
+                            {% if form.tipo_instrumento.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_instrumento.errors }}</div>
+                            {% endif %}
                         </div>
 
-                        <div class="sm:col-span-3 space-y-1.5">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label for="{{ form.instrumento_legal.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                    N° Instrumento Legal
+                                </label>
+                                <span id="instrumento-correlativo-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                    Auto NNN/AAAA
+                                </span>
+                            </div>
+                            {{ form.instrumento_legal }}
+                            <p id="instrumento-helper-text" class="text-[11px] text-slate-500">Correlativo anual sugerido automáticamente. Editable por Bedelía.</p>
+                            <div id="instrumento-alerta-duplicado" class="hidden text-xs text-rose-600 font-medium mt-1 flex items-center space-x-1"></div>
+                            {% if form.instrumento_legal.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.instrumento_legal.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="sm:col-span-2 lg:col-span-4 space-y-1.5">
                             <label for="{{ form.observaciones.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                                 Observaciones / Diagnóstico / Certificado
                             </label>
                             {{ form.observaciones }}
+                            {% if form.observaciones.errors %}
+                            <div class="text-xs text-rose-600 font-medium mt-1">{{ form.observaciones.errors }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -376,7 +405,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const impactoAlerta = document.getElementById('impacto-alerta-incompatibilidad');
     const impactoAlertaMsg = document.getElementById('impacto-alerta-msg');
 
+    // Elementos Sección Instrumento Legal (Ticket 19.3)
+    const tipoInstrumentoSelect = document.getElementById('id_tipo_instrumento');
+    const instrumentoLegalInput = document.getElementById('id_instrumento_legal');
+    const badgeCorrelativo = document.getElementById('instrumento-correlativo-badge');
+    const alertaDuplicado = document.getElementById('instrumento-alerta-duplicado');
+    const helperInstrumento = document.getElementById('instrumento-helper-text');
+    let numeroSugeridoActual = '';
+    let manualEditado = false;
+
     let debounceTimer = null;
+    let debounceDispTimer = null;
     let estadoValidacion = {
         bloqueado: false,
         motivoBloqueo: '',
@@ -729,8 +768,114 @@ document.addEventListener('DOMContentLoaded', function () {
         tipoLicenciaSelect.addEventListener('change', debouncedValidar);
     }
 
+    // Funciones de Numerador Correlativo y Validación Disposición (Ticket 19.3)
+    async function actualizarSiguienteDisposicion(forzar = false) {
+        if (!tipoInstrumentoSelect || tipoInstrumentoSelect.value !== 'DISPOSICION') {
+            return;
+        }
+        let anio = new Date().getFullYear();
+        if (fechaDesdeInput && fechaDesdeInput.value) {
+            const parts = fechaDesdeInput.value.split('-');
+            if (parts.length === 3 && parts[0]) {
+                anio = parseInt(parts[0], 10);
+            }
+        }
+
+        try {
+            const resp = await fetch(`/api/licencias/siguiente-disposicion/?anio=${anio}`);
+            const data = await resp.json();
+            if (data.status === 'success' && data.siguiente) {
+                numeroSugeridoActual = data.siguiente;
+                if (instrumentoLegalInput && (!instrumentoLegalInput.value || !manualEditado || forzar)) {
+                    instrumentoLegalInput.value = data.siguiente;
+                    manualEditado = false;
+                }
+                if (badgeCorrelativo) {
+                    badgeCorrelativo.textContent = `Siguiente: ${data.siguiente}`;
+                    badgeCorrelativo.classList.remove('hidden');
+                }
+            }
+        } catch (e) {
+            console.error('Error al consultar siguiente correlativo:', e);
+        }
+    }
+
+    async function validarDuplicacionDisposicion() {
+        if (!tipoInstrumentoSelect || tipoInstrumentoSelect.value !== 'DISPOSICION') {
+            if (alertaDuplicado) alertaDuplicado.classList.add('hidden');
+            return;
+        }
+        const val = instrumentoLegalInput ? instrumentoLegalInput.value.trim() : '';
+        if (!val) {
+            if (alertaDuplicado) alertaDuplicado.classList.add('hidden');
+            return;
+        }
+        let anio = new Date().getFullYear();
+        if (fechaDesdeInput && fechaDesdeInput.value) {
+            const parts = fechaDesdeInput.value.split('-');
+            if (parts.length === 3 && parts[0]) {
+                anio = parseInt(parts[0], 10);
+            }
+        }
+
+        try {
+            const resp = await fetch(`/api/licencias/validar-disposicion/?numero=${encodeURIComponent(val)}&anio=${anio}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                if (data.duplicado) {
+                    if (alertaDuplicado) {
+                        alertaDuplicado.textContent = `⚠️ ${data.mensaje}`;
+                        alertaDuplicado.classList.remove('hidden');
+                    }
+                    if (instrumentoLegalInput) {
+                        instrumentoLegalInput.classList.add('border-rose-500', 'focus:ring-rose-500');
+                    }
+                } else {
+                    if (alertaDuplicado) alertaDuplicado.classList.add('hidden');
+                    if (instrumentoLegalInput) {
+                        instrumentoLegalInput.classList.remove('border-rose-500', 'focus:ring-rose-500');
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error al validar disposición:', e);
+        }
+    }
+
+    function debouncedValidarDisposicion() {
+        clearTimeout(debounceDispTimer);
+        debounceDispTimer = setTimeout(validarDuplicacionDisposicion, 300);
+    }
+
+    if (tipoInstrumentoSelect) {
+        tipoInstrumentoSelect.addEventListener('change', function () {
+            if (this.value === 'DISPOSICION') {
+                if (badgeCorrelativo) badgeCorrelativo.classList.remove('hidden');
+                if (helperInstrumento) helperInstrumento.textContent = 'Correlativo anual sugerido automáticamente. Editable por Bedelía.';
+                actualizarSiguienteDisposicion(true);
+            } else {
+                if (badgeCorrelativo) badgeCorrelativo.classList.add('hidden');
+                if (alertaDuplicado) alertaDuplicado.classList.add('hidden');
+                if (helperInstrumento) helperInstrumento.textContent = 'Ingrese el número de Resolución Ministerial externa (ej: Res. 1450/2026 M.E.C.C.y T.).';
+                if (instrumentoLegalInput && instrumentoLegalInput.value === numeroSugeridoActual) {
+                    instrumentoLegalInput.value = '';
+                }
+            }
+        });
+    }
+
+    if (instrumentoLegalInput) {
+        instrumentoLegalInput.addEventListener('input', function () {
+            manualEditado = true;
+            debouncedValidarDisposicion();
+        });
+    }
+
     if (fechaDesdeInput) {
-        fechaDesdeInput.addEventListener('change', debouncedValidar);
+        fechaDesdeInput.addEventListener('change', function () {
+            debouncedValidar();
+            actualizarSiguienteDisposicion(false);
+        });
         fechaDesdeInput.addEventListener('input', debouncedValidar);
     }
 
@@ -767,6 +912,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (docenteSelect && docenteSelect.value) {
         actualizarCargosDocente(docenteSelect.value, true);
     }
+    actualizarSiguienteDisposicion(false);
     debouncedValidar();
 });
 </script>
