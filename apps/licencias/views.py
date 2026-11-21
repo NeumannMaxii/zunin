@@ -336,12 +336,13 @@ COLUMNAS_EXCEL_BEDELIA = [
     "HORAS",
     "COD. LIC.",
     "ART.",
-    "TIPO INSTRUMENTO",
+    "TIPO",
     "OFICINA",
-    "N° INSTRUMENTO",
+    "N°",
     "AÑO",
     "DESDE",
     "HASTA",
+    "OBSERVACIONES",
 ]
 
 
@@ -440,25 +441,92 @@ def construir_libro_excel_planillas(
         ).font = font_meta_label
         membrete_rows.add(r + 3)
 
-        # Fila 5: Cabecera estilizada de la tabla
-        r_header = r + 4
-        ws.row_dimensions[r_header].height = 26
-        for idx, col_name in enumerate(COLUMNAS_EXCEL_BEDELIA, start=1):
-            c = ws.cell(row=r_header, column=idx, value=col_name)
+        # Cabecera de 2 niveles idéntica al molde ministerial oficial
+        r_h1 = r + 4
+        r_h2 = r + 5
+        membrete_rows.add(r_h1)
+        membrete_rows.add(r_h2)
+        ws.row_dimensions[r_h1].height = 20
+        ws.row_dimensions[r_h2].height = 20
+
+        # Columnas individuales combinadas verticalmente (Filas r_h1 a r_h2)
+        single_cols = [
+            (1, "D.N.I"),
+            (2, "APELLIDO Y NOMBRE"),
+            (3, "SEXO"),
+            (4, "SIT. DE REVISTA"),
+            (5, "COD. DE CARGOS"),
+            (6, "DESCRIPCIÓN DE CARGOS"),
+            (7, "HORAS"),
+            (8, "COD. LIC."),
+            (9, "ART."),
+            (16, "OBSERVACIONES"),
+        ]
+        for c_idx, label in single_cols:
+            ws.merge_cells(
+                start_row=r_h1,
+                start_column=c_idx,
+                end_row=r_h2,
+                end_column=c_idx,
+            )
+            ws.cell(row=r_h1, column=c_idx, value=label)
+            for cr in [r_h1, r_h2]:
+                c = ws.cell(row=cr, column=c_idx)
+                c.font = font_header
+                c.fill = fill_header
+                c.alignment = align_header
+                c.border = border_header
+
+        # Grupo combinado: INSTRUMENTO LEGAL (Columnas 10 a 13)
+        ws.merge_cells(
+            start_row=r_h1, start_column=10, end_row=r_h1, end_column=13
+        )
+        ws.cell(row=r_h1, column=10, value="INSTRUMENTO LEGAL")
+        for col in range(10, 14):
+            c = ws.cell(row=r_h1, column=col)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_header
+            c.border = border_header
+        for col, sub in [
+            (10, "TIPO"),
+            (11, "OFICINA"),
+            (12, "N°"),
+            (13, "AÑO"),
+        ]:
+            c = ws.cell(row=r_h2, column=col, value=sub)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_header
+            c.border = border_header
+
+        # Grupo combinado: PERIODO LIC. (Columnas 14 a 15)
+        ws.merge_cells(
+            start_row=r_h1, start_column=14, end_row=r_h1, end_column=15
+        )
+        ws.cell(row=r_h1, column=14, value="PERIODO LIC.")
+        for col in range(14, 16):
+            c = ws.cell(row=r_h1, column=col)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_header
+            c.border = border_header
+        for col, sub in [(14, "DESDE"), (15, "HASTA")]:
+            c = ws.cell(row=r_h2, column=col, value=sub)
             c.font = font_header
             c.fill = fill_header
             c.alignment = align_header
             c.border = border_header
 
         # Filas de datos
-        r_actual = r_header + 1
+        r_actual = r_h2 + 1
         if not renglones:
             ws.cell(
                 row=r_actual,
                 column=2,
                 value="Sin novedades registradas para este cuadro en el período.",
             ).font = font_empty
-            for c_idx in range(1, len(COLUMNAS_EXCEL_BEDELIA) + 1):
+            for c_idx in range(1, 17):
                 ws.cell(row=r_actual, column=c_idx).border = border_cell
             r_actual += 1
         else:
@@ -508,12 +576,21 @@ def construir_libro_excel_planillas(
                     else "DISPOSICIÓN"
                 )
                 num_inst = item.numero_instrumento or ""
+                if (
+                    "/" in str(num_inst)
+                    and item.tipo_instrumento != "RESOLUCION"
+                ):
+                    num_clean = str(num_inst).split("/")[0].strip()
+                else:
+                    num_clean = str(num_inst)
+
                 desde_str = (
                     item.desde.strftime("%d/%m/%Y") if item.desde else ""
                 )
                 hasta_str = (
                     item.hasta.strftime("%d/%m/%Y") if item.hasta else ""
                 )
+                obs_val = getattr(item, "observaciones", "") or ""
 
                 row_vals = [
                     str(item.docente.dni) if item.docente else "",
@@ -527,10 +604,11 @@ def construir_libro_excel_planillas(
                     art_lic,
                     tipo_inst,
                     item.oficina or oficina_val,
-                    num_inst,
+                    num_clean,
                     item.anio,
                     desde_str,
                     hasta_str,
+                    obs_val,
                 ]
 
                 ws.row_dimensions[r_actual].height = 20
@@ -570,6 +648,24 @@ def construir_libro_excel_planillas(
     )
 
     # Ajuste dinámico de anchos de columna para evitar textos recortados
+    min_widths = {
+        "A": 12,  # D.N.I
+        "B": 26,  # APELLIDO Y NOMBRE
+        "C": 8,   # SEXO
+        "D": 15,  # SIT. DE REVISTA
+        "E": 15,  # COD. DE CARGOS
+        "F": 28,  # DESCRIPCIÓN DE CARGOS
+        "G": 8,   # HORAS
+        "H": 12,  # COD. LIC.
+        "I": 12,  # ART.
+        "J": 14,  # TIPO
+        "K": 10,  # OFICINA
+        "L": 10,  # N°
+        "M": 8,   # AÑO
+        "N": 12,  # DESDE
+        "O": 12,  # HASTA
+        "P": 18,  # OBSERVACIONES
+    }
     for col in ws.columns:
         col_letter = get_column_letter(col[0].column)
         max_len = 0
@@ -579,7 +675,8 @@ def construir_libro_excel_planillas(
             val_str = str(cell.value or "")
             if len(val_str) > max_len:
                 max_len = len(val_str)
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 11)
+        base_min = min_widths.get(col_letter, 11)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, base_min)
 
     return wb
 
