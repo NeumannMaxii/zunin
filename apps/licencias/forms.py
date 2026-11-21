@@ -367,6 +367,22 @@ class JustificacionDiferidaForm(TailwindForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
+        # Validación de duplicación de Disposición Interna (Ticket 19.3)
+        tipo_inst = cleaned_data.get("tipo_instrumento") or "DISPOSICION"
+        num_disp = cleaned_data.get("numero_disposicion")
+        if tipo_inst == "DISPOSICION" and num_disp:
+            from apps.licencias.services import verificar_disposicion_duplicada
+
+            target_anio = fecha_desde.year if fecha_desde else (
+                registro.fecha.year if registro and registro.fecha else None
+            )
+            dup_info = verificar_disposicion_duplicada(
+                numero_str=num_disp,
+                anio=target_anio,
+            )
+            if dup_info["duplicado"]:
+                self.add_error("numero_disposicion", dup_info["mensaje"])
+
         return cleaned_data
 
     def save(self, usuario=None):
@@ -449,6 +465,7 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
             "fecha_hasta_prevista",
             "estado",
             "porcentaje_goce",
+            "tipo_instrumento",
             "instrumento_legal",
             "observaciones",
         ]
@@ -493,6 +510,20 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
             self.fields["cargo"].queryset = CargoDocente.objects.filter(
                 docente=target_docente, activo=True
             )
+
+        # Sugerir correlativo automático si es nueva licencia (Ticket 19.3)
+        if not self.instance.pk and not self.initial.get("instrumento_legal"):
+            from apps.licencias.services import (
+                obtener_siguiente_correlativo_disposicion,
+            )
+
+            try:
+                siguiente = obtener_siguiente_correlativo_disposicion(
+                    reservar=False
+                )
+                self.fields["instrumento_legal"].initial = siguiente
+            except Exception:
+                pass
 
     def clean(self):
         cleaned_data = super().clean()
@@ -563,5 +594,20 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
                 "cargo",
                 f"El cargo '{cargo}' no pertenece al docente {docente}.",
             )
+
+        # Validación de duplicación de Disposición Interna (Ticket 19.3)
+        tipo_inst = cleaned_data.get("tipo_instrumento") or "DISPOSICION"
+        inst_legal = cleaned_data.get("instrumento_legal")
+        if tipo_inst == "DISPOSICION" and inst_legal:
+            from apps.licencias.services import verificar_disposicion_duplicada
+
+            target_anio = fecha_desde.year if fecha_desde else None
+            dup_info = verificar_disposicion_duplicada(
+                numero_str=inst_legal,
+                anio=target_anio,
+                excluir_licencia_id=self.instance.pk if self.instance.pk else None,
+            )
+            if dup_info["duplicado"]:
+                self.add_error("instrumento_legal", dup_info["mensaje"])
 
         return cleaned_data

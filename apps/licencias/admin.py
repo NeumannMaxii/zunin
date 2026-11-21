@@ -6,6 +6,7 @@ Gestiona el Catálogo de Tipos de Licencias y los Renglones de Planilla Mensual.
 from django.contrib import admin
 from apps.licencias.models import (
     LicenciaOtorgada,
+    NumeradorDisposicion,
     RenglonPlanillaMensual,
     TipoLicencia,
 )
@@ -110,3 +111,9 @@ class LicenciaOtorgadaAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "fecha_desde"
     ordering = ("-fecha_desde", "-creado_en")
+
+
+@admin.register(NumeradorDisposicion)
+class NumeradorDisposicionAdmin(admin.ModelAdmin):
+    list_display = ("anio", "ultimo_numero", "actualizado_en")
+    ordering = ("-anio",)

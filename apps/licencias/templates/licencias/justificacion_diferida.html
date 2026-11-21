@@ -167,11 +167,17 @@
                     </div>
 
                     <!-- Número de Disposición Interna -->
-                    <div class="space-y-1.5">
-                        <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            N° Disposición Interna
-                        </label>
+                    <div id="container-disposicion" class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                                N° Disposición Interna
+                            </label>
+                            <span id="disp-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                Auto NNN/AAAA
+                            </span>
+                        </div>
                         {{ form.numero_disposicion }}
+                        <div id="disp-alerta-duplicado" class="hidden text-xs text-rose-600 font-medium mt-1"></div>
                         {% if form.numero_disposicion.help_text %}
                         <p class="text-xs text-slate-500">{{ form.numero_disposicion.help_text }}</p>
                         {% endif %}
@@ -181,7 +187,7 @@
                     </div>
 
                     <!-- Número de Resolución Ministerial Externa -->
-                    <div class="sm:col-span-2 space-y-1.5">
+                    <div id="container-resolucion" class="space-y-1.5 hidden sm:col-span-2">
                         <label for="{{ form.numero_resolucion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                             N° Resolución Ministerial Externa (M.E.C.C.y T.)
                         </label>
@@ -236,5 +242,95 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoInst = document.getElementById('id_tipo_instrumento');
+    const containerDisp = document.getElementById('container-disposicion');
+    const containerRes = document.getElementById('container-resolucion');
+    const inputDisp = document.getElementById('id_numero_disposicion');
+    const alertaDup = document.getElementById('disp-alerta-duplicado');
+    const badgeDisp = document.getElementById('disp-badge');
+    const fechaDesde = document.getElementById('id_fecha_desde');
+
+    let dispTimer = null;
+
+    async function actualizarSiguiente() {
+        if (!tipoInst || tipoInst.value !== 'DISPOSICION') return;
+        let anio = new Date().getFullYear();
+        if (fechaDesde && fechaDesde.value) {
+            const parts = fechaDesde.value.split('-');
+            if (parts[0]) anio = parseInt(parts[0], 10);
+        }
+        try {
+            const res = await fetch(`/api/licencias/siguiente-disposicion/?anio=${anio}`);
+            const data = await res.json();
+            if (data.status === 'success' && data.siguiente) {
+                if (inputDisp && !inputDisp.value) {
+                    inputDisp.value = data.siguiente;
+                }
+                if (badgeDisp) badgeDisp.textContent = `Siguiente: ${data.siguiente}`;
+            }
+        } catch(e) {}
+    }
+
+    async function validarDuplicado() {
+        if (!inputDisp || !inputDisp.value.trim() || (tipoInst && tipoInst.value !== 'DISPOSICION')) {
+            if (alertaDup) alertaDup.classList.add('hidden');
+            return;
+        }
+        let anio = new Date().getFullYear();
+        if (fechaDesde && fechaDesde.value) {
+            const parts = fechaDesde.value.split('-');
+            if (parts[0]) anio = parseInt(parts[0], 10);
+        }
+        try {
+            const res = await fetch(`/api/licencias/validar-disposicion/?numero=${encodeURIComponent(inputDisp.value.trim())}&anio=${anio}`);
+            const data = await res.json();
+            if (data.status === 'success') {
+                if (data.duplicado) {
+                    if (alertaDup) {
+                        alertaDup.textContent = `⚠️ ${data.mensaje}`;
+                        alertaDup.classList.remove('hidden');
+                    }
+                    inputDisp.classList.add('border-rose-500');
+                } else {
+                    if (alertaDup) alertaDup.classList.add('hidden');
+                    inputDisp.classList.remove('border-rose-500');
+                }
+            }
+        } catch(e) {}
+    }
+
+    function toggleCampos() {
+        if (tipoInst && tipoInst.value === 'RESOLUCION') {
+            if (containerDisp) containerDisp.classList.add('hidden');
+            if (containerRes) containerRes.classList.remove('hidden');
+        } else {
+            if (containerDisp) containerDisp.classList.remove('hidden');
+            if (containerRes) containerRes.classList.add('hidden');
+            actualizarSiguiente();
+        }
+    }
+
+    if (tipoInst) {
+        tipoInst.addEventListener('change', toggleCampos);
+    }
+    if (inputDisp) {
+        inputDisp.addEventListener('input', function() {
+            clearTimeout(dispTimer);
+            dispTimer = setTimeout(validarDuplicado, 300);
+        });
+    }
+    if (fechaDesde) {
+        fechaDesde.addEventListener('change', actualizarSiguiente);
+    }
+
+    toggleCampos();
+    actualizarSiguiente();
+});
+</script>
 {% endblock %}
 
