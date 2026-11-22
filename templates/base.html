@@ -133,7 +133,7 @@
                     {% if user.is_authenticated %}
                     <div class="hidden sm:flex items-center space-x-2 border-l border-slate-200 pl-3">
                         <span class="text-xs font-medium text-slate-600">
-                            {{ user.username }}
+                            {{ user|user_display_name }}
                         </span>
                         <!-- Logout seguro mediante método POST (Django 5+) -->
                         <form method="post" action="{% url 'logout' %}" class="inline">
@@ -181,7 +181,7 @@
                 {% endif %}
                 {% if user.is_authenticated %}
                 <div class="sm:hidden pt-3 border-t border-slate-200 mt-2 flex items-center justify-between px-3">
-                    <span class="text-xs font-medium text-slate-600">{{ user.username }}</span>
+                    <span class="text-xs font-medium text-slate-600">{{ user|user_display_name }}</span>
                     <form method="post" action="{% url 'logout' %}" class="inline">
                         {% csrf_token %}
                         <button type="submit" class="inline-flex items-center px-2.5 py-1.5 border border-slate-200 text-xs font-medium rounded-md text-slate-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition-colors cursor-pointer">

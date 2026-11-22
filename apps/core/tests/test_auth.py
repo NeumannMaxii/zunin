@@ -119,3 +119,20 @@ class CrearUsuariosCommandTests(TestCase):
         )
         self.assertTrue(usuario_mudarte.has_perm("personal.add_docente"))
         self.assertFalse(usuario_mudarte.has_perm("personal.delete_docente"))
+
+    def test_user_display_name_filter(self):
+        """Valida que el filtro user_display_name muestre Director con mayúscula."""
+        from apps.core.templatetags.auth_tags import user_display_name
+
+        User = get_user_model()
+        user_dir = User.objects.create_user(username="director", password="123")
+        self.assertEqual(user_display_name(user_dir), "Director")
+
+        user_full = User.objects.create_user(
+            username="maria", first_name="María", last_name="Duarte", password="123"
+        )
+        self.assertEqual(user_display_name(user_full), "María Duarte")
+
+        user_other = User.objects.create_user(username="bedel1", password="123")
+        self.assertEqual(user_display_name(user_other), "bedel1")
+        self.assertEqual(user_display_name(None), "")

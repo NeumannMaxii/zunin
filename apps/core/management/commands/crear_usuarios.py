@@ -30,6 +30,7 @@ class Command(BaseCommand):
             "is_superuser": False,
             "is_staff": True,
             "group": "Admin_Institucional",
+            "first_name": "Director",
         },
         "zaquino": {
             "is_superuser": False,
