@@ -338,7 +338,7 @@ class JustificacionDiferidaForm(TailwindForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
-        if cargo_target and fecha_desde and fecha_hasta:
+        if (cargo_target or docente) and fecha_desde and fecha_hasta:
             from apps.licencias.validaciones import validar_solapamiento_licencias
 
             try:
@@ -346,7 +346,9 @@ class JustificacionDiferidaForm(TailwindForm):
                     cargo=cargo_target,
                     fecha_desde=fecha_desde,
                     fecha_hasta=fecha_hasta,
+                    instancia_actual=getattr(self, "instance", None),
                     docente=docente,
+                    tipo_licencia=tipo_licencia,
                 )
             except forms.ValidationError as exc:
                 self.add_error("fecha_desde", exc)
@@ -558,7 +560,7 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
-        if cargo and fecha_desde and fecha_hasta:
+        if (cargo or docente) and fecha_desde and fecha_hasta:
             from apps.licencias.validaciones import validar_solapamiento_licencias
 
             try:
@@ -568,6 +570,7 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
                     fecha_hasta=fecha_hasta,
                     instancia_actual=self.instance,
                     docente=docente,
+                    tipo_licencia=tipo_licencia,
                 )
             except forms.ValidationError as exc:
                 self.add_error("fecha_desde", exc)

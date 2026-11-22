@@ -1496,12 +1496,18 @@ class ValidarSolapamientoLicenciaAPIView(View):
         fecha_hasta = params.get("fecha_hasta")
         excluir_id = params.get("excluir_id")
         docente_id = params.get("docente_id") or params.get("docente")
+        tipo_licencia_id = (
+            params.get("tipo_licencia_id") or params.get("tipo_licencia")
+        )
 
-        if not cargo_id:
+        if not cargo_id and not docente_id:
             return JsonResponse(
                 {
                     "status": "error",
-                    "error": ("El parámetro 'cargo_id' o 'cargo' es obligatorio."),
+                    "error": (
+                        "Debe especificar al menos 'cargo' o 'docente' "
+                        "para validar solapamiento."
+                    ),
                 },
                 status=400,
             )
@@ -1520,6 +1526,7 @@ class ValidarSolapamientoLicenciaAPIView(View):
 
         from apps.licencias.validaciones import (
             buscar_licencias_solapadas,
+            es_licencia_medica_o_reposo,
             validar_solapamiento_licencias,
         )
 
@@ -1530,6 +1537,7 @@ class ValidarSolapamientoLicenciaAPIView(View):
             fecha_hasta=fecha_hasta,
             excluir_id=excluir_pk,
             docente=docente_id,
+            tipo_licencia=tipo_licencia_id,
         )
 
         hay_solapamiento = solapadas.exists()
@@ -1539,9 +1547,16 @@ class ValidarSolapamientoLicenciaAPIView(View):
                 "tipo_licencia": (
                     lic.tipo_licencia.codigo if lic.tipo_licencia else "S/T"
                 ),
+                "articulo": (
+                    lic.tipo_licencia.articulo if lic.tipo_licencia else ""
+                ),
                 "descripcion": (
                     lic.tipo_licencia.descripcion if lic.tipo_licencia else ""
                 ),
+                "cargo": str(lic.cargo) if lic.cargo else "Alcance Institucional",
+                "cargo_id": lic.cargo_id,
+                "es_institucional": lic.cargo_id is None,
+                "es_medica": es_licencia_medica_o_reposo(lic.tipo_licencia),
                 "fecha_desde": lic.fecha_desde.strftime("%Y-%m-%d"),
                 "fecha_hasta": lic.fecha_hasta_prevista.strftime("%Y-%m-%d"),
                 "estado": lic.estado,
@@ -1560,9 +1575,12 @@ class ValidarSolapamientoLicenciaAPIView(View):
                 fecha_hasta=fecha_hasta,
                 instancia_actual=dummy_inst,
                 docente=docente_id,
+                tipo_licencia=tipo_licencia_id,
             )
             valido = True
-            mensaje = "No existen licencias superpuestas en el período para el cargo."
+            mensaje = (
+                "No existen licencias superpuestas en el período para el cargo."
+            )
         except ValidationError as exc:
             valido = False
             mensaje = exc.messages[0] if hasattr(exc, "messages") else str(exc)

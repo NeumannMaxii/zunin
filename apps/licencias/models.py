@@ -825,7 +825,7 @@ class LicenciaOtorgada(AuditoriaModel):
             )
 
         if (
-            cargo
+            (cargo or docente)
             and getattr(self, "fecha_desde", None)
             and getattr(self, "fecha_hasta_prevista", None)
         ):
@@ -837,6 +837,7 @@ class LicenciaOtorgada(AuditoriaModel):
                 fecha_hasta=self.fecha_hasta_prevista,
                 instancia_actual=self,
                 docente=docente,
+                tipo_licencia=tipo_lic,
             )
 
         if tipo_lic and (
