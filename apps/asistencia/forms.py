@@ -349,14 +349,22 @@ class ConsultaAsistenciaForm(TailwindForm):
     materia = forms.CharField(
         required=False,
         label="Materia / Espacio Curricular",
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": "Nombre o código de materia...",
-                "list": "materias-list",
-            }
-        ),
+        widget=forms.Select(choices=[("", "Todas las materias")]),
     )
     materia_id = forms.IntegerField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.personal.models import EspacioCurricular
+
+        choices = [("", "Todas las materias")]
+        materias = EspacioCurricular.objects.select_related("carrera").order_by(
+            "carrera__codigo", "anio", "nombre"
+        )
+        for mat in materias:
+            carrera_cod = mat.carrera.codigo if mat.carrera else "S/C"
+            choices.append((mat.nombre, f"{mat.nombre} ({carrera_cod} - {mat.codigo})"))
+        self.fields["materia"].widget.choices = choices
 
     def clean(self):
         cleaned_data = super().clean()
