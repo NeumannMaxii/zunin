@@ -270,19 +270,34 @@
                         {% endif %}
                     </div>
 
-                    <!-- Contacto -->
-                    <div class="sm:col-span-2 space-y-1.5">
-                        <label for="{{ form.contacto.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Contacto (Teléfono / Correo Electrónico)
+                    <!-- Correo Electrónico -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.email.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Correo Electrónico
                         </label>
-                        {{ form.contacto }}
-                        {% if form.contacto.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.contacto.help_text }}</p>
+                        {{ form.email }}
+                        {% if form.email.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.email.help_text }}</p>
                         {% endif %}
-                        {% if form.contacto.errors %}
-                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.contacto.errors }}</div>
+                        {% if form.email.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.email.errors }}</div>
                         {% endif %}
                     </div>
+
+                    <!-- Celular / WhatsApp -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.celular.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                            Celular / WhatsApp
+                        </label>
+                        {{ form.celular }}
+                        {% if form.celular.help_text %}
+                        <p class="text-xs text-slate-500">{{ form.celular.help_text }}</p>
+                        {% endif %}
+                        {% if form.celular.errors %}
+                        <div class="text-xs text-rose-600 font-medium mt-1">{{ form.celular.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="hidden">{{ form.contacto }}</div>
                 </div>
             </div>
 

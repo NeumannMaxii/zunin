@@ -7,12 +7,18 @@ y Ticket 6: Pantalla 1 — CRUD Personal y endpoint de baja lógica con segurida
 import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, ListView, TemplateView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DetailView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
 from django.views.generic.edit import FormView
 from apps.core.audit import AuditoriaFormMixin, audit_save
 from apps.core.mixins import PermisosEstrictosMixin
@@ -563,7 +569,10 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
     ordering = ["codigo"]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().annotate(
+            total_materias=Count("espacios_curriculares", distinct=True),
+            total_planes=Count("planes_estudio", distinct=True),
+        )
         q = self.request.GET.get("q", "").strip()
         if q:
             queryset = queryset.filter(Q(codigo__icontains=q) | Q(nombre__icontains=q))
@@ -601,6 +610,21 @@ class CarreraCreateView(SoloAdminInstitucionalMixin, AuditoriaFormMixin, CreateV
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        plan_nombre = form.cleaned_data.get("plan_inicial_nombre", "").strip()
+        if plan_nombre and self.object and self.object.pk:
+            resolucion = form.cleaned_data.get(
+                "plan_inicial_resolucion", ""
+            ).strip()
+            anio = form.cleaned_data.get("plan_inicial_anio")
+            PlanEstudio.objects.get_or_create(
+                carrera=self.object,
+                nombre=plan_nombre,
+                defaults={
+                    "resolucion": resolucion,
+                    "anio_implementacion": anio,
+                    "activo": True,
+                },
+            )
         messages.success(
             self.request,
             f"Carrera '{self.object.codigo} - {self.object.nombre}' "
@@ -740,6 +764,40 @@ class PlanEstudioUpdateView(
             f"Plan de estudio '{self.object.nombre}' actualizado con éxito.",
         )
         return response
+
+
+class PlanEstudioDetailView(SoloAdminInstitucionalMixin, DetailView):
+    """
+    Vista de detalle y estructura curricular de un Plan de Estudio.
+    Organiza las materias por año con accesos para nuevas asignaturas.
+    """
+
+    model = PlanEstudio
+    template_name = "personal/catalogos/planestudio_detail.html"
+    context_object_name = "plan"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        plan = self.object
+        materias = list(
+            plan.espacios_curriculares.all().order_by("anio", "codigo")
+        )
+        anios_presentes = {m.anio for m in materias if m.anio}
+        anios_base = {1, 2, 3}
+        todos_anios = sorted(list(anios_presentes | anios_base))
+
+        anios_data = []
+        for anio_num in todos_anios:
+            mats_anio = [m for m in materias if m.anio == anio_num]
+            anios_data.append({
+                "anio": anio_num,
+                "materias": mats_anio,
+                "total": len(mats_anio),
+            })
+
+        context["anios_data"] = anios_data
+        context["total_materias"] = len(materias)
+        return context
 
 
 def planes_por_carrera_api(request):
@@ -969,6 +1027,17 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related("carrera", "plan_estudio_ref")
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        if carrera_param:
+            if carrera_param.isdigit():
+                queryset = queryset.filter(carrera_id=int(carrera_param))
+            else:
+                queryset = queryset.filter(carrera__codigo__iexact=carrera_param)
+
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            queryset = queryset.filter(plan_estudio_ref_id=int(plan_param))
+
         q = self.request.GET.get("q", "").strip()
         if q:
             queryset = queryset.filter(
@@ -984,8 +1053,43 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["titulo"] = "Catálogo de Espacios Curriculares"
+        context["titulo"] = "Materias y Espacios Curriculares"
         context["q"] = self.request.GET.get("q", "").strip()
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        context["carrera_param"] = carrera_param
+
+        # Objeto carrera seleccionada para encabezado contextual
+        carrera_sel = None
+        if carrera_param:
+            if carrera_param.isdigit():
+                carrera_sel = Carrera.objects.filter(pk=int(carrera_param)).first()
+            else:
+                carrera_sel = Carrera.objects.filter(
+                    codigo__iexact=carrera_param
+                ).first()
+        context["carrera_seleccionada"] = carrera_sel
+        context["carreras_disponibles"] = Carrera.objects.filter(
+            activo=True
+        ).order_by("nombre")
+
+        plan_param = self.request.GET.get("plan", "").strip()
+        context["plan_param"] = plan_param
+        plan_sel = None
+        if plan_param and plan_param.isdigit():
+            plan_sel = PlanEstudio.objects.filter(pk=int(plan_param)).first()
+        context["plan_seleccionado"] = plan_sel
+
+        if carrera_sel:
+            context["planes_disponibles"] = PlanEstudio.objects.filter(
+                carrera=carrera_sel, activo=True
+            ).order_by("-anio_implementacion", "nombre")
+        else:
+            context["planes_disponibles"] = PlanEstudio.objects.filter(
+                activo=True
+            ).select_related("carrera").order_by(
+                "carrera__codigo", "-anio_implementacion", "nombre"
+            )
+
         context["total_encontrados"] = (
             context["paginator"].count
             if "paginator" in context
@@ -999,6 +1103,7 @@ class EspacioCurricularCreateView(
 ):
     """
     Vista para dar de alta un nuevo Espacio Curricular / Materia.
+    Permite preseleccionar la carrera y el plan si vienen como parámetros GET.
     """
 
     model = EspacioCurricular
@@ -1006,11 +1111,52 @@ class EspacioCurricularCreateView(
     template_name = "personal/catalogos/catalogo_form.html"
     success_url = reverse_lazy("personal:espaciocurricular_list")
 
+    def get_initial(self):
+        initial = super().get_initial()
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        if carrera_param:
+            if carrera_param.isdigit():
+                carrera_obj = Carrera.objects.filter(pk=int(carrera_param)).first()
+            else:
+                carrera_obj = Carrera.objects.filter(
+                    codigo__iexact=carrera_param
+                ).first()
+            if carrera_obj:
+                initial["carrera"] = carrera_obj
+
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            plan_obj = PlanEstudio.objects.filter(pk=int(plan_param)).first()
+            if plan_obj:
+                initial["plan_estudio_ref"] = plan_obj
+                if not initial.get("carrera") and plan_obj.carrera:
+                    initial["carrera"] = plan_obj.carrera
+
+        anio_param = self.request.GET.get("anio", "").strip()
+        if anio_param and anio_param.isdigit():
+            initial["anio"] = int(anio_param)
+
+        return initial
+
+    def get_success_url(self):
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            return reverse_lazy(
+                "personal:planestudio_detail", kwargs={"pk": int(plan_param)}
+            )
+        return str(self.success_url)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Nuevo Espacio Curricular"
         context["catalogo_nombre"] = "Espacio Curricular"
-        context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            context["list_url"] = reverse_lazy(
+                "personal:planestudio_detail", kwargs={"pk": int(plan_param)}
+            )
+        else:
+            context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
         context["accion"] = "Registrar Materia"
         return context
 
@@ -1036,13 +1182,27 @@ class EspacioCurricularUpdateView(
     template_name = "personal/catalogos/catalogo_form.html"
     success_url = reverse_lazy("personal:espaciocurricular_list")
 
+    def get_success_url(self):
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            return reverse_lazy(
+                "personal:planestudio_detail", kwargs={"pk": int(plan_param)}
+            )
+        return str(self.success_url)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = (
             f"Editar Espacio Curricular: {self.object.codigo}"
         )
         context["catalogo_nombre"] = "Espacio Curricular"
-        context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
+        plan_param = self.request.GET.get("plan", "").strip()
+        if plan_param and plan_param.isdigit():
+            context["list_url"] = reverse_lazy(
+                "personal:planestudio_detail", kwargs={"pk": int(plan_param)}
+            )
+        else:
+            context["list_url"] = reverse_lazy("personal:espaciocurricular_list")
         context["accion"] = "Guardar Cambios"
         return context
 

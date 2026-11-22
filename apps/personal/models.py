@@ -246,6 +246,21 @@ class Docente(models.Model):
         null=True,
         verbose_name="Contacto (Teléfono/Email)",
     )
+    email = models.EmailField(
+        blank=True,
+        null=True,
+        verbose_name="Correo Electrónico",
+        help_text="Correo electrónico de contacto institucional o personal.",
+    )
+    celular = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Celular / WhatsApp",
+        help_text=(
+            "Número de teléfono móvil o WhatsApp para contacto directo de Bedelía."
+        ),
+    )
     activo = models.BooleanField(default=True, verbose_name="Activo")
     fecha_creacion = models.DateTimeField(
         auto_now_add=True, verbose_name="Fecha de Creación"
@@ -278,6 +293,23 @@ class Docente(models.Model):
 
     def __str__(self):
         return f"{self.apellido}, {self.nombre} (DNI: {self.dni})"
+
+    def save(self, *args, **kwargs):
+        if not self.email and self.contacto and "@" in self.contacto:
+            self.email = self.contacto.strip()
+        if self.email or self.celular:
+            partes = [p for p in [self.celular, self.email] if p]
+            self.contacto = " | ".join(partes)
+        elif self.contacto and not self.email:
+            self.email = self.contacto.strip()
+        super().save(*args, **kwargs)
+
+    @property
+    def celular_limpio(self):
+        """Retorna solo dígitos del celular para enlaces directos de tel o WhatsApp."""
+        if not self.celular:
+            return ""
+        return "".join(c for c in str(self.celular) if c.isdigit())
 
     @property
     def nombre_completo(self):

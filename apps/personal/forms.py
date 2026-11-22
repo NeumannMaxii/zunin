@@ -41,6 +41,8 @@ class DocenteForm(TailwindModelForm):
             "localidad",
             "codigo_postal",
             "provincia",
+            "email",
+            "celular",
             "contacto",
             "activo",
         ]
@@ -49,6 +51,12 @@ class DocenteForm(TailwindModelForm):
             "dni": forms.TextInput(attrs={"placeholder": "Ej: 28456123"}),
             "apellido": forms.TextInput(attrs={"placeholder": "Apellido del docente"}),
             "nombre": forms.TextInput(attrs={"placeholder": "Nombres del docente"}),
+            "email": forms.EmailInput(
+                attrs={"placeholder": "ejemplo@iesetyfp.edu.ar"}
+            ),
+            "celular": forms.TextInput(
+                attrs={"placeholder": "Ej: 3624-123456"}
+            ),
             "contacto": forms.TextInput(
                 attrs={"placeholder": "Teléfono o correo electrónico"}
             ),
@@ -392,7 +400,33 @@ class ImportarCSVForm(TailwindForm):
 class CarreraForm(TailwindModelForm):
     """
     Formulario para el alta y edición de Carreras (Ticket 10.1).
+    Requiere obligatoriamente definir el Plan de Estudio Inicial al crear una carrera.
     """
+
+    plan_inicial_nombre = forms.CharField(
+        required=True,
+        label="Plan de Estudio Inicial",
+        help_text=(
+            "Ej: Plan 2026. Toda carrera debe contar con su plan de estudio."
+        ),
+        widget=forms.TextInput(attrs={"placeholder": "Ej: Plan 2026"}),
+    )
+    plan_inicial_resolucion = forms.CharField(
+        required=True,
+        label="Resolución Ministerial",
+        help_text="Ej: Res. MECCyT N° 1245/26. Norma legal ministerial aprobatoria.",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej: Res. MECCyT N° 1245/26"}
+        ),
+    )
+    plan_inicial_anio = forms.IntegerField(
+        required=True,
+        label="Año de Implementación",
+        help_text="Año calendario en que entra en vigencia el plan (Ej: 2026).",
+        widget=forms.NumberInput(
+            attrs={"placeholder": "Ej: 2026", "min": 1990, "max": 2100}
+        ),
+    )
 
     class Meta:
         model = Carrera
@@ -407,6 +441,34 @@ class CarreraForm(TailwindModelForm):
                 }
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields.pop("plan_inicial_nombre", None)
+            self.fields.pop("plan_inicial_resolucion", None)
+            self.fields.pop("plan_inicial_anio", None)
+
+    def save(self, commit=True):
+        carrera = super().save(commit=commit)
+        plan_nombre = self.cleaned_data.get("plan_inicial_nombre", "").strip()
+        if plan_nombre and commit and carrera.pk:
+            from apps.personal.models import PlanEstudio
+
+            resolucion = self.cleaned_data.get(
+                "plan_inicial_resolucion", ""
+            ).strip()
+            anio = self.cleaned_data.get("plan_inicial_anio")
+            PlanEstudio.objects.get_or_create(
+                carrera=carrera,
+                nombre=plan_nombre,
+                defaults={
+                    "resolucion": resolucion,
+                    "anio_implementacion": anio,
+                    "activo": True,
+                },
+            )
+        return carrera
 
     def clean_codigo(self):
         codigo = self.cleaned_data.get("codigo", "").strip().upper()
@@ -563,9 +625,26 @@ class EspacioCurricularForm(TailwindModelForm):
 
     plan_estudio_ref = forms.ModelChoiceField(
         queryset=PlanEstudio.objects.none(),
-        required=False,
-        label="Plan de Estudio Formal",
-        help_text="Plan curricular al que pertenece la asignatura",
+        required=True,
+        empty_label="-- Seleccionar Plan de Estudio --",
+        label="Plan de Estudio",
+        help_text=(
+            "Plan curricular ministerial al que pertenece la asignatura (requerido)"
+        ),
+    )
+    anio = forms.TypedChoiceField(
+        choices=[
+            ("", "-- Seleccionar Año de Cursada --"),
+            (1, "1° Año"),
+            (2, "2° Año"),
+            (3, "3° Año"),
+            (4, "4° Año"),
+            (5, "5° Año"),
+        ],
+        coerce=int,
+        required=True,
+        label="Año de Cursada",
+        help_text="Año correspondiente dentro de la carrera (1° a 5°)",
     )
 
     class Meta:
@@ -580,20 +659,15 @@ class EspacioCurricularForm(TailwindModelForm):
             "turno",
             "regimen",
             "aula",
-            "plan_estudio",
         ]
         widgets = {
             "codigo": forms.TextInput(attrs={"placeholder": "Ej: DS-101"}),
             "nombre": forms.TextInput(
                 attrs={"placeholder": "Ej: Programación I"}
             ),
-            "anio": forms.NumberInput(attrs={"min": 1, "max": 6}),
             "comision": forms.TextInput(attrs={"placeholder": "Ej: 1° A"}),
             "aula": forms.TextInput(
                 attrs={"placeholder": "Ej: Laboratorio 1"}
-            ),
-            "plan_estudio": forms.TextInput(
-                attrs={"placeholder": "Texto libre o referencia secundaria"}
             ),
         }
 
@@ -604,7 +678,6 @@ class EspacioCurricularForm(TailwindModelForm):
         self.fields["regimen"].initial = "ANUAL"
         self.fields["turno"].initial = "MANANA"
         self.fields["aula"].required = False
-        self.fields["plan_estudio"].required = False
 
         carrera_id = None
         if "carrera" in self.data:
@@ -626,6 +699,36 @@ class EspacioCurricularForm(TailwindModelForm):
             self.fields["plan_estudio_ref"].queryset = PlanEstudio.objects.filter(
                 activo=True
             ).order_by("carrera__codigo", "nombre")
+
+        # Si se está editando una materia existente, fijar y bloquear Carrera y Plan
+        if self.instance and self.instance.pk:
+            self.fields["carrera"].disabled = True
+            self.fields["carrera"].help_text = (
+                "Carrera a la que pertenece la asignatura (asignación fija)."
+            )
+            self.fields["plan_estudio_ref"].disabled = True
+            self.fields["plan_estudio_ref"].help_text = (
+                "Plan curricular ministerial al que pertenece la asignatura (fijo)."
+            )
+        elif self.initial.get("plan_estudio_ref") and self.initial.get("carrera"):
+            self.fields["carrera"].disabled = True
+            self.fields["carrera"].help_text = (
+                "Carrera preseleccionada desde el plan (fijo)."
+            )
+            self.fields["plan_estudio_ref"].disabled = True
+            self.fields["plan_estudio_ref"].help_text = (
+                "Plan curricular ministerial preseleccionado (fijo)."
+            )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if instance.plan_estudio_ref:
+            instance.plan_estudio = instance.plan_estudio_ref.nombre
+        elif not instance.plan_estudio:
+            instance.plan_estudio = ""
+        if commit:
+            instance.save()
+        return instance
 
     def clean(self):
         cleaned_data = super().clean()

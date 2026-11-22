@@ -173,6 +173,11 @@ urlpatterns = [
         name="planestudio_create",
     ),
     path(
+        "catalogos/planes/<int:pk>/",
+        views.PlanEstudioDetailView.as_view(),
+        name="planestudio_detail",
+    ),
+    path(
         "catalogos/planes/<int:pk>/editar/",
         views.PlanEstudioUpdateView.as_view(),
         name="planestudio_update",

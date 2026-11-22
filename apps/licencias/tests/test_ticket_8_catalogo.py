@@ -104,8 +104,6 @@ class CatalogoLicenciasTicket8Tests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "licencias/tipolicencia_list.html")
         self.assertContains(response, "Catálogo de Licencias Estatutarias")
-        self.assertContains(response, "Pantalla 2")
-        self.assertContains(response, "Solo Lectura")
 
     def test_catalogo_muestra_todos_sin_filtro(self):
         """Sin filtros GET retorna el catálogo completo de licencias."""

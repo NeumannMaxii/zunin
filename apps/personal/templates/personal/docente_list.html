@@ -64,25 +64,72 @@
     <!-- Tabla de Docentes -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200">
-                <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <table class="min-w-full tabla-institucional">
+                <thead class="text-left text-xs font-semibold uppercase tracking-wider">
                     <tr>
                         <th class="px-6 py-3">Docente</th>
-                        <th class="px-6 py-3">Sexo</th>
                         <th class="px-6 py-3">Contacto</th>
+                        <th class="px-6 py-3 text-center">Cargos / Espacios</th>
                         <th class="px-6 py-3">Estado</th>
-                        <th class="px-6 py-3 text-right">Acciones</th>
+                        <th class="px-6 py-3 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for docente in docentes %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="font-medium text-slate-900">{{ docente.apellido }}, {{ docente.nombre }}</div>
-                            <div class="text-xs text-slate-500 font-mono">DNI: {{ docente.dni|default:"-" }}</div>
+                            <a href="{% url 'personal:docente_update' docente.pk %}" class="font-medium text-slate-900 hover:text-institucional-600 hover:underline transition-colors">
+                                {{ docente.apellido }}, {{ docente.nombre }}
+                            </a>
+                            <div class="text-xs text-slate-500 font-mono">
+                                DNI: {{ docente.dni|default:"-" }}
+                                {% if docente.cuil_dgi %}
+                                    <span class="text-slate-300 mx-1">|</span>CUIL: {{ docente.cuil_dgi }}
+                                {% endif %}
+                            </div>
                         </td>
-                        <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{{ docente.get_sexo_display|default:"-" }}</td>
-                        <td class="px-6 py-4 text-slate-500 whitespace-nowrap">{{ docente.contacto|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="space-y-1">
+                                {% if docente.email %}
+                                <a href="mailto:{{ docente.email }}" class="flex items-center text-xs text-slate-700 hover:text-institucional-600 transition-colors" title="Enviar correo electrónico">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="truncate max-w-[220px]">{{ docente.email }}</span>
+                                </a>
+                                {% elif docente.contacto and "@" in docente.contacto %}
+                                <a href="mailto:{{ docente.contacto }}" class="flex items-center text-xs text-slate-700 hover:text-institucional-600 transition-colors" title="Enviar correo">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="truncate max-w-[220px]">{{ docente.contacto }}</span>
+                                </a>
+                                {% endif %}
+
+                                {% if docente.celular %}
+                                <div class="flex items-center space-x-2">
+                                    <a href="tel:{{ docente.celular_limpio }}" class="inline-flex items-center text-xs font-mono text-slate-600 hover:text-slate-900 transition-colors" title="Llamar al docente">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                        </svg>
+                                        {{ docente.celular }}
+                                    </a>
+                                    {% if docente.celular_limpio %}
+                                    <a href="https://wa.me/549{{ docente.celular_limpio }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors" title="Enviar WhatsApp directo">
+                                        WhatsApp
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% elif not docente.email and not docente.contacto %}
+                                <span class="text-xs text-slate-400 italic">Sin datos de contacto</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <a href="{% url 'personal:cargodocente_list' %}?q={{ docente.dni }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors" title="Ver cargos y materias asignadas a este docente">
+                                {{ docente.cargos.count }} {% if docente.cargos.count == 1 %}cargo{% else %}cargos{% endif %}
+                            </a>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if docente.activo %}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
@@ -90,7 +137,7 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                        <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
                             <a href="{% url 'personal:cargo_create' docente.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors" title="Agregar designación o cargo">
                                 + Cargo
                             </a>
