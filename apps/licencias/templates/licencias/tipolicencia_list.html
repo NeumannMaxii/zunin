@@ -23,72 +23,11 @@
         </div>
     </div>
 
-    <!-- Barra de Filtros y Búsqueda Predictiva -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
-        <!-- Pestañas de Cuadro -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Filtrar por Cuadro:</span>
-
-                <!-- Todos -->
-                <a href="{% url 'licencias:tipolicencia_list' %}{% if q %}?q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if not cuadro %}bg-institucional-600 text-white shadow-xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900{% endif %}">
-                    Todos los cuadros
-                </a>
-
-                <!-- Cuadro IL-01 -->
-                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-01{% if q %}&q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro == 'IL-01' %}bg-sky-600 text-white shadow-xs{% else %}bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200{% endif %}">
-                    <span class="w-2 h-2 rounded-full mr-1.5 {% if cuadro == 'IL-01' %}bg-white{% else %}bg-sky-500{% endif %}"></span>
-                    Cuadro IL-01 (Salud y Enfermedad)
-                </a>
-
-                <!-- Cuadro IL-02 -->
-                <a href="{% url 'licencias:tipolicencia_list' %}?cuadro=IL-02{% if q %}&q={{ q }}{% endif %}{% if regimen %}&regimen={{ regimen }}{% endif %}"
-                   class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {% if cuadro == 'IL-02' %}bg-amber-600 text-white shadow-xs{% else %}bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200{% endif %}">
-                    <span class="w-2 h-2 rounded-full mr-1.5 {% if cuadro == 'IL-02' %}bg-white{% else %}bg-amber-500{% endif %}"></span>
-                    Cuadro IL-02 (Especiales / Inasistencias)
-                </a>
-            </div>
-
-            <!-- Filtro de Régimen de Revista (Ticket 17.1) -->
-            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Régimen:</span>
-                <a href="{% url 'licencias:tipolicencia_list' %}?{% if cuadro %}cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if not regimen %}bg-slate-700 text-white shadow-xs{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
-                    Todos
-                </a>
-                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=TIT{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'TIT' %}bg-indigo-600 text-white shadow-xs{% else %}bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200{% endif %}">
-                    Titular (TIT)
-                </a>
-                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=INT{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'INT' %}bg-emerald-600 text-white shadow-xs{% else %}bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200{% endif %}">
-                    Interino (INT)
-                </a>
-                <a href="{% url 'licencias:tipolicencia_list' %}?regimen=SUP{% if cuadro %}&cuadro={{ cuadro }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                   class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors {% if regimen == 'SUP' %}bg-purple-600 text-white shadow-xs{% else %}bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200{% endif %}">
-                    Suplente (SUP)
-                </a>
-            </div>
-
-            <!-- Contador de Resultados Dinámico -->
-            <div class="text-xs text-slate-500">
-                Mostrando: <span id="contador-encontrados" class="font-bold text-slate-900">{{ total_encontrados }}</span> tipos
-            </div>
-        </div>
-
-        <!-- Formulario de Búsqueda Predictiva ?q= -->
-        <form method="get" action="{% url 'licencias:tipolicencia_list' %}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {% if cuadro %}
-            <input type="hidden" name="cuadro" value="{{ cuadro }}">
-            {% endif %}
-            {% if regimen %}
-            <input type="hidden" name="regimen" value="{{ regimen }}">
-            {% endif %}
-
-            <!-- Input con Sugerencias y Filtrado en Tiempo Real -->
-            <div class="relative flex-1">
+    <!-- Barra Unificada de Filtros y Búsqueda -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
+        <form method="get" action="{% url 'licencias:tipolicencia_list' %}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <!-- Buscador en tiempo real -->
+            <div class="relative flex-1 min-w-[240px] max-w-lg">
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -100,13 +39,13 @@
                        value="{{ q }}"
                        list="sugerencias-licencias"
                        autocomplete="off"
-                       placeholder="Escribí para buscar al instante (ej: 340, mat, due, enf, atencion)..."
-                       class="block w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:border-institucional-600 transition-colors">
+                       placeholder="Buscar por código, artículo o palabra clave (ej: 340, maternidad)..."
+                       class="block w-full pl-10 pr-9 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:border-institucional-600 transition-colors">
                 
                 <!-- Botón rápido para limpiar texto del input -->
                 <button type="button"
                         id="clear-search-btn"
-                        class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                        class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                         title="Borrar texto">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -125,40 +64,68 @@
                 {% endfor %}
             </datalist>
 
-            <div class="flex items-center gap-2">
-                <button type="submit" class="inline-flex items-center justify-center px-4 py-2.5 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Desplegables de Filtrado y Acciones -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Desplegable Cuadro Oficial -->
+                <select name="cuadro" 
+                        onchange="this.form.submit()" 
+                        class="text-xs font-semibold rounded-xl border border-slate-300 bg-slate-50 hover:bg-white py-2 pl-3 pr-8 shadow-2xs focus:border-institucional-600 focus:ring-institucional-600 text-slate-700 transition-colors cursor-pointer">
+                    <option value="" {% if not cuadro %}selected{% endif %}>Todos los cuadros</option>
+                    <option value="IL-01" {% if cuadro == 'IL-01' %}selected{% endif %}>Cuadro IL-01 (Salud y Enfermedad)</option>
+                    <option value="IL-02" {% if cuadro == 'IL-02' %}selected{% endif %}>Cuadro IL-02 (Especiales / Inasistencias)</option>
+                </select>
+
+                <!-- Desplegable Régimen de Revista -->
+                <select name="regimen" 
+                        onchange="this.form.submit()" 
+                        class="text-xs font-semibold rounded-xl border border-slate-300 bg-slate-50 hover:bg-white py-2 pl-3 pr-8 shadow-2xs focus:border-institucional-600 focus:ring-institucional-600 text-slate-700 transition-colors cursor-pointer">
+                    <option value="" {% if not regimen %}selected{% endif %}>Todos los regímenes</option>
+                    <option value="TIT" {% if regimen == 'TIT' %}selected{% endif %}>Titular (TIT)</option>
+                    <option value="INT" {% if regimen == 'INT' %}selected{% endif %}>Interino (INT)</option>
+                    <option value="SUP" {% if regimen == 'SUP' %}selected{% endif %}>Suplente (SUP)</option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-xs font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     Buscar
                 </button>
 
-                {% if q or cuadro %}
-                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center justify-center px-3.5 py-2.5 border border-slate-300 shadow-xs text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors" title="Restablecer todos los filtros">
+                {% if q or cuadro or regimen %}
+                <a href="{% url 'licencias:tipolicencia_list' %}" class="inline-flex items-center px-3 py-2 border border-slate-300 shadow-xs text-xs font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors" title="Restablecer todos los filtros">
                     Limpiar
                 </a>
                 {% endif %}
             </div>
         </form>
 
-        <!-- Filtros Activos Chips -->
-        {% if q or cuadro %}
-        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
-            <span class="text-slate-400">Filtros activos:</span>
-            {% if cuadro %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-medium">
-                Cuadro: {{ cuadro }}
-                <a href="{% url 'licencias:tipolicencia_list' %}{% if q %}?q={{ q }}{% endif %}" class="ml-1 text-slate-400 hover:text-slate-700" title="Quitar filtro de cuadro">&times;</a>
-            </span>
-            {% endif %}
-            {% if q %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-medium">
-                Texto: "{{ q }}"
-                <a href="{% url 'licencias:tipolicencia_list' %}{% if cuadro %}?cuadro={{ cuadro }}{% endif %}" class="ml-1 text-slate-400 hover:text-slate-700" title="Quitar filtro de texto">&times;</a>
-            </span>
+        <!-- Barra inferior discreta: contador y filtros activos -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+            <div>
+                Mostrando: <span id="contador-encontrados" class="font-bold text-slate-900">{{ total_encontrados }}</span> tipos de licencias
+            </div>
+            {% if q or cuadro or regimen %}
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span class="text-slate-400">Activo:</span>
+                {% if cuadro %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 font-medium">
+                    Cuadro: {{ cuadro }}
+                </span>
+                {% endif %}
+                {% if regimen %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                    Régimen: {{ regimen }}
+                </span>
+                {% endif %}
+                {% if q %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium">
+                    "{{ q }}"
+                </span>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
-        {% endif %}
     </div>
 
     <!-- Tabla de Licencias -->
@@ -189,9 +156,6 @@
                         </td>
                         <td class="px-6 py-4 text-slate-700 max-w-xs sm:max-w-md">
                             <div class="font-medium text-slate-900">{{ lic.descripcion }}</div>
-                            {% if lic.cantidad_duracion %}
-                            <div class="text-xs text-slate-500 mt-0.5">{{ lic.cantidad_duracion }}</div>
-                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if lic.cuadro_mensual == 'IL-01' or lic.cuadro_mensual == 'DL-01' %}
