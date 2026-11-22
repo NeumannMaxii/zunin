@@ -77,7 +77,11 @@
                     {% for carrera in carreras %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
                         <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ carrera.codigo|default:"-" }}</td>
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ carrera.nombre|default:"-" }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">
+                            <a href="{% url 'personal:planestudio_list' %}?carrera={{ carrera.pk }}" class="hover:text-institucional-600 hover:underline transition-colors" title="Ver planes y materias de {{ carrera.nombre }}">
+                                {{ carrera.nombre|default:"-" }}
+                            </a>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex flex-col gap-1 items-start">
                                 <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors" title="Ver materias asignadas a esta carrera">

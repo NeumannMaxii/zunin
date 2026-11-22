@@ -91,18 +91,30 @@
                     {% for plan in planes %}
                     <tr class="hover:bg-slate-50/75 transition-colors">
                         <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold font-mono bg-slate-100 text-slate-700">
-                                {{ plan.carrera.codigo }}
-                            </span>
-                            <span class="ml-2 font-medium text-slate-900">{{ plan.carrera.nombre }}</span>
+                            <a href="{% url 'personal:planestudio_detail' plan.pk %}" class="group inline-flex items-center text-slate-900 hover:text-institucional-600 font-medium transition-colors" title="Ver materias y años de cursada de {{ plan.carrera.nombre }}">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold font-mono bg-slate-100 text-slate-700 group-hover:bg-institucional-50 group-hover:text-institucional-700 transition-colors">
+                                    {{ plan.carrera.codigo }}
+                                </span>
+                                <span class="ml-2 group-hover:underline">{{ plan.carrera.nombre }}</span>
+                            </a>
                         </td>
-                        <td class="px-6 py-4 font-semibold text-slate-900">{{ plan.nombre }}</td>
+                        <td class="px-6 py-4 font-semibold text-slate-900">
+                            <a href="{% url 'personal:planestudio_detail' plan.pk %}" class="hover:text-institucional-600 hover:underline transition-colors" title="Ver estructura de este plan">
+                                {{ plan.nombre }}
+                            </a>
+                        </td>
                         <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ plan.resolucion|default:"-" }}</td>
                         <td class="px-6 py-4 font-mono text-slate-700">{{ plan.anio_implementacion|default:"-" }}</td>
                         <td class="px-6 py-4 text-center">
-                            <a href="{% url 'personal:planestudio_detail' plan.pk %}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors" title="Ver estructura de materias por año de este plan">
-                                {{ plan.espacios_curriculares.count }} asignadas &rarr;
-                            </a>
+                            {% if plan.espacios_curriculares.count > 0 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                    {{ plan.espacios_curriculares.count }} asignadas
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                    0 asignadas
+                                </span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4">
                             {% if plan.activo %}
@@ -111,11 +123,8 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
-                            <a href="{% url 'personal:planestudio_detail' plan.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-institucional-700 bg-institucional-50 hover:bg-institucional-100 border border-institucional-200 transition-colors" title="Ver estructura y materias por año">
-                                Estructura &rarr;
-                            </a>
-                            <a href="{% url 'personal:planestudio_update' plan.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
+                        <td class="px-6 py-4 text-left whitespace-nowrap">
+                            <a href="{% url 'personal:planestudio_update' plan.pk %}" class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
                                 Editar
                             </a>
                         </td>
