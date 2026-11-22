@@ -56,6 +56,51 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
+
+        /* ==========================================================================
+           Grilla Tabular Institucional (Alta Legibilidad para Bedelía y Auditoría)
+           División nítida y visible entre filas y columnas
+           ========================================================================== */
+        .tabla-institucional {
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            width: 100% !important;
+        }
+        .tabla-institucional thead th {
+            background-color: #f1f5f9 !important; /* slate-100 */
+            color: #1e293b !important; /* slate-800 con alto contraste */
+            font-weight: 700 !important;
+            font-size: 0.75rem !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase !important;
+            border-bottom: 2px solid #94a3b8 !important; /* slate-400 firme */
+            border-right: 1px solid #cbd5e1 !important; /* slate-300 vertical */
+            padding: 0.85rem 1rem !important;
+        }
+        .tabla-institucional thead th:last-child {
+            border-right: none !important;
+        }
+        .tabla-institucional tbody tr {
+            transition: background-color 0.15s ease;
+        }
+        .tabla-institucional tbody tr:nth-child(even) {
+            background-color: #f8fafc; /* sutil alternancia de renglón */
+        }
+        .tabla-institucional tbody tr:hover {
+            background-color: #f0f7ff !important; /* resalte hover azul institucional */
+        }
+        .tabla-institucional tbody td {
+            border-bottom: 1px solid #cbd5e1 !important; /* divisor horizontal de fila nítido */
+            border-right: 1px solid #cbd5e1 !important; /* divisor vertical entre columnas nítido */
+            padding: 0.85rem 1rem !important;
+            vertical-align: middle;
+        }
+        .tabla-institucional tbody td:last-child {
+            border-right: none !important;
+        }
+        .tabla-institucional tbody tr:last-child td {
+            border-bottom: none !important;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -97,14 +142,8 @@
                         <a href="{% url 'core:dashboard_home' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'core' %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                             Dashboard
                         </a>
-                        <a href="{% url 'personal:docente_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
-                            Personal
-                        </a>
                         <a href="{% url 'asistencia:asistencia_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                             Asistencia
-                        </a>
-                        <a href="{% url 'asistencia:feriado_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
-                            Feriados
                         </a>
                         <a href="{% url 'licencias:tipolicencia_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'licencias' and '/planillas/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                             Licencias
@@ -112,11 +151,17 @@
                         <a href="{% url 'licencias:planilla_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'licencias' and '/planillas/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                             Planillas
                         </a>
+                        <a href="{% url 'personal:docente_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
+                            Personal
+                        </a>
                         {% if user|es_administrador %}
                         <a href="{% url 'personal:catalogos_hub' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                             Catálogos
                         </a>
                         {% endif %}
+                        <a href="{% url 'asistencia:feriado_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
+                            Feriados
+                        </a>
                     </div>
                 </div>
 
@@ -159,14 +204,8 @@
                 <a href="{% url 'core:dashboard_home' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'core' %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                     Dashboard
                 </a>
-                <a href="{% url 'personal:docente_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
-                    Personal
-                </a>
                 <a href="{% url 'asistencia:asistencia_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                     Asistencia
-                </a>
-                <a href="{% url 'asistencia:feriado_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
-                    Feriados
                 </a>
                 <a href="{% url 'licencias:tipolicencia_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'licencias' and '/planillas/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                     Licencias
@@ -174,11 +213,17 @@
                 <a href="{% url 'licencias:planilla_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'licencias' and '/planillas/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                     Planillas
                 </a>
+                <a href="{% url 'personal:docente_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' not in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
+                    Personal
+                </a>
                 {% if user|es_administrador %}
                 <a href="{% url 'personal:catalogos_hub' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'personal' and '/catalogos/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
                     Catálogos
                 </a>
                 {% endif %}
+                <a href="{% url 'asistencia:feriado_list' %}" class="block px-3 py-2 rounded-lg text-base font-medium {% if request.resolver_match.app_name == 'asistencia' and '/feriados/' in request.path %}text-institucional-700 bg-institucional-50{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors{% endif %}">
+                    Feriados
+                </a>
                 {% if user.is_authenticated %}
                 <div class="sm:hidden pt-3 border-t border-slate-200 mt-2 flex items-center justify-between px-3">
                     <span class="text-xs font-medium text-slate-600">{{ user|user_display_name }}</span>
