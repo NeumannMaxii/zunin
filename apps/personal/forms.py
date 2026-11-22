@@ -392,7 +392,33 @@ class ImportarCSVForm(TailwindForm):
 class CarreraForm(TailwindModelForm):
     """
     Formulario para el alta y edición de Carreras (Ticket 10.1).
+    Permite opcionalmente crear el Plan de Estudio Inicial al dar de alta la carrera.
     """
+
+    plan_inicial_nombre = forms.CharField(
+        required=False,
+        label="Plan de Estudio Inicial (Opcional)",
+        help_text=(
+            "Ej: Plan 2026. Si se especifica, se crea y asocia automáticamente."
+        ),
+        widget=forms.TextInput(attrs={"placeholder": "Ej: Plan 2026"}),
+    )
+    plan_inicial_resolucion = forms.CharField(
+        required=False,
+        label="Resolución Ministerial",
+        help_text="Ej: Res. MECCyT N° 1450/22 (Opcional)",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej: Res. MECCyT N° 1245/26"}
+        ),
+    )
+    plan_inicial_anio = forms.IntegerField(
+        required=False,
+        label="Año de Implementación",
+        help_text="Año calendario en que entra en vigencia el plan (Opcional)",
+        widget=forms.NumberInput(
+            attrs={"placeholder": "Ej: 2026", "min": 1990, "max": 2100}
+        ),
+    )
 
     class Meta:
         model = Carrera
@@ -407,6 +433,34 @@ class CarreraForm(TailwindModelForm):
                 }
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields.pop("plan_inicial_nombre", None)
+            self.fields.pop("plan_inicial_resolucion", None)
+            self.fields.pop("plan_inicial_anio", None)
+
+    def save(self, commit=True):
+        carrera = super().save(commit=commit)
+        plan_nombre = self.cleaned_data.get("plan_inicial_nombre", "").strip()
+        if plan_nombre and commit and carrera.pk:
+            from apps.personal.models import PlanEstudio
+
+            resolucion = self.cleaned_data.get(
+                "plan_inicial_resolucion", ""
+            ).strip()
+            anio = self.cleaned_data.get("plan_inicial_anio")
+            PlanEstudio.objects.get_or_create(
+                carrera=carrera,
+                nombre=plan_nombre,
+                defaults={
+                    "resolucion": resolucion,
+                    "anio_implementacion": anio,
+                    "activo": True,
+                },
+            )
+        return carrera
 
     def clean_codigo(self):
         codigo = self.cleaned_data.get("codigo", "").strip().upper()

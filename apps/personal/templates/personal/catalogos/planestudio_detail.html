@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Estructura Curricular: {{ plan.nombre }} - {{ plan.carrera.codigo }} - IESETyFP Zunin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header y Navegación Contextual -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="flex items-center space-x-2 mb-1">
+                <a href="{% url 'personal:planestudio_list' %}?carrera={{ plan.carrera.pk }}" class="text-xs font-semibold text-institucional-600 hover:text-institucional-800 transition-colors">
+                    &larr; Planes de {{ plan.carrera.codigo }}
+                </a>
+                <span class="text-slate-300">/</span>
+                <span class="text-xs text-slate-500">Estructura Curricular</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ plan.carrera.codigo }} &bull; {{ plan.nombre }}</h1>
+                {% if plan.activo %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span>
+                {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-slate-600 mt-1">
+                <span class="font-medium text-slate-800">{{ plan.carrera.nombre }}</span>
+                {% if plan.resolucion %} &bull; <span class="font-mono text-slate-700">{{ plan.resolucion }}</span>{% endif %}
+                {% if plan.anio_implementacion %} &bull; Año de Implementación: <span class="font-bold">{{ plan.anio_implementacion }}</span>{% endif %}
+            </p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'personal:planestudio_update' plan.pk %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                Editar Plan
+            </a>
+            <a href="{% url 'personal:espaciocurricular_create' %}?carrera={{ plan.carrera.pk }}&plan={{ plan.pk }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors shadow-2xs">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                + Nueva Materia a este Plan
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Resumen Rápido -->
+    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center space-x-6 text-sm">
+            <div>
+                <span class="text-slate-500 text-xs block">Total Asignaturas</span>
+                <span class="text-base font-bold text-slate-900">{{ total_materias }} {% if total_materias == 1 %}materia{% else %}materias{% endif %}</span>
+            </div>
+            <div class="border-l border-slate-200 pl-6">
+                <span class="text-slate-500 text-xs block">Años Curriculares</span>
+                <span class="text-base font-bold text-slate-900">{{ anios_data|length }} años</span>
+            </div>
+            <div class="border-l border-slate-200 pl-6">
+                <span class="text-slate-500 text-xs block">Carrera Asociada</span>
+                <span class="text-base font-bold text-institucional-700">{{ plan.carrera.codigo }}</span>
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ plan.carrera.pk }}&plan={{ plan.pk }}" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-institucional-700 bg-institucional-50 hover:bg-institucional-100 border border-institucional-200 transition-colors">
+                Ver en Catálogo General &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Secciones agrupadas por Año de Cursada -->
+    <div class="space-y-6">
+        {% for grupo in anios_data %}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <!-- Cabecera del Año -->
+            <div class="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="flex items-center space-x-3">
+                    <span class="w-8 h-8 rounded-lg bg-institucional-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                        {{ grupo.anio }}°
+                    </span>
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">{{ grupo.anio }}° Año Curricular</h2>
+                        <span class="text-xs text-slate-500 font-medium">
+                            {{ grupo.total }} {% if grupo.total == 1 %}materia registrada{% else %}materias registradas{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <a href="{% url 'personal:espaciocurricular_create' %}?carrera={{ plan.carrera.pk }}&plan={{ plan.pk }}&anio={{ grupo.anio }}" class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg text-institucional-700 bg-white hover:bg-institucional-50 border border-institucional-200 shadow-2xs transition-colors">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        + Agregar Materia en {{ grupo.anio }}° Año
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tabla de Materias del Año -->
+            {% if grupo.materias %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50/50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-6 py-3">Código</th>
+                            <th class="px-6 py-3">Asignatura / Espacio</th>
+                            <th class="px-6 py-3">Turno</th>
+                            <th class="px-6 py-3">Régimen</th>
+                            <th class="px-6 py-3">Comisión</th>
+                            <th class="px-6 py-3 text-left">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 text-sm">
+                        {% for esp in grupo.materias %}
+                        <tr class="hover:bg-slate-50/75 transition-colors">
+                            <td class="px-6 py-4 font-mono font-bold text-institucional-700 whitespace-nowrap">
+                                {{ esp.codigo }}
+                            </td>
+                            <td class="px-6 py-4 font-medium text-slate-900">
+                                {{ esp.nombre }}
+                                {% if esp.aula %}
+                                <span class="block text-xs text-slate-400 font-normal">Aula: {{ esp.aula }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-600 whitespace-nowrap">
+                                {{ esp.get_turno_display|default:esp.turno }}
+                            </td>
+                            <td class="px-6 py-4 text-slate-600 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                                    {{ esp.get_regimen_display|default:esp.regimen }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-600 whitespace-nowrap">
+                                {{ esp.comision|default:"Única" }}
+                            </td>
+                            <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
+                                <a href="{% url 'personal:espaciocurricular_update' esp.pk %}?plan={{ plan.pk }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
+                                    Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <!-- Estado vacío amigable cuando el año no tiene materias -->
+            <div class="px-6 py-8 text-center bg-white">
+                <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-400 mb-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <p class="text-sm font-medium text-slate-700">No hay materias registradas para {{ grupo.anio }}° Año</p>
+                <p class="text-xs text-slate-400 mt-0.5">Podés agregar las asignaturas correspondientes a este año curricular.</p>
+                <div class="mt-3">
+                    <a href="{% url 'personal:espaciocurricular_create' %}?carrera={{ plan.carrera.pk }}&plan={{ plan.pk }}&anio={{ grupo.anio }}" class="inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+                        + Cargar primera materia de {{ grupo.anio }}° Año
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

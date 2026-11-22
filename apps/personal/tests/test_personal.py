@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.asistencia.models import RegistroAsistencia
 from apps.personal.forms import (
     CargoDocenteForm,
+    CarreraForm,
     DocenteForm,
     EspacioCurricularForm,
 )
@@ -1729,3 +1730,96 @@ class EspacioCurricularCatalogViewsTests(TestCase):
         instancia = form_bound.save()
         self.assertEqual(instancia.plan_estudio_ref, plan)
         self.assertEqual(instancia.plan_estudio, "Plan 2025 Test")
+
+    def test_carrera_create_con_plan_inicial_automatico(self):
+        """Valida que CarreraForm cree el PlanEstudio inicial de forma atómica."""
+        data = {
+            "codigo": "NUEVA-CARR",
+            "nombre": "Nueva Carrera Automatica",
+            "activo": True,
+            "plan_inicial_nombre": "Plan 2026 Auto",
+            "plan_inicial_resolucion": "Res. MECCyT 999/26",
+            "plan_inicial_anio": 2026,
+        }
+        form = CarreraForm(data=data)
+        self.assertTrue(form.is_valid(), form.errors)
+        carrera = form.save()
+        self.assertEqual(carrera.codigo, "NUEVA-CARR")
+        self.assertTrue(
+            PlanEstudio.objects.filter(
+                carrera=carrera, nombre="Plan 2026 Auto"
+            ).exists()
+        )
+
+    def test_planestudio_detail_view_y_estructura_por_anio(self):
+        """Valida vista de detalle de plan con agrupamiento de materias."""
+        from django.urls import reverse
+
+        plan = PlanEstudio.objects.create(
+            carrera=self.carrera,
+            nombre="Plan Detalle Test",
+            resolucion="Res. 111/26",
+            anio_implementacion=2026,
+            activo=True,
+        )
+        self.espacio.plan_estudio_ref = plan
+        self.espacio.save()
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:planestudio_detail", kwargs={"pk": plan.pk})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Plan Detalle Test")
+        self.assertContains(resp, "1° Año Curricular")
+        self.assertContains(resp, "Algoritmos y Estructuras de Datos")
+        self.assertContains(resp, "+ Agregar Materia en 1° Año")
+
+    def test_espaciocurricular_list_filtro_por_plan(self):
+        """Valida que la lista de materias se filtre correctamente por plan."""
+        from django.urls import reverse
+
+        plan_a = PlanEstudio.objects.create(
+            carrera=self.carrera, nombre="Plan A Test", activo=True
+        )
+        plan_b = PlanEstudio.objects.create(
+            carrera=self.carrera, nombre="Plan B Test", activo=True
+        )
+        self.espacio.plan_estudio_ref = plan_a
+        self.espacio.save()
+
+        EspacioCurricular.objects.create(
+            codigo="ESP-B",
+            nombre="Materia Plan B",
+            carrera=self.carrera,
+            plan_estudio_ref=plan_b,
+            anio=2,
+        )
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:espaciocurricular_list")
+
+        # Filtrar por Plan A
+        resp_a = self.client.get(f"{url}?plan={plan_a.pk}")
+        self.assertEqual(resp_a.status_code, 200)
+        self.assertContains(resp_a, "Algoritmos y Estructuras de Datos")
+        self.assertNotContains(resp_a, "Materia Plan B")
+        self.assertContains(resp_a, "Filtrado por Plan de Estudio")
+
+    def test_espaciocurricular_create_initial_con_plan_y_anio(self):
+        """Valida precarga de carrera, plan y año en el formulario de alta."""
+        from django.urls import reverse
+
+        plan = PlanEstudio.objects.create(
+            carrera=self.carrera, nombre="Plan Init Test", activo=True
+        )
+        self.client.login(username="admin_espacios", password="password123")
+        url = (
+            f"{reverse('personal:espaciocurricular_create')}"
+            f"?carrera={self.carrera.pk}&plan={plan.pk}&anio=2"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        form = resp.context["form"]
+        self.assertEqual(form.initial.get("plan_estudio_ref"), plan)
+        self.assertEqual(form.initial.get("carrera"), self.carrera)
+        self.assertEqual(form.initial.get("anio"), 2)
