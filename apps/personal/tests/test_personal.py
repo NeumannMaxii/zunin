@@ -1274,10 +1274,18 @@ class ABMCCatalogosInstitucionalesTests(TestCase):
             "codigo": "TEC-REDES",
             "nombre": "Tecnicatura Superior en Redes e Infraestructura",
             "activo": True,
+            "plan_inicial_nombre": "Plan 2026 Redes",
+            "plan_inicial_resolucion": "Res. MECCyT 400/26",
+            "plan_inicial_anio": 2026,
         }
         resp_post = self.client.post(url_create, data_nueva)
         self.assertEqual(resp_post.status_code, 302)
         self.assertTrue(Carrera.objects.filter(codigo="TEC-REDES").exists())
+        self.assertTrue(
+            PlanEstudio.objects.filter(
+                carrera__codigo="TEC-REDES", nombre="Plan 2026 Redes"
+            ).exists()
+        )
 
         # POST duplicado: debe fallar con error de validación
         resp_dup = self.client.post(url_create, data_nueva)
@@ -1597,10 +1605,16 @@ class EspacioCurricularCatalogViewsTests(TestCase):
             codigo="TSDS-TEST",
             nombre="Tecnicatura Superior en Desarrollo de Software Test",
         )
+        self.plan = PlanEstudio.objects.create(
+            carrera=self.carrera,
+            nombre="Plan Base Test",
+            activo=True,
+        )
         self.espacio = EspacioCurricular.objects.create(
             codigo="TEST-101",
             nombre="Algoritmos y Estructuras de Datos",
             carrera=self.carrera,
+            plan_estudio_ref=self.plan,
             anio=1,
             turno="MANANA",
         )
@@ -1624,6 +1638,7 @@ class EspacioCurricularCatalogViewsTests(TestCase):
             "codigo": "TEST-102",
             "nombre": "Sistemas Operativos",
             "carrera": self.carrera.pk,
+            "plan_estudio_ref": self.plan.pk,
             "anio": 1,
             "turno": "TARDE",
             "regimen": "ANUAL",
@@ -1645,6 +1660,7 @@ class EspacioCurricularCatalogViewsTests(TestCase):
             "codigo": "TEST-101",
             "nombre": "Algoritmos Avanzados",
             "carrera": self.carrera.pk,
+            "plan_estudio_ref": self.plan.pk,
             "anio": 1,
             "turno": "NOCHE",
             "regimen": "ANUAL",
@@ -1702,7 +1718,7 @@ class EspacioCurricularCatalogViewsTests(TestCase):
         self.assertContains(resp, "Ver Materias &rarr;")
         self.assertContains(resp, "Ver Planes &rarr;")
         self.assertContains(resp, "1 materia")
-        self.assertContains(resp, "1 plan")
+        self.assertContains(resp, "2 planes")
 
     def test_espaciocurricular_form_sincroniza_plan_estudio(self):
         """Valida que el formulario use plan_estudio_ref y sincronice nombre."""
@@ -1772,7 +1788,7 @@ class EspacioCurricularCatalogViewsTests(TestCase):
         self.assertContains(resp, "Plan Detalle Test")
         self.assertContains(resp, "1° Año Curricular")
         self.assertContains(resp, "Algoritmos y Estructuras de Datos")
-        self.assertContains(resp, "+ Agregar Materia en 1° Año")
+        self.assertContains(resp, "Agregar Materia en 1° Año")
 
     def test_espaciocurricular_list_filtro_por_plan(self):
         """Valida que la lista de materias se filtre correctamente por plan."""

@@ -110,7 +110,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const currentPlanId = selectPlan.value;
 
             if (!carreraId) {
-                selectPlan.innerHTML = '<option value="">-- Sin Plan de Estudio / Opcional --</option>';
+                selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
                 return;
             }
 
@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(response => response.json())
                 .then(data => {
                     if (data.planes && data.planes.length > 0) {
-                        selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio (Opcional) --</option>';
+                        selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
                         data.planes.forEach(plan => {
                             const opt = document.createElement("option");
                             opt.value = plan.id;

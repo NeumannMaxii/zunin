@@ -392,29 +392,29 @@ class ImportarCSVForm(TailwindForm):
 class CarreraForm(TailwindModelForm):
     """
     Formulario para el alta y edición de Carreras (Ticket 10.1).
-    Permite opcionalmente crear el Plan de Estudio Inicial al dar de alta la carrera.
+    Requiere obligatoriamente definir el Plan de Estudio Inicial al crear una carrera.
     """
 
     plan_inicial_nombre = forms.CharField(
-        required=False,
-        label="Plan de Estudio Inicial (Opcional)",
+        required=True,
+        label="Plan de Estudio Inicial",
         help_text=(
-            "Ej: Plan 2026. Si se especifica, se crea y asocia automáticamente."
+            "Ej: Plan 2026. Toda carrera debe contar con su plan de estudio."
         ),
         widget=forms.TextInput(attrs={"placeholder": "Ej: Plan 2026"}),
     )
     plan_inicial_resolucion = forms.CharField(
-        required=False,
+        required=True,
         label="Resolución Ministerial",
-        help_text="Ej: Res. MECCyT N° 1450/22 (Opcional)",
+        help_text="Ej: Res. MECCyT N° 1245/26. Norma legal ministerial aprobatoria.",
         widget=forms.TextInput(
             attrs={"placeholder": "Ej: Res. MECCyT N° 1245/26"}
         ),
     )
     plan_inicial_anio = forms.IntegerField(
-        required=False,
+        required=True,
         label="Año de Implementación",
-        help_text="Año calendario en que entra en vigencia el plan (Opcional)",
+        help_text="Año calendario en que entra en vigencia el plan (Ej: 2026).",
         widget=forms.NumberInput(
             attrs={"placeholder": "Ej: 2026", "min": 1990, "max": 2100}
         ),
@@ -617,10 +617,26 @@ class EspacioCurricularForm(TailwindModelForm):
 
     plan_estudio_ref = forms.ModelChoiceField(
         queryset=PlanEstudio.objects.none(),
-        required=False,
-        empty_label="-- Sin Plan de Estudio / Opcional --",
+        required=True,
+        empty_label="-- Seleccionar Plan de Estudio --",
         label="Plan de Estudio",
-        help_text="Plan curricular ministerial correspondiente a la materia (opcional)",
+        help_text=(
+            "Plan curricular ministerial al que pertenece la asignatura (requerido)"
+        ),
+    )
+    anio = forms.TypedChoiceField(
+        choices=[
+            ("", "-- Seleccionar Año de Cursada --"),
+            (1, "1° Año"),
+            (2, "2° Año"),
+            (3, "3° Año"),
+            (4, "4° Año"),
+            (5, "5° Año"),
+        ],
+        coerce=int,
+        required=True,
+        label="Año de Cursada",
+        help_text="Año correspondiente dentro de la carrera (1° a 5°)",
     )
 
     class Meta:
@@ -641,7 +657,6 @@ class EspacioCurricularForm(TailwindModelForm):
             "nombre": forms.TextInput(
                 attrs={"placeholder": "Ej: Programación I"}
             ),
-            "anio": forms.NumberInput(attrs={"min": 1, "max": 6}),
             "comision": forms.TextInput(attrs={"placeholder": "Ej: 1° A"}),
             "aula": forms.TextInput(
                 attrs={"placeholder": "Ej: Laboratorio 1"}
