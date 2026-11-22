@@ -12,7 +12,7 @@
                 {{ titulo }}
             </span>
             <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Bienvenido, {{ usuario.username }}
+                Bienvenido, {{ usuario|user_display_name }}
             </h1>
             <p class="text-sm text-slate-500 mt-1">
                 Panel central de gestión de novedades docentes, asistencia y licencias institucionales.
@@ -20,12 +20,6 @@
         </div>
         <!-- Acciones Rápidas del Dashboard -->
         <div class="flex flex-wrap items-center gap-3">
-            <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-semibold rounded-xl text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 transition-all">
-                <svg class="w-4 h-4 mr-2 text-institucional-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Planillas Mensuales
-            </a>
             <a href="{% url 'licencias:justificacion_diferida' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-xl text-white bg-institucional-600 hover:bg-institucional-700 transition-all">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -50,8 +44,7 @@
                     Administración de agentes, asignación de materias, distribución de horas y situaciones de revista.
                 </p>
             </div>
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-                <span class="text-slate-400">apps.personal</span>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center text-xs">
                 <span class="font-semibold text-institucional-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
         </a>
@@ -69,8 +62,7 @@
                     Control de partes diarios, registro de marcas (P, I, LIC, PR), inasistencias y días no laborables.
                 </p>
             </div>
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-                <span class="text-slate-400">apps.asistencia</span>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center text-xs">
                 <span class="font-semibold text-emerald-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
         </a>
@@ -88,8 +80,7 @@
                     Motor de consolidación mensual, clasificación por cuadros IL-01/IL-02 y correlatividad de materias afectadas.
                 </p>
             </div>
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-                <span class="text-slate-400">apps.licencias</span>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center text-xs">
                 <span class="font-semibold text-amber-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
         </a>
@@ -108,8 +99,7 @@
                     Administración de Carreras, Cargos de Catálogo y Tipos de Autorización base.
                 </p>
             </div>
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-                <span class="text-slate-400">apps.personal</span>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center text-xs">
                 <span class="font-semibold text-indigo-600 group-hover:translate-x-1 transition-transform">Acceder &rarr;</span>
             </div>
         </a>
@@ -125,7 +115,6 @@
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                             Control Normativo
                         </span>
-                        <span class="text-xs text-slate-400">Año: {{ anio_alerta }} | Tope Legal Anual: {{ limite_legal }} faltas</span>
                     </div>
                     <h2 class="text-xl font-bold text-slate-900 tracking-tight">
                         Panel de Alertas Preventivas

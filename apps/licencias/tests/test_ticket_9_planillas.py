@@ -273,3 +273,34 @@ class Ticket9PantallaMensualPlanillasTests(TestCase):
                 "Tipo Licencia",
             ],
         )
+
+    def test_exportacion_csv_soporta_delimitador_punto_y_coma_para_excel(self):
+        """
+        Valida que se pueda solicitar delimitador ';' (punto y coma)
+        para compatibilidad con Microsoft Excel en español/Argentina.
+        """
+        url = reverse("licencias:exportar_planilla_csv") + "?delimiter=;"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        contenido = response.content.decode("utf-8-sig")
+        reader = csv.reader(io.StringIO(contenido), delimiter=";")
+        filas = list(reader)
+
+        self.assertGreater(len(filas), 1)
+        encabezados = filas[0]
+        self.assertEqual(
+            encabezados,
+            [
+                "Cuadro",
+                "N° Disposición",
+                "Docente",
+                "DNI",
+                "Desde",
+                "Hasta",
+                "Materias",
+                "Horas",
+                "Tipo Licencia",
+            ],
+        )

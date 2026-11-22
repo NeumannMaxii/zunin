@@ -43,3 +43,21 @@ def puede_gestionar_asistencia(user):
             name__in=["Admin_Institucional", "Bedelia_Operadoras"]
         ).exists()
     )
+
+
+@register.filter(name="user_display_name")
+def user_display_name(user):
+    """
+    Retorna el nombre formateado para visualización institucional.
+    Si tiene nombre completo configurado lo retorna; si el username es
+    'director', retorna 'Director'; de lo contrario retorna el username.
+    """
+    if not user:
+        return ""
+    full_name = user.get_full_name() if hasattr(user, "get_full_name") else ""
+    if full_name:
+        return full_name
+    username = getattr(user, "username", "")
+    if username.lower() == "director":
+        return "Director"
+    return username

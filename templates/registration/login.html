@@ -1,4 +1,4 @@
-{% load static %}
+{% load static auth_tags %}
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-50">
 <head>
@@ -72,7 +72,7 @@
             </div>
             <h2 class="text-lg font-semibold text-slate-900">Sesión Iniciada</h2>
             <p class="text-sm text-slate-600">
-                Has iniciado sesión como <span class="font-semibold text-institucional-700">{{ user.username }}</span>.
+                Has iniciado sesión como <span class="font-semibold text-institucional-700">{{ user|user_display_name }}</span>.
             </p>
             <div class="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
                 <a href="/" class="inline-flex justify-center items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">

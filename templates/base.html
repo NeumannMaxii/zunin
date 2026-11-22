@@ -71,10 +71,8 @@
                 <span class="text-slate-500">|</span>
                 <span>Instituto de Educación Superior de Educación Técnica y Formación Profesional</span>
             </div>
-            <div class="flex items-center space-x-4 text-slate-400">
+            <div class="flex items-center text-slate-400">
                 <span>Chaco, Argentina</span>
-                <span class="text-slate-600">&bull;</span>
-                <span>Ciclo Lectivo 2026</span>
             </div>
         </div>
     </header>
@@ -135,7 +133,7 @@
                     {% if user.is_authenticated %}
                     <div class="hidden sm:flex items-center space-x-2 border-l border-slate-200 pl-3">
                         <span class="text-xs font-medium text-slate-600">
-                            {{ user.username }}
+                            {{ user|user_display_name }}
                         </span>
                         <!-- Logout seguro mediante método POST (Django 5+) -->
                         <form method="post" action="{% url 'logout' %}" class="inline">
@@ -183,7 +181,7 @@
                 {% endif %}
                 {% if user.is_authenticated %}
                 <div class="sm:hidden pt-3 border-t border-slate-200 mt-2 flex items-center justify-between px-3">
-                    <span class="text-xs font-medium text-slate-600">{{ user.username }}</span>
+                    <span class="text-xs font-medium text-slate-600">{{ user|user_display_name }}</span>
                     <form method="post" action="{% url 'logout' %}" class="inline">
                         {% csrf_token %}
                         <button type="submit" class="inline-flex items-center px-2.5 py-1.5 border border-slate-200 text-xs font-medium rounded-md text-slate-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition-colors cursor-pointer">
@@ -198,15 +196,34 @@
 
     <!-- Messages Notification Area -->
     {% if messages %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        {% for message in messages %}
-        <div class="p-4 mb-3 rounded-xl border text-sm flex items-center justify-between {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">
-            <div class="flex items-center space-x-2">
-                <span>{{ message }}</span>
+        {% if request.GET.emitido == '1' %}
+            {# Se consumen los mensajes silenciosamente porque planilla_list muestra el banner unificado de descarga #}
+            {% for message in messages %}{% endfor %}
+        {% else %}
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+            {% for message in messages %}
+            <div class="alert-toast p-4 mb-3 rounded-xl border text-sm flex items-center justify-between transition-all duration-500 ease-out shadow-2xs {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">
+                <div class="flex items-center space-x-2.5">
+                    {% if message.tags == 'success' %}
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {% elif message.tags == 'error' %}
+                    <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {% endif %}
+                    <span class="font-medium">{{ message }}</span>
+                </div>
+                <button type="button" onclick="const t = this.closest('.alert-toast'); t.style.opacity='0'; setTimeout(() => t.remove(), 300);" class="text-slate-400 hover:text-slate-600 ml-4 p-1 rounded-lg transition-colors cursor-pointer" title="Cerrar aviso">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+        {% endif %}
     {% endif %}
 
     <!-- Main Content Area -->
@@ -222,14 +239,25 @@
                 <span>— Sistema Integral de Bedelía y Gestión Académica.</span>
             </div>
             <div class="flex items-center space-x-6">
-                <span>Django 5.x &bull; Tailwind CSS</span>
-                <span>Arquitectura Modular</span>
+                <span>Chaco, Argentina</span>
             </div>
         </div>
     </footer>
 
     <!-- PWA Service Worker Registration & Responsive Navigation -->
     <script>
+        // Auto-dismiss de alertas/mensajes flash tras 4 segundos
+        document.addEventListener('DOMContentLoaded', () => {
+            const toasts = document.querySelectorAll('.alert-toast');
+            toasts.forEach((toast) => {
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-8px)';
+                    setTimeout(() => toast.remove(), 400);
+                }, 4000);
+            });
+        });
+
         // Toggle Menú Móvil
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
