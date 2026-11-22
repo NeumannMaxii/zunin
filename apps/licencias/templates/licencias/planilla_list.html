@@ -87,9 +87,9 @@
         </div>
     </div>
 
-    <!-- Banner de Éxito con Descarga Directa de Excel (cuando se emite una planilla) -->
+    <!-- Banner de Éxito de Emisión de Planilla (Aviso limpio de confirmación) -->
     {% if request.GET.emitido == '1' %}
-    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+    <div id="banner-emision-exito" class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xs">
         <div class="flex items-center space-x-3 text-emerald-950">
             <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,13 +101,11 @@
                 <p class="text-xs text-emerald-700">Se asignaron los números correlativos oficiales de disposición en la base de datos institucional.</p>
             </div>
         </div>
-        <a href="{% url 'licencias:exportar_planilla_excel' %}?mes={{ mes_actual }}&anio={{ anio_actual }}" 
-           class="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg shadow-xs hover:shadow transition-all space-x-2 flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        <button type="button" onclick="document.getElementById('banner-emision-exito').remove()" class="text-emerald-700 hover:text-emerald-900 p-1.5 rounded-lg hover:bg-emerald-100/60 transition-colors" title="Cerrar aviso">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span>Descargar Excel Oficial (.xlsx) Ahora</span>
-        </a>
+        </button>
     </div>
     {% endif %}
 
