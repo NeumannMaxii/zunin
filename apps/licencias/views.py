@@ -255,7 +255,15 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         # Inyectar BOM de UTF-8 (\ufeff) para compatibilidad con Microsoft Excel
         response.write("\ufeff")
 
-        writer = csv.writer(response)
+        # Soporte de delimitador: por defecto ',' (RFC 4180 estándar),
+        # o ';' para Microsoft Excel en Windows regional español/Argentina
+        delimiter = request.GET.get("delimiter") or request.GET.get("sep")
+        if delimiter in [";", "semicolon", "puntoycoma"]:
+            delimiter = ";"
+        else:
+            delimiter = ","
+
+        writer = csv.writer(response, delimiter=delimiter)
         headers = [
             "Cuadro",
             "N° Disposición",
