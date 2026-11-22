@@ -274,3 +274,51 @@ class Ticket19_1VistasYAPITests(TestCase):
         self.assertContains(response, "Planes de Estudio")
         self.assertEqual(response.context["total_planes"], 1)
         self.assertEqual(response.context["planes_activos"], 1)
+
+    def test_espaciocurricular_form_bloquea_carrera_y_plan_al_editar(self):
+        """Al editar materia, carrera y plan quedan bloqueados."""
+        from apps.personal.forms import EspacioCurricularForm
+        materia = EspacioCurricular.objects.create(
+            codigo="TEST-101",
+            nombre="Materia Editable",
+            carrera=self.carrera,
+            plan_estudio_ref=self.plan,
+            anio=1,
+            comision="UNICA",
+            turno="NOCHE",
+            regimen="ANUAL",
+        )
+        form = EspacioCurricularForm(instance=materia)
+        self.assertTrue(form.fields["carrera"].disabled)
+        self.assertTrue(form.fields["plan_estudio_ref"].disabled)
+
+        # POST sin enviar carrera ni plan_estudio_ref es válido porque son disabled
+        post_form = EspacioCurricularForm(
+            data={
+                "codigo": "TEST-101",
+                "nombre": "Materia Editada OK",
+                "anio": 1,
+                "comision": "UNICA",
+                "turno": "NOCHE",
+                "regimen": "ANUAL",
+            },
+            instance=materia,
+        )
+        self.assertTrue(post_form.is_valid(), post_form.errors)
+        actualizada = post_form.save()
+        self.assertEqual(actualizada.carrera, self.carrera)
+        self.assertEqual(actualizada.plan_estudio_ref, self.plan)
+
+    def test_docente_contacto_email_y_celular(self):
+        """Docente sincroniza campos de contacto (email y celular) correctamente."""
+        from apps.personal.models import Docente
+        doc = Docente.objects.create(
+            dni="99887766",
+            apellido="Gomez",
+            nombre="Juan",
+            email="juan.gomez@iesetyfp.edu.ar",
+            celular="362-4112233",
+        )
+        self.assertIn("juan.gomez@iesetyfp.edu.ar", doc.contacto)
+        self.assertIn("362-4112233", doc.contacto)
+        self.assertEqual(doc.celular_limpio, "3624112233")

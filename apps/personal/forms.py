@@ -41,6 +41,8 @@ class DocenteForm(TailwindModelForm):
             "localidad",
             "codigo_postal",
             "provincia",
+            "email",
+            "celular",
             "contacto",
             "activo",
         ]
@@ -49,6 +51,12 @@ class DocenteForm(TailwindModelForm):
             "dni": forms.TextInput(attrs={"placeholder": "Ej: 28456123"}),
             "apellido": forms.TextInput(attrs={"placeholder": "Apellido del docente"}),
             "nombre": forms.TextInput(attrs={"placeholder": "Nombres del docente"}),
+            "email": forms.EmailInput(
+                attrs={"placeholder": "ejemplo@iesetyfp.edu.ar"}
+            ),
+            "celular": forms.TextInput(
+                attrs={"placeholder": "Ej: 3624-123456"}
+            ),
             "contacto": forms.TextInput(
                 attrs={"placeholder": "Teléfono o correo electrónico"}
             ),
@@ -691,6 +699,26 @@ class EspacioCurricularForm(TailwindModelForm):
             self.fields["plan_estudio_ref"].queryset = PlanEstudio.objects.filter(
                 activo=True
             ).order_by("carrera__codigo", "nombre")
+
+        # Si se está editando una materia existente, fijar y bloquear Carrera y Plan
+        if self.instance and self.instance.pk:
+            self.fields["carrera"].disabled = True
+            self.fields["carrera"].help_text = (
+                "Carrera a la que pertenece la asignatura (asignación fija)."
+            )
+            self.fields["plan_estudio_ref"].disabled = True
+            self.fields["plan_estudio_ref"].help_text = (
+                "Plan curricular ministerial al que pertenece la asignatura (fijo)."
+            )
+        elif self.initial.get("plan_estudio_ref") and self.initial.get("carrera"):
+            self.fields["carrera"].disabled = True
+            self.fields["carrera"].help_text = (
+                "Carrera preseleccionada desde el plan (fijo)."
+            )
+            self.fields["plan_estudio_ref"].disabled = True
+            self.fields["plan_estudio_ref"].help_text = (
+                "Plan curricular ministerial preseleccionado (fijo)."
+            )
 
     def save(self, commit=True):
         instance = super().save(commit=False)
