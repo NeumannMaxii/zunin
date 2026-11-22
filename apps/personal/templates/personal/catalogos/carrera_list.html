@@ -68,8 +68,9 @@
                     <tr>
                         <th class="px-6 py-3">Código</th>
                         <th class="px-6 py-3">Nombre de la Carrera</th>
+                        <th class="px-6 py-3">Materias</th>
                         <th class="px-6 py-3">Estado</th>
-                        <th class="px-6 py-3 text-right">Acciones</th>
+                        <th class="px-6 py-3 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -77,6 +78,11 @@
                     <tr class="hover:bg-slate-50/75 transition-colors">
                         <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ carrera.codigo|default:"-" }}</td>
                         <td class="px-6 py-4 font-medium text-slate-900">{{ carrera.nombre|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors" title="Ver materias asignadas">
+                                {{ carrera.total_materias|default:0 }} {% if carrera.total_materias == 1 %}materia{% else %}materias{% endif %}
+                            </a>
+                        </td>
                         <td class="px-6 py-4">
                             {% if carrera.activo %}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Activa</span>
@@ -84,7 +90,10 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactiva</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                        <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
+                            <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-institucional-700 bg-institucional-50 hover:bg-institucional-100 border border-institucional-200 transition-colors" title="Ver materias de esta carrera">
+                                Ver Materias &rarr;
+                            </a>
                             <a href="{% url 'personal:carrera_update' carrera.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
                                 Editar
                             </a>
@@ -92,7 +101,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-slate-400">
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400">
                             {% if q %}
                                 No se encontraron carreras que coincidan con la búsqueda "{{ q }}".
                             {% else %}

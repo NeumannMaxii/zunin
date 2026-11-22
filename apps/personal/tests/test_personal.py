@@ -1648,3 +1648,44 @@ class EspacioCurricularCatalogViewsTests(TestCase):
         self.espacio.refresh_from_db()
         self.assertEqual(self.espacio.nombre, "Algoritmos Avanzados")
         self.assertEqual(self.espacio.turno, "NOCHE")
+
+    def test_espaciocurricular_list_filtro_por_carrera(self):
+        """Valida que la lista de materias se filtre correctamente por carrera."""
+        from django.urls import reverse
+
+        carrera_otra = Carrera.objects.create(
+            codigo="OTRA-TEST", nombre="Otra Carrera Test"
+        )
+        EspacioCurricular.objects.create(
+            codigo="OTRO-101",
+            nombre="Materia Otra Carrera",
+            carrera=carrera_otra,
+            anio=1,
+        )
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:espaciocurricular_list")
+
+        # Filtrar por PK de carrera
+        resp = self.client.get(f"{url}?carrera={self.carrera.pk}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Algoritmos y Estructuras de Datos")
+        self.assertNotContains(resp, "Materia Otra Carrera")
+        self.assertContains(resp, "Filtrado por Carrera")
+
+        # Filtrar por código de carrera
+        resp_cod = self.client.get(f"{url}?carrera={carrera_otra.codigo}")
+        self.assertEqual(resp_cod.status_code, 200)
+        self.assertContains(resp_cod, "Materia Otra Carrera")
+        self.assertNotContains(resp_cod, "Algoritmos y Estructuras de Datos")
+
+    def test_carrera_list_muestra_conteo_y_boton_ver_materias(self):
+        """Valida conteo de materias y botón Ver Materias en carrera_list."""
+        from django.urls import reverse
+
+        self.client.login(username="admin_espacios", password="password123")
+        url = reverse("personal:carrera_list")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Ver Materias &rarr;")
+        self.assertContains(resp, "1 materia")

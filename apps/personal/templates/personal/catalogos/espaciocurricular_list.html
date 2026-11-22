@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Catálogo de Espacios Curriculares - IESETyFP Zunin{% endblock %}
+{% block title %}Materias y Espacios Curriculares - IESETyFP Zunin{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -12,27 +12,67 @@
                     &larr; Catálogos Institucionales
                 </a>
                 <span class="text-slate-300">/</span>
-                <span class="text-xs text-slate-500">Espacios Curriculares</span>
+                <span class="text-xs text-slate-500">Materias y Asignaturas</span>
             </div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Catálogo de Espacios Curriculares</h1>
-            <p class="text-sm text-slate-500">Asignaturas, talleres y prácticas profesionalizantes de las carreras formativas.</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Materias y Espacios Curriculares</h1>
+            <p class="text-sm text-slate-500">Asignaturas, materias, talleres y prácticas profesionalizantes por carrera formativa.</p>
         </div>
         <div class="flex items-center space-x-3">
             <a href="{% url 'personal:catalogos_hub' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 Panel Catálogos
             </a>
-            <a href="{% url 'personal:espaciocurricular_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+            <a href="{% url 'personal:espaciocurricular_create' %}{% if carrera_param %}?carrera={{ carrera_param }}{% endif %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Nuevo Espacio
+                Nueva Materia
             </a>
         </div>
     </div>
 
-    <!-- Barra de Búsqueda -->
+    <!-- Banner Contextual cuando se filtra por una carrera específica -->
+    {% if carrera_seleccionada %}
+    <div class="bg-institucional-50 border border-institucional-200 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-institucional-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                {{ carrera_seleccionada.codigo }}
+            </div>
+            <div>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-institucional-100 text-institucional-800">
+                    Filtrado por Carrera
+                </span>
+                <h2 class="text-base font-bold text-slate-900 mt-0.5">{{ carrera_seleccionada.nombre }}</h2>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-600 font-medium">{{ total_encontrados }} {% if total_encontrados == 1 %}materia encontrada{% else %}materias encontradas{% endif %}</span>
+            <a href="{% url 'personal:espaciocurricular_list' %}" class="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-2xs transition-colors">
+                Ver todas las carreras &times;
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Barra de Búsqueda y Filtro por Carrera -->
     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-        <form method="get" class="flex flex-col sm:flex-row gap-3">
+        <form method="get" class="flex flex-col md:flex-row gap-3">
+            <!-- Selector Desplegable de Carrera -->
+            <div class="w-full md:w-72">
+                <select
+                    name="carrera"
+                    id="filtro-carrera"
+                    onchange="this.form.submit()"
+                    class="block w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:bg-white transition-colors cursor-pointer"
+                >
+                    <option value="">Todas las Carreras</option>
+                    {% for c in carreras_disponibles %}
+                    <option value="{{ c.pk }}" {% if carrera_param == c.pk|stringformat:"s" or carrera_param == c.codigo %}selected{% endif %}>
+                        {{ c.codigo }} - {{ c.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Campo de Búsqueda de Texto -->
             <div class="relative flex-1">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +83,7 @@
                     type="text"
                     name="q"
                     value="{{ q }}"
-                    placeholder="Buscar por código, materia o carrera..."
+                    placeholder="Buscar por código o nombre de materia..."
                     class="block w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-institucional-600 focus:bg-white transition-colors"
                 >
             </div>
@@ -51,7 +91,7 @@
                 <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors cursor-pointer">
                     Buscar
                 </button>
-                {% if q %}
+                {% if q or carrera_param %}
                 <a href="{% url 'personal:espaciocurricular_list' %}" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
                     Limpiar
                 </a>
@@ -72,7 +112,7 @@
                         <th class="px-6 py-3">Año / Comisión</th>
                         <th class="px-6 py-3">Turno</th>
                         <th class="px-6 py-3">Régimen</th>
-                        <th class="px-6 py-3 text-right">Acciones</th>
+                        <th class="px-6 py-3 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -87,7 +127,9 @@
                         </td>
                         <td class="px-6 py-4 text-slate-700 whitespace-nowrap">
                             {% if esp.carrera %}
-                                <span class="font-medium text-slate-800">{{ esp.carrera.codigo }}</span>
+                                <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ esp.carrera.pk }}" class="font-semibold text-institucional-700 hover:underline block" title="Filtrar por esta carrera">
+                                    {{ esp.carrera.codigo }}
+                                </a>
                                 <span class="text-xs text-slate-500 block truncate max-w-xs">{{ esp.carrera.nombre }}</span>
                                 {% if esp.plan_estudio_ref %}
                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
@@ -120,7 +162,7 @@
                         <td class="px-6 py-4 text-xs text-slate-600 whitespace-nowrap">
                             {{ esp.get_regimen_display|default:"-" }}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                        <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
                             <a href="{% url 'personal:espaciocurricular_update' esp.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
                                 Editar
                             </a>
@@ -129,7 +171,9 @@
                     {% empty %}
                     <tr>
                         <td colspan="7" class="px-6 py-8 text-center text-slate-400">
-                            {% if q %}
+                            {% if carrera_seleccionada %}
+                                No se encontraron materias registradas para la carrera {{ carrera_seleccionada.nombre }}.
+                            {% elif q %}
                                 No se encontraron espacios curriculares que coincidan con la búsqueda "{{ q }}".
                             {% else %}
                                 No hay espacios curriculares registrados en el catálogo.

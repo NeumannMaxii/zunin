@@ -7,7 +7,7 @@ y Ticket 6: Pantalla 1 — CRUD Personal y endpoint de baja lógica con segurida
 import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -563,7 +563,9 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
     ordering = ["codigo"]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().annotate(
+            total_materias=Count("espacios_curriculares")
+        )
         q = self.request.GET.get("q", "").strip()
         if q:
             queryset = queryset.filter(Q(codigo__icontains=q) | Q(nombre__icontains=q))
@@ -969,6 +971,13 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related("carrera", "plan_estudio_ref")
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        if carrera_param:
+            if carrera_param.isdigit():
+                queryset = queryset.filter(carrera_id=int(carrera_param))
+            else:
+                queryset = queryset.filter(carrera__codigo__iexact=carrera_param)
+
         q = self.request.GET.get("q", "").strip()
         if q:
             queryset = queryset.filter(
@@ -984,8 +993,25 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["titulo"] = "Catálogo de Espacios Curriculares"
+        context["titulo"] = "Materias y Espacios Curriculares"
         context["q"] = self.request.GET.get("q", "").strip()
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        context["carrera_param"] = carrera_param
+
+        # Objeto carrera seleccionada para encabezado contextual
+        carrera_sel = None
+        if carrera_param:
+            if carrera_param.isdigit():
+                carrera_sel = Carrera.objects.filter(pk=int(carrera_param)).first()
+            else:
+                carrera_sel = Carrera.objects.filter(
+                    codigo__iexact=carrera_param
+                ).first()
+        context["carrera_seleccionada"] = carrera_sel
+        context["carreras_disponibles"] = Carrera.objects.filter(
+            activo=True
+        ).order_by("nombre")
+
         context["total_encontrados"] = (
             context["paginator"].count
             if "paginator" in context
@@ -999,12 +1025,27 @@ class EspacioCurricularCreateView(
 ):
     """
     Vista para dar de alta un nuevo Espacio Curricular / Materia.
+    Permite preseleccionar la carrera si viene como parámetro GET.
     """
 
     model = EspacioCurricular
     form_class = EspacioCurricularForm
     template_name = "personal/catalogos/catalogo_form.html"
     success_url = reverse_lazy("personal:espaciocurricular_list")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        carrera_param = self.request.GET.get("carrera", "").strip()
+        if carrera_param:
+            if carrera_param.isdigit():
+                carrera_obj = Carrera.objects.filter(pk=int(carrera_param)).first()
+            else:
+                carrera_obj = Carrera.objects.filter(
+                    codigo__iexact=carrera_param
+                ).first()
+            if carrera_obj:
+                initial["carrera"] = carrera_obj
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
