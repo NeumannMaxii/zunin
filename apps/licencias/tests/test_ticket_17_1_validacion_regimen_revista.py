@@ -274,19 +274,23 @@ class ValidacionRegimenRevistaTests(TestCase):
             fecha_desde=self.hoy,
             fecha_hasta_prevista=self.hasta,
         )
+        f_int_desde = self.hasta + datetime.timedelta(days=1)
+        f_int_hasta = self.hasta + datetime.timedelta(days=5)
         lic_int = LicenciaOtorgada.objects.create(
             docente=self.docente,
             cargo=self.cargo_int,
             tipo_licencia=self.tipo_multi,
-            fecha_desde=self.hoy,
-            fecha_hasta_prevista=self.hasta,
+            fecha_desde=f_int_desde,
+            fecha_hasta_prevista=f_int_hasta,
         )
+        f_sup_desde = self.hasta + datetime.timedelta(days=6)
+        f_sup_hasta = self.hasta + datetime.timedelta(days=10)
         lic_sup = LicenciaOtorgada.objects.create(
             docente=self.docente,
             cargo=self.cargo_sup,
             tipo_licencia=self.tipo_multi,
-            fecha_desde=self.hoy,
-            fecha_hasta_prevista=self.hasta,
+            fecha_desde=f_sup_desde,
+            fecha_hasta_prevista=f_sup_hasta,
         )
 
         self.assertIsNotNone(lic_tit.pk)

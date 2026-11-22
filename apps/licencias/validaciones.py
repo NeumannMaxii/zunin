@@ -546,23 +546,83 @@ def validar_antiguedad_minima(
     return True
 
 
+def es_licencia_medica_o_reposo(tipo_licencia: Any) -> bool:
+    """
+    Determina si una licencia es de naturaleza médica, de salud, reposo
+    o incapacidad psicofísica (ej: Art. 308, 322, 330, 339, 340, 341, LT, etc.),
+    las cuales inhabilitan el desempeño laboral en todos los cargos del docente
+    (Ticket 19.4).
+    """
+    if tipo_licencia is None:
+        return False
+
+    cuadro = getattr(tipo_licencia, "cuadro_mensual", None) or getattr(
+        tipo_licencia, "cuadro", None
+    )
+    if cuadro in ("IL-01", "DL-01"):
+        return True
+
+    if es_licencia_enfermedad_comun(tipo_licencia):
+        return True
+
+    codigo = str(getattr(tipo_licencia, "codigo", "") or "").upper()
+    articulo = str(getattr(tipo_licencia, "articulo", "") or "").upper()
+    descripcion = str(getattr(tipo_licencia, "descripcion", "") or "")
+
+    texto = f"{codigo} {articulo} {descripcion}".lower()
+    norm = unicodedata.normalize("NFKD", texto)
+    texto_sin_tilde = "".join([c for c in norm if not unicodedata.combining(c)])
+
+    keywords_medicas = [
+        "enfermedad",
+        "afeccion",
+        "salud",
+        "reposo",
+        "incapacidad",
+        "accidente",
+        "maternidad",
+        "medica",
+        "medico",
+        "psicofisic",
+        "tratamiento",
+        "embarazo",
+    ]
+    if any(kw in texto_sin_tilde for kw in keywords_medicas):
+        return True
+
+    articulos_medicos = ["308", "322", "330", "339", "340", "341"]
+    if any(art in texto for art in articulos_medicos):
+        return True
+
+    if "LT" in codigo or "LT" in articulo:
+        return True
+
+    return False
+
+
 def buscar_licencias_solapadas(
-    cargo: Any,
-    fecha_desde: Any,
-    fecha_hasta: Any,
+    cargo: Any = None,
+    fecha_desde: Any = None,
+    fecha_hasta: Any = None,
     excluir_id: Optional[int] = None,
     docente: Optional[Any] = None,
+    tipo_licencia: Optional[Any] = None,
     estados_activos: Optional[Iterable[str]] = None,
 ) -> QuerySet:
     """
-    Busca instancias de LicenciaOtorgada activas que se solapan con el
-    período [fecha_desde, fecha_hasta] para el cargo especificado (Ticket 17.3).
+    Busca instancias de LicenciaOtorgada activas que colisionan con el
+    período [fecha_desde, fecha_hasta] contemplando:
+    1. Alcance Institucional (cargo=None) vs Cargo Específico.
+    2. Superposición exacta o parcial en el mismo cargo.
+    3. Colisión entre distintos cargos si alguna licencia es médica o de reposo.
+    (Ticket 17.3 y Ticket 19.4).
 
     Dos intervalos [D1, H1] y [D2, H2] se superponen si y solo si:
     D1 <= H2 y H1 >= D2.
     """
     from apps.licencias.calculador import parse_date_safe
-    from apps.licencias.models import LicenciaOtorgada
+    from apps.licencias.models import LicenciaOtorgada, TipoLicencia
+    from django.db.models import Q
 
     f_desde = parse_date_safe(fecha_desde)
     f_hasta = parse_date_safe(fecha_hasta)
@@ -576,8 +636,26 @@ def buscar_licencias_solapadas(
     cargo_id = _extraer_id_cargo(cargo)
     docente_id = _extraer_id_docente(docente)
 
-    if not cargo_id and not docente_id:
+    docente_cargo_id = None
+    if cargo is not None:
+        docente_cargo_id = getattr(cargo, "docente_id", None)
+        if not docente_cargo_id and hasattr(cargo, "docente"):
+            docente_cargo_id = getattr(cargo.docente, "pk", None)
+
+    target_docente_id = docente_id or docente_cargo_id
+    if not cargo_id and not target_docente_id:
         return LicenciaOtorgada.objects.none()
+
+    tipo_lic_obj = None
+    if tipo_licencia is not None:
+        if isinstance(tipo_licencia, TipoLicencia):
+            tipo_lic_obj = tipo_licencia
+        elif isinstance(tipo_licencia, int) or (
+            isinstance(tipo_licencia, str) and tipo_licencia.strip().isdigit()
+        ):
+            tipo_lic_obj = TipoLicencia.objects.filter(pk=int(tipo_licencia)).first()
+        elif isinstance(tipo_licencia, str):
+            tipo_lic_obj = TipoLicencia.objects.filter(codigo=tipo_licencia).first()
 
     qs = LicenciaOtorgada.objects.filter(
         estado__in=estados_activos,
@@ -585,39 +663,65 @@ def buscar_licencias_solapadas(
         fecha_hasta_prevista__gte=f_desde,
     )
 
-    if cargo_id:
-        qs = qs.filter(cargo_id=cargo_id)
-    elif docente_id:
-        qs = qs.filter(docente_id=docente_id)
-
     if excluir_id:
         qs = qs.exclude(pk=excluir_id)
 
-    return qs.select_related("tipo_licencia", "cargo", "docente")
+    # Si se conoce el docente_id (explícito o cuando la solicitud es institucional):
+    if docente_id or cargo_id is None:
+        cand_qs = qs.filter(docente_id=target_docente_id).select_related(
+            "tipo_licencia", "cargo", "docente"
+        )
+        # Alcance Institucional: afecta a todos los cargos del docente
+        if cargo_id is None:
+            return cand_qs
+
+        nuevo_es_medico = es_licencia_medica_o_reposo(tipo_lic_obj)
+        colision_ids = []
+        for lic in cand_qs:
+            if lic.cargo_id is None or lic.cargo_id == cargo_id:
+                colision_ids.append(lic.pk)
+            elif nuevo_es_medico or es_licencia_medica_o_reposo(lic.tipo_licencia):
+                colision_ids.append(lic.pk)
+
+        return cand_qs.filter(pk__in=colision_ids)
+
+    # Si no se pasó docente explícito pero sí un cargo específico (compatibilidad 17.3)
+    if docente_cargo_id:
+        cand_qs = qs.filter(
+            Q(cargo_id=cargo_id) | Q(cargo__isnull=True, docente_id=docente_cargo_id)
+        )
+    else:
+        cand_qs = qs.filter(cargo_id=cargo_id)
+
+    return cand_qs.select_related("tipo_licencia", "cargo", "docente")
 
 
 def validar_solapamiento_licencias(
-    cargo: Any,
-    fecha_desde: Any,
-    fecha_hasta: Any,
+    cargo: Any = None,
+    fecha_desde: Any = None,
+    fecha_hasta: Any = None,
     instancia_actual: Optional[Any] = None,
     docente: Optional[Any] = None,
+    tipo_licencia: Optional[Any] = None,
     estados_activos: Optional[Iterable[str]] = None,
 ) -> bool:
     """
-    Valida que no existan superposiciones con otras licencias activas
-    para el mismo cargo y rango de fechas (Ticket 17.3).
+    Valida que no existan superposiciones ni colisiones con otras licencias
+    activas para el docente / cargo en el rango de fechas solicitado
+    (Ticket 17.3 y Ticket 19.4).
 
-    Especificaciones Técnicas:
-    Validar rangos de fechas (fecha_desde a fecha_hasta) por cargo_id antes de guardar.
-
-    Criterio de Aceptación:
-    El sistema bloquea el registro si el cargo ya posee otra licencia activa
-    en el período.
+    Reglas de Negocio:
+    1. Superposición Temporal: D1 <= H2 y H1 >= D2.
+    2. Alcance Institucional: cargo=None colisiona con cualquier licencia del docente.
+    3. Alcance por Cargo: mismo cargo colisiona siempre; distintos cargos colisionan
+       si alguna de las licencias es médica / reposo / psicofísica.
+    4. Estados Activos: SOLICITADA, OTORGADA, APROBADA (y FINALIZADA en rango).
+       Excluye CANCELADA, ANULADA, RECHAZADA.
+    5. Exclusión de la propia instancia al editar.
     """
     from apps.licencias.calculador import parse_date_safe
 
-    # Si la instancia actual ya es inactiva (cancelada/rechazada), no restringe
+    # Si la instancia actual ya es inactiva (cancelada/rechazada/anulada), no restringe
     if instancia_actual:
         est = getattr(instancia_actual, "estado", None)
         if est in ESTADOS_LICENCIA_INACTIVAS:
@@ -635,29 +739,81 @@ def validar_solapamiento_licencias(
         )
 
     cargo_id = _extraer_id_cargo(cargo)
-    if not cargo_id:
+    docente_id = _extraer_id_docente(docente)
+
+    if cargo is not None and not docente_id:
+        if hasattr(cargo, "docente_id") and cargo.docente_id:
+            docente_id = cargo.docente_id
+        elif hasattr(cargo, "docente") and getattr(cargo.docente, "pk", None):
+            docente_id = cargo.docente.pk
+
+    if not cargo_id and not docente_id:
         return True
 
     excluir_id = getattr(instancia_actual, "pk", None)
+    if not tipo_licencia and instancia_actual:
+        tipo_licencia = getattr(instancia_actual, "tipo_licencia", None)
+
     solapadas = buscar_licencias_solapadas(
-        cargo=cargo_id,
+        cargo=cargo,
         fecha_desde=f_desde,
         fecha_hasta=f_hasta,
         excluir_id=excluir_id,
         docente=docente,
+        tipo_licencia=tipo_licencia,
         estados_activos=estados_activos,
     )
 
     if solapadas.exists():
         primera = solapadas.first()
         tipo_str = primera.tipo_licencia.codigo if primera.tipo_licencia else "S/T"
+        art = (
+            f" Art. {primera.tipo_licencia.articulo}"
+            if (primera.tipo_licencia and primera.tipo_licencia.articulo)
+            else ""
+        )
         f_desde_fmt = primera.fecha_desde.strftime("%d/%m/%Y")
         f_hasta_fmt = primera.fecha_hasta_prevista.strftime("%d/%m/%Y")
-        cargo_rep = str(primera.cargo) if primera.cargo else f"ID {cargo_id}"
+        solicitud_str = f"Solicitud #{primera.pk}" if primera.pk else ""
+        est_str = primera.get_estado_display()
+
+        # Caso A: La existente es de Alcance Institucional (cargo is None)
+        if primera.cargo is None:
+            raise ValidationError(
+                f"El docente ya posee una licencia activa de Alcance Institucional "
+                f"en el período solicitado ({f_desde_fmt} al {f_hasta_fmt}, "
+                f"Tipo: {tipo_str}{art}, {solicitud_str}, Estado: {est_str}). "
+                f"Afecta a todos los cargos del establecimiento."
+            )
+
+        # Caso B: La nueva solicitud es de Alcance Institucional (cargo_id is None)
+        if cargo_id is None:
+            cargo_existente_str = str(primera.cargo)
+            raise ValidationError(
+                f"No se puede otorgar una licencia de Alcance Institucional: "
+                f"el docente ya posee otra licencia activa en el cargo "
+                f"'{cargo_existente_str}' en el período solicitado "
+                f"({f_desde_fmt} al {f_hasta_fmt}, Tipo: {tipo_str}{art}, "
+                f"{solicitud_str}, Estado: {est_str})."
+            )
+
+        # Caso C: Mismo cargo (cargo_id == primera.cargo_id)
+        if cargo_id == primera.cargo_id:
+            cargo_rep = str(primera.cargo) if primera.cargo else f"ID {cargo_id}"
+            raise ValidationError(
+                f"El cargo '{cargo_rep}' ya posee otra licencia activa en el "
+                f"período solicitado ({f_desde_fmt} al {f_hasta_fmt}, "
+                f"Tipo: {tipo_str}{art}, {solicitud_str}, Estado: {est_str})."
+            )
+
+        # Caso D: Distintos cargos con conflicto de naturaleza médica / reposo
+        cargo_existente_str = str(primera.cargo)
         raise ValidationError(
-            f"El cargo '{cargo_rep}' ya posee otra licencia activa en el período "
-            f"solicitado ({f_desde_fmt} al {f_hasta_fmt}, Tipo: {tipo_str}, "
-            f"Estado: {primera.get_estado_display()})."
+            f"Conflicto por reposo de salud: el docente ya posee otra licencia "
+            f"activa ({tipo_str}{art}, {solicitud_str}, "
+            f"{f_desde_fmt} al {f_hasta_fmt}) "
+            f"en el cargo '{cargo_existente_str}' incompatible con el período "
+            f"solicitado."
         )
 
     return True
@@ -950,13 +1106,14 @@ def validar_solicitud_licencia(
         fecha_hasta=fecha_hasta,
         dias=dias,
     )
-    if cargo and fecha_desde and fecha_hasta:
+    if (cargo or docente) and fecha_desde and fecha_hasta:
         validar_solapamiento_licencias(
             cargo=cargo,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
             instancia_actual=instancia_actual,
             docente=docente,
+            tipo_licencia=tipo_licencia,
         )
     if tipo_licencia and (fecha_desde or dias):
         validar_control_saldos_y_topes(

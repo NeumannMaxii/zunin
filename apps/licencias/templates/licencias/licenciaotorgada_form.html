@@ -642,10 +642,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Validación de Solapamientos
-        if (cargoId && fechaDesde && fechaHasta) {
+        // Validación de Solapamientos (Ticket 19.4)
+        if ((cargoId || docenteId) && fechaDesde && fechaHasta) {
             try {
-                const solapResp = await fetch(`/api/licencias/validar-solapamiento/?cargo=${cargoId}&fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`);
+                let urlSolap = `/api/licencias/validar-solapamiento/?fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`;
+                if (cargoId) urlSolap += `&cargo=${cargoId}`;
+                if (docenteId) urlSolap += `&docente=${docenteId}`;
+                if (tipoLicenciaId) urlSolap += `&tipo_licencia=${tipoLicenciaId}`;
+                {% if object and object.pk %}
+                urlSolap += `&excluir_id={{ object.pk }}`;
+                {% endif %}
+                const solapResp = await fetch(urlSolap);
                 if (solapResp.ok) {
                     const solapData = await solapResp.json();
                     if (solapData.status === 'success' && solapData.hay_solapamiento) {
