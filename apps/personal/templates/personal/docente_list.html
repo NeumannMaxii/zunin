@@ -71,7 +71,7 @@
                         <th class="px-6 py-3">Sexo</th>
                         <th class="px-6 py-3">Contacto</th>
                         <th class="px-6 py-3">Estado</th>
-                        <th class="px-6 py-3 text-right">Acciones</th>
+                        <th class="px-6 py-3 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -90,7 +90,7 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                        <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
                             <a href="{% url 'personal:cargo_create' docente.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors" title="Agregar designación o cargo">
                                 + Cargo
                             </a>
