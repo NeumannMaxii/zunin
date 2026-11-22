@@ -204,10 +204,24 @@
         {% else %}
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             {% for message in messages %}
-            <div class="p-4 mb-3 rounded-xl border text-sm flex items-center justify-between {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">
-                <div class="flex items-center space-x-2">
-                    <span>{{ message }}</span>
+            <div class="alert-toast p-4 mb-3 rounded-xl border text-sm flex items-center justify-between transition-all duration-500 ease-out shadow-2xs {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">
+                <div class="flex items-center space-x-2.5">
+                    {% if message.tags == 'success' %}
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {% elif message.tags == 'error' %}
+                    <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {% endif %}
+                    <span class="font-medium">{{ message }}</span>
                 </div>
+                <button type="button" onclick="const t = this.closest('.alert-toast'); t.style.opacity='0'; setTimeout(() => t.remove(), 300);" class="text-slate-400 hover:text-slate-600 ml-4 p-1 rounded-lg transition-colors cursor-pointer" title="Cerrar aviso">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
             {% endfor %}
         </div>
@@ -234,6 +248,18 @@
 
     <!-- PWA Service Worker Registration & Responsive Navigation -->
     <script>
+        // Auto-dismiss de alertas/mensajes flash tras 4 segundos
+        document.addEventListener('DOMContentLoaded', () => {
+            const toasts = document.querySelectorAll('.alert-toast');
+            toasts.forEach((toast) => {
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-8px)';
+                    setTimeout(() => toast.remove(), 400);
+                }, 4000);
+            });
+        });
+
         // Toggle Menú Móvil
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
