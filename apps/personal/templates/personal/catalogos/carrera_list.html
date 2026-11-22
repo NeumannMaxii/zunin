@@ -68,7 +68,7 @@
                     <tr>
                         <th class="px-6 py-3">Código</th>
                         <th class="px-6 py-3">Nombre de la Carrera</th>
-                        <th class="px-6 py-3">Materias</th>
+                        <th class="px-6 py-3">Planes &amp; Materias</th>
                         <th class="px-6 py-3">Estado</th>
                         <th class="px-6 py-3 text-left">Acciones</th>
                     </tr>
@@ -79,9 +79,14 @@
                         <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ carrera.codigo|default:"-" }}</td>
                         <td class="px-6 py-4 font-medium text-slate-900">{{ carrera.nombre|default:"-" }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors" title="Ver materias asignadas">
-                                {{ carrera.total_materias|default:0 }} {% if carrera.total_materias == 1 %}materia{% else %}materias{% endif %}
-                            </a>
+                            <div class="flex flex-col gap-1 items-start">
+                                <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors" title="Ver materias asignadas a esta carrera">
+                                    {{ carrera.total_materias|default:0 }} {% if carrera.total_materias == 1 %}materia{% else %}materias{% endif %}
+                                </a>
+                                <a href="{% url 'personal:planestudio_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors" title="Ver planes de estudio de esta carrera">
+                                    {{ carrera.total_planes|default:0 }} {% if carrera.total_planes == 1 %}plan{% else %}planes{% endif %}
+                                </a>
+                            </div>
                         </td>
                         <td class="px-6 py-4">
                             {% if carrera.activo %}
@@ -93,6 +98,9 @@
                         <td class="px-6 py-4 text-left space-x-2 whitespace-nowrap">
                             <a href="{% url 'personal:espaciocurricular_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-institucional-700 bg-institucional-50 hover:bg-institucional-100 border border-institucional-200 transition-colors" title="Ver materias de esta carrera">
                                 Ver Materias &rarr;
+                            </a>
+                            <a href="{% url 'personal:planestudio_list' %}?carrera={{ carrera.pk }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors" title="Ver planes de estudio de esta carrera">
+                                Ver Planes &rarr;
                             </a>
                             <a href="{% url 'personal:carrera_update' carrera.pk %}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors">
                                 Editar

@@ -564,8 +564,9 @@ class EspacioCurricularForm(TailwindModelForm):
     plan_estudio_ref = forms.ModelChoiceField(
         queryset=PlanEstudio.objects.none(),
         required=False,
-        label="Plan de Estudio Formal",
-        help_text="Plan curricular al que pertenece la asignatura",
+        empty_label="-- Sin Plan de Estudio / Opcional --",
+        label="Plan de Estudio",
+        help_text="Plan curricular ministerial correspondiente a la materia (opcional)",
     )
 
     class Meta:
@@ -580,7 +581,6 @@ class EspacioCurricularForm(TailwindModelForm):
             "turno",
             "regimen",
             "aula",
-            "plan_estudio",
         ]
         widgets = {
             "codigo": forms.TextInput(attrs={"placeholder": "Ej: DS-101"}),
@@ -592,9 +592,6 @@ class EspacioCurricularForm(TailwindModelForm):
             "aula": forms.TextInput(
                 attrs={"placeholder": "Ej: Laboratorio 1"}
             ),
-            "plan_estudio": forms.TextInput(
-                attrs={"placeholder": "Texto libre o referencia secundaria"}
-            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -604,7 +601,6 @@ class EspacioCurricularForm(TailwindModelForm):
         self.fields["regimen"].initial = "ANUAL"
         self.fields["turno"].initial = "MANANA"
         self.fields["aula"].required = False
-        self.fields["plan_estudio"].required = False
 
         carrera_id = None
         if "carrera" in self.data:
@@ -626,6 +622,16 @@ class EspacioCurricularForm(TailwindModelForm):
             self.fields["plan_estudio_ref"].queryset = PlanEstudio.objects.filter(
                 activo=True
             ).order_by("carrera__codigo", "nombre")
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if instance.plan_estudio_ref:
+            instance.plan_estudio = instance.plan_estudio_ref.nombre
+        elif not instance.plan_estudio:
+            instance.plan_estudio = ""
+        if commit:
+            instance.save()
+        return instance
 
     def clean(self):
         cleaned_data = super().clean()

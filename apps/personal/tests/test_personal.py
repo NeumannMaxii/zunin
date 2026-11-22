@@ -8,13 +8,18 @@ from django.db.models import ProtectedError
 from django.test import TestCase
 from django.utils import timezone
 from apps.asistencia.models import RegistroAsistencia
-from apps.personal.forms import CargoDocenteForm, DocenteForm
+from apps.personal.forms import (
+    CargoDocenteForm,
+    DocenteForm,
+    EspacioCurricularForm,
+)
 from apps.personal.models import (
     CargoCatalogo,
     CargoDocente,
     Carrera,
     Docente,
     EspacioCurricular,
+    PlanEstudio,
     TipoAutorizacion,
 )
 
@@ -1683,9 +1688,44 @@ class EspacioCurricularCatalogViewsTests(TestCase):
         """Valida conteo de materias y botón Ver Materias en carrera_list."""
         from django.urls import reverse
 
+        PlanEstudio.objects.create(
+            carrera=self.carrera,
+            nombre="Plan 2024 Test",
+            activo=True,
+        )
+
         self.client.login(username="admin_espacios", password="password123")
         url = reverse("personal:carrera_list")
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Ver Materias &rarr;")
+        self.assertContains(resp, "Ver Planes &rarr;")
         self.assertContains(resp, "1 materia")
+        self.assertContains(resp, "1 plan")
+
+    def test_espaciocurricular_form_sincroniza_plan_estudio(self):
+        """Valida que el formulario use plan_estudio_ref y sincronice nombre."""
+        plan = PlanEstudio.objects.create(
+            carrera=self.carrera,
+            nombre="Plan 2025 Test",
+            activo=True,
+        )
+        form = EspacioCurricularForm()
+        self.assertNotIn("plan_estudio", form.fields)
+        self.assertIn("plan_estudio_ref", form.fields)
+
+        data = {
+            "codigo": "SYNC-101",
+            "nombre": "Materia Con Plan",
+            "carrera": self.carrera.pk,
+            "plan_estudio_ref": plan.pk,
+            "anio": 1,
+            "turno": "MANANA",
+            "regimen": "ANUAL",
+            "comision": "UNICA",
+        }
+        form_bound = EspacioCurricularForm(data=data)
+        self.assertTrue(form_bound.is_valid(), form_bound.errors)
+        instancia = form_bound.save()
+        self.assertEqual(instancia.plan_estudio_ref, plan)
+        self.assertEqual(instancia.plan_estudio, "Plan 2025 Test")

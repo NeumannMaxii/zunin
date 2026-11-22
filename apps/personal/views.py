@@ -564,7 +564,8 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset().annotate(
-            total_materias=Count("espacios_curriculares")
+            total_materias=Count("espacios_curriculares", distinct=True),
+            total_planes=Count("planes_estudio", distinct=True),
         )
         q = self.request.GET.get("q", "").strip()
         if q:

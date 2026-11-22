@@ -110,15 +110,15 @@ document.addEventListener("DOMContentLoaded", function () {
             const currentPlanId = selectPlan.value;
 
             if (!carreraId) {
-                selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
+                selectPlan.innerHTML = '<option value="">-- Sin Plan de Estudio / Opcional --</option>';
                 return;
             }
 
             fetch("{% url 'personal:api_planes_por_carrera' %}?carrera_id=" + carreraId)
                 .then(response => response.json())
                 .then(data => {
-                    selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio --</option>';
                     if (data.planes && data.planes.length > 0) {
+                        selectPlan.innerHTML = '<option value="">-- Seleccionar Plan de Estudio (Opcional) --</option>';
                         data.planes.forEach(plan => {
                             const opt = document.createElement("option");
                             opt.value = plan.id;
@@ -129,6 +129,8 @@ document.addEventListener("DOMContentLoaded", function () {
                             }
                             selectPlan.appendChild(opt);
                         });
+                    } else {
+                        selectPlan.innerHTML = '<option value="">-- Sin Planes Registrados para esta Carrera --</option>';
                     }
                 })
                 .catch(err => console.error("Error al cargar planes de estudio:", err));

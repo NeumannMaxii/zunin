@@ -15,6 +15,7 @@ from apps.personal.models import (
     Carrera,
     Docente,
     EspacioCurricular,
+    PlanEstudio,
     TipoAutorizacion,
 )
 
@@ -260,11 +261,37 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
             ).first()
         )
 
+        plan_ds = None
+        if carrera_ds:
+            plan_ds, _ = PlanEstudio.objects.get_or_create(
+                carrera=carrera_ds,
+                nombre="Plan 2022",
+                defaults={
+                    "resolucion": "Res. 1450/22 - MECCyT",
+                    "anio_implementacion": 2022,
+                    "activo": True,
+                },
+            )
+
+        plan_ia = None
+        if carrera_ia:
+            plan_ia, _ = PlanEstudio.objects.get_or_create(
+                carrera=carrera_ia,
+                nombre="Plan 2023",
+                defaults={
+                    "resolucion": "Res. 890/23 - MECCyT",
+                    "anio_implementacion": 2023,
+                    "activo": True,
+                },
+            )
+
         espacios_data = [
             {
                 "codigo": "DS-101",
                 "nombre": "Programación I",
                 "carrera": carrera_ds,
+                "plan_estudio_ref": plan_ds,
+                "plan_estudio": "Plan 2022",
                 "anio": 1,
                 "turno": "MANANA",
             },
@@ -272,6 +299,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "codigo": "DS-201",
                 "nombre": "Programación II",
                 "carrera": carrera_ds,
+                "plan_estudio_ref": plan_ds,
+                "plan_estudio": "Plan 2022",
                 "anio": 2,
                 "turno": "MANANA",
             },
@@ -279,6 +308,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "codigo": "DS-202",
                 "nombre": "Bases de Datos",
                 "carrera": carrera_ds,
+                "plan_estudio_ref": plan_ds,
+                "plan_estudio": "Plan 2022",
                 "anio": 2,
                 "turno": "TARDE",
             },
@@ -286,6 +317,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "codigo": "DS-301",
                 "nombre": "Práctica Profesionalizante III",
                 "carrera": carrera_ds,
+                "plan_estudio_ref": plan_ds,
+                "plan_estudio": "Plan 2022",
                 "anio": 3,
                 "turno": "TARDE",
             },
@@ -293,6 +326,8 @@ def poblar_datos_demo(usuario=None, reset=False, generar_planilla=False):
                 "codigo": "IA-101",
                 "nombre": "Matemática Aplicada a IA",
                 "carrera": carrera_ia,
+                "plan_estudio_ref": plan_ia,
+                "plan_estudio": "Plan 2023",
                 "anio": 1,
                 "turno": "NOCHE",
             },
