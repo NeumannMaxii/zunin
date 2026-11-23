@@ -61,12 +61,13 @@ class DocenteListView(LoginRequiredMixin, ListView):
         qs = super().get_queryset()
         q = self.request.GET.get("q", "").strip()
         if q:
-            qs = qs.filter(
-                Q(apellido__icontains=q)
-                | Q(nombre__icontains=q)
-                | Q(dni__icontains=q)
-                | Q(cuil_dgi__icontains=q)
-            )
+            for token in q.split():
+                qs = qs.filter(
+                    Q(apellido__icontains=token)
+                    | Q(nombre__icontains=token)
+                    | Q(dni__icontains=token)
+                    | Q(cuil_dgi__icontains=token)
+                )
         return qs
 
     def get_context_data(self, **kwargs):
@@ -378,13 +379,18 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
         qs = super().get_queryset()
         q = self.request.GET.get("q", "").strip()
         if q:
-            qs = qs.filter(
-                Q(docente__apellido__icontains=q)
-                | Q(docente__nombre__icontains=q)
-                | Q(docente__dni__icontains=q)
-                | Q(materia__nombre__icontains=q)
-                | Q(codigo_cargo__icontains=q)
-            )
+            for token in q.split():
+                qs = qs.filter(
+                    Q(docente__apellido__icontains=token)
+                    | Q(docente__nombre__icontains=token)
+                    | Q(docente__dni__icontains=token)
+                    | Q(materia__nombre__icontains=token)
+                    | Q(materia__codigo__icontains=token)
+                    | Q(codigo_cargo__icontains=token)
+                    | Q(situacion_revista__icontains=token)
+                    | Q(docente_reemplazado__apellido__icontains=token)
+                    | Q(docente_reemplazado__nombre__icontains=token)
+                )
         return qs
 
     def get_context_data(self, **kwargs):
@@ -575,7 +581,10 @@ class CarreraListView(SoloAdminInstitucionalMixin, ListView):
         )
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(Q(codigo__icontains=q) | Q(nombre__icontains=q))
+            for token in q.split():
+                queryset = queryset.filter(
+                    Q(codigo__icontains=token) | Q(nombre__icontains=token)
+                )
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -685,12 +694,13 @@ class PlanEstudioListView(SoloAdminInstitucionalMixin, ListView):
         if carrera_id:
             queryset = queryset.filter(carrera_id=carrera_id)
         if q:
-            queryset = queryset.filter(
-                Q(nombre__icontains=q)
-                | Q(resolucion__icontains=q)
-                | Q(carrera__nombre__icontains=q)
-                | Q(carrera__codigo__icontains=q)
-            )
+            for token in q.split():
+                queryset = queryset.filter(
+                    Q(nombre__icontains=token)
+                    | Q(resolucion__icontains=token)
+                    | Q(carrera__nombre__icontains=token)
+                    | Q(carrera__codigo__icontains=token)
+                )
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -837,9 +847,10 @@ class CargoCatalogoListView(SoloAdminInstitucionalMixin, ListView):
         queryset = super().get_queryset()
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(
-                Q(codigo__icontains=q) | Q(descripcion__icontains=q)
-            )
+            for token in q.split():
+                queryset = queryset.filter(
+                    Q(codigo__icontains=token) | Q(descripcion__icontains=token)
+                )
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -935,7 +946,8 @@ class TipoAutorizacionListView(SoloAdminInstitucionalMixin, ListView):
         queryset = super().get_queryset()
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(nombre__icontains=q)
+            for token in q.split():
+                queryset = queryset.filter(nombre__icontains=token)
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -1040,15 +1052,16 @@ class EspacioCurricularListView(SoloAdminInstitucionalMixin, ListView):
 
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(
-                Q(codigo__icontains=q)
-                | Q(nombre__icontains=q)
-                | Q(carrera__nombre__icontains=q)
-                | Q(carrera__codigo__icontains=q)
-                | Q(plan_estudio_ref__nombre__icontains=q)
-                | Q(plan_estudio_ref__resolucion__icontains=q)
-                | Q(plan_estudio__icontains=q)
-            )
+            for token in q.split():
+                queryset = queryset.filter(
+                    Q(codigo__icontains=token)
+                    | Q(nombre__icontains=token)
+                    | Q(carrera__nombre__icontains=token)
+                    | Q(carrera__codigo__icontains=token)
+                    | Q(plan_estudio_ref__nombre__icontains=token)
+                    | Q(plan_estudio_ref__resolucion__icontains=token)
+                    | Q(plan_estudio__icontains=token)
+                )
         return queryset
 
     def get_context_data(self, **kwargs):

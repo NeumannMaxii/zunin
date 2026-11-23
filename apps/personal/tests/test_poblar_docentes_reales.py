@@ -25,8 +25,8 @@ class PoblarDocentesRealesCommandTests(TestCase):
         output = out.getvalue()
 
         self.assertIn("Proceso finalizado con éxito", output)
-        self.assertEqual(Docente.objects.count(), 42)  # 37 padrón + 5 nuevos
-        self.assertEqual(CargoDocente.objects.count(), 42)
+        self.assertEqual(Docente.objects.count(), 43)  # 37 padrón + 6 nuevos
+        self.assertEqual(CargoDocente.objects.count(), 43)
 
         # Verificar docentes clave del padrón
         baez = Docente.objects.get(dni="20091846")
@@ -62,11 +62,21 @@ class PoblarDocentesRealesCommandTests(TestCase):
         self.assertEqual(cargo_fis2.docente.apellido, "Villafañe")
         self.assertEqual(cargo_fis2.total_horas_semanales, 3)
 
+        # 5. Testing de Software: Errobidarte Augusto suplente de Escalante (3 hs)
+        cargo_test = CargoDocente.objects.get(
+            codigo_cargo="CARGO-33456789-DS302-SUP"
+        )
+        self.assertEqual(cargo_test.docente.apellido, "Errobidarte")
+        self.assertEqual(cargo_test.docente.nombre, "Augusto")
+        self.assertEqual(cargo_test.situacion_revista, "SUP")
+        self.assertEqual(cargo_test.docente_reemplazado.apellido, "Escalante")
+        self.assertEqual(cargo_test.total_horas_semanales, 3)
+
         # Verificar idempotencia en segunda ejecución
         out2 = StringIO()
         call_command("poblar_docentes_reales", stdout=out2)
         output2 = out2.getvalue()
 
-        self.assertIn("Docentes creados/actualizados: 42", output2)
-        self.assertEqual(Docente.objects.count(), 42)
-        self.assertEqual(CargoDocente.objects.count(), 42)
+        self.assertIn("Docentes creados/actualizados: 43", output2)
+        self.assertEqual(Docente.objects.count(), 43)
+        self.assertEqual(CargoDocente.objects.count(), 43)

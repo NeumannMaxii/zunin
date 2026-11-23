@@ -233,11 +233,12 @@ def filtrar_asistencias_multicriterio(
     # 2. DNI o Apellido del Docente
     if dni_o_apellido and str(dni_o_apellido).strip():
         term = str(dni_o_apellido).strip()
-        queryset = queryset.filter(
-            Q(docente__dni__icontains=term)
-            | Q(docente__apellido__icontains=term)
-            | Q(docente__nombre__icontains=term)
-        )
+        for token in term.split():
+            queryset = queryset.filter(
+                Q(docente__dni__icontains=token)
+                | Q(docente__apellido__icontains=token)
+                | Q(docente__nombre__icontains=token)
+            )
     if dni and str(dni).strip():
         queryset = queryset.filter(docente__dni__icontains=str(dni).strip())
     if apellido and str(apellido).strip():

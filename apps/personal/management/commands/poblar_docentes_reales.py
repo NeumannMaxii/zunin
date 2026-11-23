@@ -58,6 +58,12 @@ class Command(BaseCommand):
                 "nombre": "Patricia",
                 "sexo": "F",
             },
+            {
+                "dni": "33456789",
+                "apellido": "Errobidarte",
+                "nombre": "Augusto",
+                "sexo": "M",
+            },
         ]
         docentes_map = {}
         for p in profes_data:
@@ -201,6 +207,18 @@ class Command(BaseCommand):
                 "horas_viernes": 3,
                 "reemplazado": None,
             })
+            cargos_config.append({
+                "docente": docentes_map["Errobidarte"],
+                "materia": espacios["DS-302"],
+                "codigo_cargo": "CARGO-33456789-DS302-SUP",
+                "situacion_revista": "SUP",
+                "horas_lunes": 0,
+                "horas_martes": 0,
+                "horas_miercoles": 0,
+                "horas_jueves": 0,
+                "horas_viernes": 3,
+                "reemplazado": docentes_map["Escalante"],
+            })
 
         for c_info in cargos_config:
             CargoDocente.objects.update_or_create(
@@ -261,7 +279,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Proceso finalizado con éxito:\n"
-                f"  - Docentes creados/actualizados: {doc_c + doc_a + 5}\n"
+                f"  - Docentes creados/actualizados: {doc_c + doc_a + 6}\n"
                 f"  - Cargos configurados: {CargoDocente.objects.count()}\n"
                 f"  - Horario de 3er año TSDS: 29 hs cátedra asignadas."
             )
