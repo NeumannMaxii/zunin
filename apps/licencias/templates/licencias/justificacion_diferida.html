@@ -48,9 +48,6 @@
                             Docente <span class="text-rose-500">*</span>
                         </label>
                         {{ form.docente }}
-                        {% if form.docente.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.docente.help_text }}</p>
-                        {% endif %}
                         {% if form.docente.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.docente.errors }}</div>
                         {% endif %}
@@ -62,9 +59,6 @@
                             Fecha Desde <span class="text-rose-500">*</span>
                         </label>
                         {{ form.fecha_desde }}
-                        {% if form.fecha_desde.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.fecha_desde.help_text }}</p>
-                        {% endif %}
                         {% if form.fecha_desde.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_desde.errors }}</div>
                         {% endif %}
@@ -76,9 +70,6 @@
                             Fecha Hasta <span class="text-rose-500">*</span>
                         </label>
                         {{ form.fecha_hasta }}
-                        {% if form.fecha_hasta.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.fecha_hasta.help_text }}</p>
-                        {% endif %}
                         {% if form.fecha_hasta.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.fecha_hasta.errors }}</div>
                         {% endif %}
@@ -96,23 +87,9 @@
                             </svg>
                             <span><strong>Desglose Multimateria Automático:</strong> Al dejar el cargo en blanco, el sistema desglosa automáticamente materias y horas día por día según el horario semanal del docente.</span>
                         </div>
-                        {% if form.cargo.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.cargo.help_text }}</p>
-                        {% endif %}
                         {% if form.cargo.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.cargo.errors }}</div>
                         {% endif %}
-                    </div>
-                </div>
-
-                <!-- Nota de Omisión Automática -->
-                <div class="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start space-x-3 text-xs text-slate-600">
-                    <svg class="w-5 h-5 text-institucional-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                        <strong class="font-medium text-slate-800">Cómputo inteligente de días hábiles:</strong>
-                        El sistema omitirá automáticamente los fines de semana (sábados y domingos) y los días no laborables o feriados registrados en el calendario escolar.
                     </div>
                 </div>
             </div>
@@ -130,9 +107,6 @@
                             Nueva Marca Oficial <span class="text-rose-500">*</span>
                         </label>
                         {{ form.nueva_marca }}
-                        {% if form.nueva_marca.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.nueva_marca.help_text }}</p>
-                        {% endif %}
                         {% if form.nueva_marca.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.nueva_marca.errors }}</div>
                         {% endif %}
@@ -144,9 +118,6 @@
                             Tipo de Licencia Estatutaria
                         </label>
                         {{ form.tipo_licencia }}
-                        {% if form.tipo_licencia.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.tipo_licencia.help_text }}</p>
-                        {% endif %}
                         {% if form.tipo_licencia.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_licencia.errors }}</div>
                         {% endif %}
@@ -158,9 +129,6 @@
                             Tipo de Instrumento Legal
                         </label>
                         {{ form.tipo_instrumento }}
-                        {% if form.tipo_instrumento.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.tipo_instrumento.help_text }}</p>
-                        {% endif %}
                         {% if form.tipo_instrumento.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.tipo_instrumento.errors }}</div>
                         {% endif %}
@@ -178,9 +146,6 @@
                         </div>
                         {{ form.numero_disposicion }}
                         <div id="disp-alerta-duplicado" class="hidden text-xs text-rose-600 font-medium mt-1"></div>
-                        {% if form.numero_disposicion.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.numero_disposicion.help_text }}</p>
-                        {% endif %}
                         {% if form.numero_disposicion.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_disposicion.errors }}</div>
                         {% endif %}
@@ -192,9 +157,6 @@
                             N° Resolución Ministerial Externa (M.E.C.C.y T.)
                         </label>
                         {{ form.numero_resolucion }}
-                        {% if form.numero_resolucion.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.numero_resolucion.help_text }}</p>
-                        {% endif %}
                         {% if form.numero_resolucion.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_resolucion.errors }}</div>
                         {% endif %}
@@ -206,24 +168,10 @@
                             Observaciones de Justificación
                         </label>
                         {{ form.observaciones }}
-                        {% if form.observaciones.help_text %}
-                        <p class="text-xs text-slate-500">{{ form.observaciones.help_text }}</p>
-                        {% endif %}
                         {% if form.observaciones.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.observaciones.errors }}</div>
                         {% endif %}
                     </div>
-                </div>
-            </div>
-
-            <!-- Aviso de Integridad Histórica -->
-            <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start space-x-3 text-xs text-amber-900 leading-relaxed">
-                <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div>
-                    <strong class="font-semibold text-amber-950">Cumplimiento de Integridad Histórica:</strong>
-                    Si el período justificado coincide con meses que ya tienen planillas mensuales consolidadas, los renglones existentes NO serán eliminados ni perderán sus números de Disposición asignados. La planilla se actualizará preservando la trazabilidad institucional.
                 </div>
             </div>
 

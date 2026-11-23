@@ -74,16 +74,14 @@
     </div>
 
     {% if planilla_existente %}
-    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
-        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- RN-03: Integridad histórica de planillas emitidas -->
+    <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center space-x-2.5">
+        <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
-        <div>
-            <p class="font-semibold">Planilla mensual {{ registro.fecha|date:"m/Y" }} ya generada (RN-03)</p>
-            <p class="mt-0.5 text-amber-800">
-                Al guardar esta rectificación, los renglones vigentes previos del período se marcarán automáticamente como <strong>Rectificados</strong> (conservando los números de instrumento históricos) y se regenerará la planilla mensual vigente con los datos actualizados.
-            </p>
-        </div>
+        <p class="font-medium text-amber-800">
+            La planilla mensual de <strong>{{ registro.fecha|date:"m/Y" }}</strong> ya fue emitida. Al guardar se registrará la rectificación correspondiente.
+        </p>
     </div>
     {% endif %}
 
@@ -92,6 +90,7 @@
         <form method="post" class="space-y-6">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ next_url }}">
+            {{ form.marca_diaria.as_hidden }}
 
             {% if form.non_field_errors %}
             <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
@@ -113,36 +112,19 @@
                     {% endif %}
                 </div>
 
-                <!-- Campo Marca Diaria -->
-                <div class="space-y-1.5">
-                    <label for="{{ form.marca_diaria.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                        Marca en Planilla
+                <!-- Campo Tipo de Licencia -->
+                <div id="campo-tipo-licencia" class="space-y-1.5 {% if form.estado.value != 'LICENCIA' and form.estado.value != 'JUSTIFICADO' %}hidden{% endif %}">
+                    <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
+                        Tipo de Licencia
+                        <span id="licencia-req-badge" class="text-rose-500 {% if form.estado.value != 'LICENCIA' %}hidden{% endif %}">*</span>
                     </label>
-                    {{ form.marca_diaria }}
-                    <p class="text-xs text-slate-500">Se sincroniza automáticamente según el estado seleccionado.</p>
-                    {% if form.marca_diaria.errors %}
+                    {{ form.tipo_licencia }}
+                    {% if form.tipo_licencia.errors %}
                     <div class="text-xs text-rose-600 font-medium mt-1">
-                        {{ form.marca_diaria.errors }}
+                        {{ form.tipo_licencia.errors }}
                     </div>
                     {% endif %}
                 </div>
-            </div>
-
-            <!-- Campo Tipo de Licencia -->
-            <div id="campo-tipo-licencia" class="space-y-1.5">
-                <label for="{{ form.tipo_licencia.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                    Tipo de Licencia
-                    <span id="licencia-req-badge" class="text-rose-500 {% if form.estado.value != 'LICENCIA' %}hidden{% endif %}">*</span>
-                </label>
-                {{ form.tipo_licencia }}
-                <p id="licencia-ayuda" class="text-xs text-slate-500">
-                    Obligatorio cuando el estado es Licencia; opcional para Permiso / Justificado.
-                </p>
-                {% if form.tipo_licencia.errors %}
-                <div class="text-xs text-rose-600 font-medium mt-1">
-                    {{ form.tipo_licencia.errors }}
-                </div>
-                {% endif %}
             </div>
 
             <!-- Campo Número de Disposición / Resolución -->
@@ -151,9 +133,6 @@
                     N&deg; de Disposición / Resolución
                 </label>
                 {{ form.numero_disposicion }}
-                <p class="text-xs text-slate-500">
-                    Opcional. Para resoluciones ministeriales ingrese ej. &laquo;Res. MEC 1450/2026&raquo;. Si cambia a Presente sin editarlo, una disposición previa automática se limpiará.
-                </p>
                 {% if form.numero_disposicion.errors %}
                 <div class="text-xs text-rose-600 font-medium mt-1">
                     {{ form.numero_disposicion.errors }}
@@ -196,7 +175,6 @@
         const selLicencia = document.getElementById('{{ form.tipo_licencia.id_for_label }}');
         const campoLicencia = document.getElementById('campo-tipo-licencia');
         const reqBadge = document.getElementById('licencia-req-badge');
-        const licenciaAyuda = document.getElementById('licencia-ayuda');
         const hasLicenciaErrors = {{ form.tipo_licencia.errors|yesno:"true,false" }};
 
         if (!selEstado || !selMarca || !selLicencia || !campoLicencia) {
@@ -235,20 +213,14 @@
                 campoLicencia.classList.remove('hidden');
                 selLicencia.required = true;
                 if (reqBadge) reqBadge.classList.remove('hidden');
-                if (licenciaAyuda) {
-                    licenciaAyuda.textContent = 'Obligatorio: seleccione el artículo o tipo de licencia correspondiente.';
-                }
-                if (alCambiarEstado && !['LIC', 'LIC.', 'LT'].includes(selMarca.value)) {
+                if (alCambiarEstado && !['LIC', 'LT'].includes(selMarca.value)) {
                     selMarca.value = inferirMarcaLicencia();
                 }
             } else if (estado === 'JUSTIFICADO') {
                 campoLicencia.classList.remove('hidden');
                 selLicencia.required = false;
                 if (reqBadge) reqBadge.classList.add('hidden');
-                if (licenciaAyuda) {
-                    licenciaAyuda.textContent = 'Opcional para Permiso / Justificado reglamentario.';
-                }
-                if (alCambiarEstado && !['P', 'PERM'].includes(selMarca.value)) {
+                if (alCambiarEstado) {
                     selMarca.value = 'P';
                 }
             }
@@ -261,7 +233,7 @@
         selLicencia.addEventListener('change', function() {
             if (selEstado.value === 'LICENCIA') {
                 const marcaSugerida = inferirMarcaLicencia();
-                if (marcaSugerida === 'LT' || selMarca.value === 'LT' || !['LIC', 'LIC.', 'LT'].includes(selMarca.value)) {
+                if (marcaSugerida === 'LT' || selMarca.value === 'LT' || !['LIC', 'LT'].includes(selMarca.value)) {
                     selMarca.value = marcaSugerida;
                 }
             }

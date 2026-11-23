@@ -226,7 +226,7 @@ class RegistroAsistenciaUpdateForm(TailwindModelForm):
         self.fields["observaciones"].required = False
 
         choices_map = dict(RegistroAsistencia.MARCA_DIARIA_CHOICES)
-        orden_marcas = ["PR", "I", "LIC", "LT", "P", "LIC.", "INA", "PERM"]
+        orden_marcas = ["PR", "I", "LIC", "LT", "P"]
         self.fields["marca_diaria"].choices = [
             (cod, choices_map[cod]) for cod in orden_marcas if cod in choices_map
         ]
