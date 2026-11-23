@@ -376,7 +376,11 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
     ordering = ["docente__apellido", "docente__nombre"]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("docente", "materia", "docente_reemplazado")
+        )
         q = self.request.GET.get("q", "").strip()
         if q:
             for token in q.split():
