@@ -194,7 +194,7 @@
                                         <option value="">-- Sin licencia --</option>
                                         {% for tl in tipos_licencia %}
                                         <option value="{{ tl.id }}" {% if item.registro.tipo_licencia_id == tl.id %}selected{% endif %}>
-                                            {{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
+                                            {% if tl.articulo %}{{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
                                         </option>
                                         {% endfor %}
                                     </select>

@@ -148,3 +148,88 @@ class MotorMensualPlanillaTests(TestCase):
         self.assertEqual(len(renglones_2027), 1)
         # El contador se reinicia a 001 para el nuevo año
         self.assertEqual(renglones_2027[0].numero_instrumento, "001/2027")
+
+    def test_desglose_multimateria_mismo_dia_rf12_rf14(self):
+        """
+        RF-12 y RF-14: Si un docente tiene 2 materias activas el mismo día de la falta,
+        la planilla mensual debe desglosarse en 2 renglones independientes,
+        uno por cada materia con su respectiva carga horaria.
+        """
+        materia_b = EspacioCurricular.objects.create(
+            codigo="PROG-102",
+            nombre="Programación II",
+            carrera="Tecnicatura Superior",
+            anio=2,
+        )
+        cargo_b = CargoDocente.objects.create(
+            docente=self.docente,
+            materia=materia_b,
+            situacion_revista="TIT",
+            horas_lunes=2,
+            activo=True,
+            hasta_texto="SIN TERMINO",
+            creado_por=self.user,
+        )
+
+        # Falta un lunes (05/10/2026) registrada en las materias del docente
+        fecha_lunes = datetime.date(2026, 10, 5)
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo,
+            fecha=fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            creado_por=self.user,
+        )
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=cargo_b,
+            fecha=fecha_lunes,
+            estado="AUSENTE",
+            marca_diaria="I",
+            creado_por=self.user,
+        )
+
+        renglones = generar_planilla_mes(mes=10, anio=2026, usuario=self.user)
+        r_doc = [r for r in renglones if r.docente == self.docente]
+
+        # Debe generar 2 renglones independientes (3 hs y 2 hs)
+        self.assertEqual(len(r_doc), 2)
+        materias_desglosadas = {
+            r.cargo.materia.codigo: r.horas_afectadas for r in r_doc
+        }
+        self.assertEqual(materias_desglosadas["MAT-101"], 3)
+        self.assertEqual(materias_desglosadas["PROG-102"], 2)
+
+    def test_unicidad_inasistencia_simple_no_se_agrupa_rn06(self):
+        """
+        RN-06: Una inasistencia injustificada o falta simple se computa
+        únicamente por el día puntual en que ocurrió. Dos días consecutivos
+        de falta simple deben generar 2 renglones separados (de 1 día cada uno).
+        """
+        # Faltas injustificadas lunes 5 y martes 6 de octubre 2026
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo,
+            fecha=datetime.date(2026, 10, 5),
+            estado="AUSENTE",
+            marca_diaria="I",
+            creado_por=self.user,
+        )
+        RegistroAsistencia.objects.create(
+            docente=self.docente,
+            cargo=self.cargo,
+            fecha=datetime.date(2026, 10, 6),
+            estado="AUSENTE",
+            marca_diaria="I",
+            creado_por=self.user,
+        )
+
+        renglones = generar_planilla_mes(mes=10, anio=2026, usuario=self.user)
+        r_doc = [r for r in renglones if r.docente == self.docente]
+
+        # Debe generar 2 renglones separados de 1 día cada uno, no 1 agrupado
+        self.assertEqual(len(r_doc), 2)
+        for r in r_doc:
+            self.assertEqual(r.desde, r.hasta)
+            self.assertEqual(r.horas_afectadas, 3)

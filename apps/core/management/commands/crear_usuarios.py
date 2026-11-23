@@ -36,6 +36,9 @@ class Command(BaseCommand):
             "is_superuser": False,
             "is_staff": True,
             "group": "Bedelia_Operadoras",
+            "first_name": "Zunilda",
+            "last_name": "Aquino",
+            "email": "zaquino@iesetyfp.edu.ar",
         },
         "mudarte": {
             "is_superuser": False,
@@ -48,7 +51,10 @@ class Command(BaseCommand):
         "msosa": {
             "is_superuser": False,
             "is_staff": True,
-            "group": "Consulta_Directiva",
+            "group": "Bedelia_Operadoras",
+            "first_name": "Mirtha",
+            "last_name": "Sosa",
+            "email": "msosa@iesetyfp.edu.ar",
         },
     }
 

@@ -347,12 +347,11 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     docente_id__in=docente_ids_post, activo=True
                 ).select_related("docente")
             )
-            doc_cargo_dict = {}
+            cargos_por_docente = {}
             for c in doc_cargos:
-                if c.docente_id not in doc_cargo_dict:
-                    doc_cargo_dict[c.docente_id] = c
+                cargos_por_docente.setdefault(c.docente_id, []).append(c)
             missing_d_ids = [
-                d_id for d_id in docente_ids_post if d_id not in doc_cargo_dict
+                d_id for d_id in docente_ids_post if d_id not in cargos_por_docente
             ]
             if missing_d_ids:
                 missing_docentes = Docente.objects.filter(
@@ -372,11 +371,14 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     for c in CargoDocente.objects.filter(
                         docente_id__in=missing_d_ids, activo=True
                     ).select_related("docente"):
-                        if c.docente_id not in doc_cargo_dict:
-                            doc_cargo_dict[c.docente_id] = c
+                        cargos_por_docente.setdefault(c.docente_id, []).append(c)
             for d_id in docente_ids_post:
-                if d_id in doc_cargo_dict:
-                    cargos_a_procesar.append(doc_cargo_dict[d_id])
+                c_list = cargos_por_docente.get(d_id, [])
+                con_clase = [c for c in c_list if c.obtener_horas_en_fecha(fecha) > 0]
+                if con_clase:
+                    cargos_a_procesar.extend(con_clase)
+                else:
+                    cargos_a_procesar.extend(c_list)
         else:
             cargos_by_id = (
                 CargoDocente.objects.filter(id__in=raw_ids)
@@ -390,13 +392,19 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     CargoDocente.objects.filter(docente_id__in=missing_ids, activo=True)
                     .select_related("docente")
                 )
-                doc_cargo_dict = {}
+                cargos_por_docente = {}
                 for c in doc_cargos:
-                    if c.docente_id not in doc_cargo_dict:
-                        doc_cargo_dict[c.docente_id] = c
+                    cargos_por_docente.setdefault(c.docente_id, []).append(c)
                 for d_id in missing_ids:
-                    if d_id in doc_cargo_dict:
-                        cargos_a_procesar.append(doc_cargo_dict[d_id])
+                    if d_id in cargos_por_docente:
+                        c_list = cargos_por_docente[d_id]
+                        con_clase = [
+                            c for c in c_list if c.obtener_horas_en_fecha(fecha) > 0
+                        ]
+                        if con_clase:
+                            cargos_a_procesar.extend(con_clase)
+                        else:
+                            cargos_a_procesar.extend(c_list)
                     else:
                         d_obj = Docente.objects.filter(id=d_id).first()
                         if d_obj:

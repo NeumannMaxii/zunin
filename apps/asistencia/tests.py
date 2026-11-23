@@ -1396,6 +1396,37 @@ class GranularidadMultiTurnoAsistenciaTests(TestCase):
         self.assertEqual(reg_t.estado, "AUSENTE")
         self.assertEqual(reg_t.marca_diaria, "I")
 
+    def test_asistencia_diaria_view_post_docente_ids_procesa_todos_cargos(
+        self,
+    ):
+        """
+        RF-12: Al enviar docente_ids para un docente multimateria,
+        deben procesarse todos sus cargos con clase en la fecha en lugar
+        de descartar el segundo cargo.
+        """
+        fecha = datetime.date(2026, 6, 15)  # Lunes
+        post_data = {
+            "fecha": fecha.isoformat(),
+            "docente_ids": [str(self.docente.id)],
+            f"estado_{self.docente.id}": "AUSENTE",
+            f"marca_diaria_{self.docente.id}": "I",
+        }
+        response = self.client.post(
+            reverse("asistencia:asistencia_diaria"), post_data
+        )
+        self.assertEqual(response.status_code, 302)
+
+        reg_m = RegistroAsistencia.objects.filter(
+            docente=self.docente, cargo=self.cargo_manana, fecha=fecha
+        ).first()
+        reg_t = RegistroAsistencia.objects.filter(
+            docente=self.docente, cargo=self.cargo_tarde, fecha=fecha
+        ).first()
+        self.assertIsNotNone(reg_m)
+        self.assertIsNotNone(reg_t)
+        self.assertEqual(reg_m.estado, "AUSENTE")
+        self.assertEqual(reg_t.estado, "AUSENTE")
+
     def test_registro_asistencia_form_permite_cargos_distintos_mismo_dia(self):
         """
         Formulario RegistroAsistenciaForm: Permite registrar asistencia para

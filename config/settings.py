@@ -169,3 +169,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Authentication URLs
 LOGIN_REDIRECT_URL = "core:dashboard_home"
 LOGOUT_REDIRECT_URL = "login"
+
+# RF-18: Límite legal anual de inasistencias docentes (alerta preventiva)
+LIMITE_ANUAL_INASISTENCIAS = 15
