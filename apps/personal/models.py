@@ -620,12 +620,12 @@ class CargoDocente(models.Model):
     objects = CargoDocenteManager()
 
     SITUACION_CHOICES = [
-        ("TITULAR", "Titular"),
-        ("INTERINO", "Interino"),
-        ("SUPLENTE", "Suplente"),
         ("TIT", "Titular (TIT)"),
         ("INT", "Interino (INT)"),
         ("SUP", "Suplente (SUP)"),
+        ("TITULAR", "Titular"),
+        ("INTERINO", "Interino"),
+        ("SUPLENTE", "Suplente"),
     ]
     TIPO_CARGO_CHOICES = [
         ("HORAS_CATEDRA", "Horas Cátedra"),
@@ -896,7 +896,7 @@ class CargoDocente(models.Model):
 
     def clean(self):
         super().clean()
-        if self.situacion_revista == "SUPLENTE" and not self.docente_reemplazado:
+        if self.situacion_revista in ("SUPLENTE", "SUP") and not self.docente_reemplazado:
             raise ValidationError(
                 {
                     "docente_reemplazado": (

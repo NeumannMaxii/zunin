@@ -247,6 +247,29 @@ class CargoDocenteForm(TailwindModelForm):
             if not (self.instance and self.instance.pk):
                 self.fields[dia].initial = 0
 
+        # Opciones limpias de situación de revista: palabra completa y abreviatura oficial
+        self.fields["situacion_revista"].choices = [
+            ("TIT", "Titular (TIT)"),
+            ("INT", "Interino (INT)"),
+            ("SUP", "Suplente (SUP)"),
+            ("TITULAR", "Titular"),
+            ("INTERINO", "Interino"),
+            ("SUPLENTE", "Suplente"),
+        ]
+        self.fields["situacion_revista"].widget.choices = [
+            ("TIT", "Titular (TIT)"),
+            ("INT", "Interino (INT)"),
+            ("SUP", "Suplente (SUP)"),
+        ]
+        if not (self.instance and self.instance.pk):
+            self.fields["situacion_revista"].initial = "INT"
+        elif self.instance.situacion_revista in ("INTERINO", "INT"):
+            self.fields["situacion_revista"].initial = "INT"
+        elif self.instance.situacion_revista in ("TITULAR", "TIT"):
+            self.fields["situacion_revista"].initial = "TIT"
+        elif self.instance.situacion_revista in ("SUPLENTE", "SUP"):
+            self.fields["situacion_revista"].initial = "SUP"
+
         # Asegurar que activo tenga initial=True en nuevas designaciones
         if "activo" in self.fields and not (self.instance and self.instance.pk):
             self.fields["activo"].initial = True
