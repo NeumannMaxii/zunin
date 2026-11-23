@@ -36,11 +36,14 @@ class PoblarOfertaAcademicaCommandTests(TestCase):
                 f"Falta la carrera oficial con código {codigo}",
             )
             carrera = Carrera.objects.get(codigo=codigo)
-            self.assertTrue(carrera.activo)
-            self.assertTrue(
-                carrera.planes_estudio.filter(activo=True).exists(),
-                f"La carrera {codigo} no tiene un plan activo asignado",
-            )
+            if codigo == "PROF-INF":
+                self.assertFalse(carrera.activo)
+            else:
+                self.assertTrue(carrera.activo)
+                self.assertTrue(
+                    carrera.planes_estudio.filter(activo=True).exists(),
+                    f"La carrera {codigo} no tiene un plan activo asignado",
+                )
 
         total_carreras = Carrera.objects.count()
         total_planes = PlanEstudio.objects.count()

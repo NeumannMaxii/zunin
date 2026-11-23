@@ -356,6 +356,155 @@
                     });
             });
         }
+
+        // =====================================================================
+        // Sistema Universal de Búsqueda y Filtrado Predictivo en Tiempo Real
+        // =====================================================================
+        (function() {
+            function normalize(text) {
+                return (text || '')
+                    .toString()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toLowerCase()
+                    .trim();
+            }
+
+            let debounceTimer = null;
+
+            function setupPredictiveSearch() {
+                // Selector de inputs de búsqueda institucional
+                const searchInputs = document.querySelectorAll(
+                    'input[name="q"], input[name="dni_o_apellido"], #filtro-docentes-list, #search-input, [data-live-search]'
+                );
+
+                if (!searchInputs.length) return;
+
+                // Restaurar foco y posición del cursor tras recarga de página sincronizada
+                const savedState = sessionStorage.getItem('zunin_active_search');
+                if (savedState) {
+                    try {
+                        const parsed = JSON.parse(savedState);
+                        const target = document.querySelector(`input[name="${parsed.name}"]`) || document.getElementById(parsed.id);
+                        if (target && document.activeElement !== target) {
+                            target.focus();
+                            if (parsed.pos !== undefined && target.setSelectionRange) {
+                                target.setSelectionRange(parsed.pos, parsed.pos);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error restaurando foco:', e);
+                    }
+                    sessionStorage.removeItem('zunin_active_search');
+                }
+
+                searchInputs.forEach(input => {
+                    const form = input.closest('form');
+                    const container = input.closest('.space-y-6, main, body') || document;
+                    const table = container.querySelector('table');
+                    const tbody = table ? table.querySelector('tbody') : null;
+
+                    // Filtrado en vivo (0ms) en la tabla del DOM
+                    function filterDOMRows() {
+                        if (!tbody) return;
+                        const query = normalize(input.value);
+                        const tokens = query.split(/\s+/).filter(Boolean);
+                        const rows = tbody.querySelectorAll('tr:not(#empty-search-row):not(.empty-state-row):not(.live-search-empty-row)');
+
+                        let visibleCount = 0;
+                        rows.forEach(row => {
+                            if (row.querySelector('th')) return;
+                            const text = normalize(row.getAttribute('data-search') || row.innerText);
+                            const matches = tokens.every(token => text.includes(token));
+                            if (matches) {
+                                row.classList.remove('hidden');
+                                row.style.display = '';
+                                visibleCount++;
+                            } else {
+                                row.classList.add('hidden');
+                                row.style.display = 'none';
+                            }
+                        });
+
+                        // Manejo de fila de "sin resultados"
+                        let emptyRow = tbody.querySelector('.live-search-empty-row');
+                        if (tokens.length > 0 && visibleCount === 0) {
+                            if (!emptyRow) {
+                                emptyRow = document.createElement('tr');
+                                emptyRow.className = 'live-search-empty-row';
+                                const colSpan = (table.querySelector('thead tr') || {}).cells?.length || 8;
+                                emptyRow.innerHTML = `
+                                    <td colspan="${colSpan}" class="px-6 py-8 text-center text-slate-500 bg-slate-50/50">
+                                        <div class="inline-flex items-center space-x-2 text-sm font-medium text-slate-600">
+                                            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                            </svg>
+                                            <span>No se encontraron resultados para <strong>"${input.value}"</strong></span>
+                                        </div>
+                                    </td>`;
+                                tbody.appendChild(emptyRow);
+                            }
+                            emptyRow.classList.remove('hidden');
+                            emptyRow.style.display = '';
+                        } else if (emptyRow) {
+                            emptyRow.classList.add('hidden');
+                            emptyRow.style.display = 'none';
+                        }
+                    }
+
+                    // Escuchar eventos en el input
+                    input.addEventListener('input', function() {
+                        filterDOMRows();
+
+                        // Sincronización debounced con el backend si hay formulario GET
+                        if (form && form.method.toLowerCase() === 'get' && !form.dataset.noAutoSubmit) {
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => {
+                                try {
+                                    sessionStorage.setItem('zunin_active_search', JSON.stringify({
+                                        id: input.id || '',
+                                        name: input.name || '',
+                                        pos: input.selectionEnd || input.value.length
+                                    }));
+                                } catch (e) {}
+                                form.submit();
+                            }, 450);
+                        }
+                    });
+
+                    // Limpiar con tecla Escape
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            input.value = '';
+                            filterDOMRows();
+                            if (form && form.method.toLowerCase() === 'get') {
+                                form.submit();
+                            }
+                        }
+                    });
+                });
+
+                // Auto-submit inmediato al cambiar cualquier <select> de filtro en formularios GET
+                const filterSelects = document.querySelectorAll('form[method="get"] select');
+                filterSelects.forEach(select => {
+                    const inlineAttr = select.getAttribute('onchange') || '';
+                    if (inlineAttr.includes('submit')) return;
+
+                    select.addEventListener('change', function() {
+                        const form = select.closest('form');
+                        if (form && !form.dataset.noAutoSubmit) {
+                            form.submit();
+                        }
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupPredictiveSearch);
+            } else {
+                setupPredictiveSearch();
+            }
+        })();
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

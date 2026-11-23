@@ -2115,6 +2115,30 @@ class LicenciaOtorgadaListView(LoginRequiredMixin, ListView):
     paginate_by = 25
     ordering = ["-fecha_desde", "-creado_en"]
 
+    def get_queryset(self):
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("docente", "tipo_licencia", "cargo")
+        )
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            for token in q.split():
+                qs = qs.filter(
+                    Q(docente__apellido__icontains=token)
+                    | Q(docente__nombre__icontains=token)
+                    | Q(docente__dni__icontains=token)
+                    | Q(tipo_licencia__codigo__icontains=token)
+                    | Q(tipo_licencia__articulo__icontains=token)
+                    | Q(tipo_licencia__descripcion__icontains=token)
+                )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["q"] = self.request.GET.get("q", "").strip()
+        return context
+
 
 class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
     """

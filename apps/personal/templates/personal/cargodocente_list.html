@@ -82,7 +82,17 @@
                                 {% if cargo.disposicion %} | Disp: {{ cargo.disposicion }}{% endif %}
                             </div>
                         </td>
-                        <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{{ cargo.get_situacion_revista_display|default:"-" }}</td>
+                        <td class="px-6 py-4 text-slate-600 whitespace-nowrap">
+                            <div class="font-medium text-slate-800">{{ cargo.get_situacion_revista_display|default:"-" }}</div>
+                            {% if cargo.docente_reemplazado %}
+                            <div class="text-xs text-institucional-700 font-medium mt-0.5 flex items-center" title="Docente reemplazado según Formulario DP-01">
+                                <svg class="w-3.5 h-3.5 mr-1 text-institucional-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span>Suple a: <strong>{{ cargo.docente_reemplazado.apellido }}, {{ cargo.docente_reemplazado.nombre }}</strong></span>
+                            </div>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-600">
                             <div>
                                 <span class="font-semibold text-slate-800">{{ cargo.fecha_alta|date:"d/m/Y"|default:cargo.desde_texto|default:"-" }}</span>
