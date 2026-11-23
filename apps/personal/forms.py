@@ -247,7 +247,7 @@ class CargoDocenteForm(TailwindModelForm):
             if not (self.instance and self.instance.pk):
                 self.fields[dia].initial = 0
 
-        # Opciones limpias de situación de revista: palabra completa y abreviatura oficial
+        # Opciones de situación de revista: nombre completo y abreviatura
         self.fields["situacion_revista"].choices = [
             ("TIT", "Titular (TIT)"),
             ("INT", "Interino (INT)"),

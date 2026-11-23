@@ -896,7 +896,10 @@ class CargoDocente(models.Model):
 
     def clean(self):
         super().clean()
-        if self.situacion_revista in ("SUPLENTE", "SUP") and not self.docente_reemplazado:
+        if (
+            self.situacion_revista in ("SUPLENTE", "SUP")
+            and not self.docente_reemplazado
+        ):
             raise ValidationError(
                 {
                     "docente_reemplazado": (
