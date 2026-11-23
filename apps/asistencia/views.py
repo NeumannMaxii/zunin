@@ -271,14 +271,34 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
         docentes = Docente.objects.activos()
 
+        # Identificar tipo de licencia oficial para Natalicio (Art. 320 inc. h)
+        tipo_licencia_natalicio = (
+            TipoLicencia.objects.filter(
+                activo=True,
+                descripcion__icontains="natalicio",
+            )
+            .order_by("id")
+            .first()
+        )
+        tipo_licencia_natalicio_id = (
+            tipo_licencia_natalicio.id if tipo_licencia_natalicio else None
+        )
+
         # Agrupar cargos por docente único para evitar duplicaciones en la interfaz
         docentes_map = {}
         for cargo in cargos_vigentes:
             d_id = cargo.docente_id
             if d_id not in docentes_map:
+                fn = cargo.docente.fecha_nacimiento
+                es_natalicio = bool(
+                    fn is not None
+                    and fn.day == fecha.day
+                    and fn.month == fecha.month
+                )
                 docentes_map[d_id] = {
                     "docente": cargo.docente,
                     "cargos": [],
+                    "es_natalicio": es_natalicio,
                 }
             reg = registros_map.get(cargo.id)
             docentes_map[d_id]["cargos"].append({
@@ -299,6 +319,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             "cargos": cargos_vigentes,
             "docentes": docentes,
             "tipos_licencia": tipos_licencia,
+            "tipo_licencia_natalicio_id": tipo_licencia_natalicio_id,
         }
         return render(request, "asistencia/carga_masiva.html", context)
 

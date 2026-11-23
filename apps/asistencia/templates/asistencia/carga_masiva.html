@@ -107,33 +107,49 @@
                             <div class="font-bold text-slate-900 text-base">
                                 {{ fila.docente.apellido }}, {{ fila.docente.nombre }}
                             </div>
-                            <div class="flex items-center space-x-2 text-xs text-slate-500">
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span class="font-mono">DNI: {{ fila.docente.dni }}</span>
                                 <span>&bull;</span>
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
                                     {{ fila.cargos|length }} {% if fila.cargos|length == 1 %}materia{% else %}materias{% endif %}
                                 </span>
+                                {% if fila.es_natalicio %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-100 text-pink-800 border border-pink-300 shadow-2xs">
+                                    🎂 ¡Hoy es su Natalicio!
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Selector rápido si faltó a una materia específica -->
-                    {% if fila.cargos|length > 1 %}
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Novedad rápida:</label>
-                        <select class="selector-falta-materia text-xs font-semibold rounded-lg border-amber-300 bg-amber-50/70 text-amber-900 focus:ring-amber-500 focus:border-amber-500 py-1.5 px-2.5 shadow-2xs w-full sm:w-auto">
-                            <option value="">-- Seleccionar si faltó a una materia --</option>
-                            <option value="TODAS_PR">&check; Presente en todas</option>
-                            {% for item in fila.cargos %}
-                            <option value="SOLO_{{ item.cargo.id }}">
-                                &#9888; Faltó solo a: {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }} ({{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }})
-                            </option>
-                            {% endfor %}
-                            <option value="TODAS_I">&#10006; Faltó a todas las materias</option>
-                            <option value="TODAS_LIC">&#128196; Licencia en todas</option>
-                        </select>
+                    <!-- Botón rápido de Natalicio y Selector rápido por materia -->
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {% if fila.es_natalicio %}
+                        <button type="button" 
+                                class="btn-aplicar-natalicio inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                                data-licencia-id="{{ tipo_licencia_natalicio_id|default:'' }}">
+                            🎂 Aplicar Natalicio (Art. 320-H)
+                        </button>
+                        {% endif %}
+
+                        {% if fila.cargos|length > 1 %}
+                        <div class="flex items-center space-x-2 w-full sm:w-auto">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Novedad rápida:</label>
+                            <select class="selector-falta-materia text-xs font-semibold rounded-lg border-amber-300 bg-amber-50/70 text-amber-900 focus:ring-amber-500 focus:border-amber-500 py-1.5 px-2.5 shadow-2xs w-full sm:w-auto">
+                                <option value="">-- Seleccionar si faltó a una materia --</option>
+                                <option value="TODAS_PR">&check; Presente en todas</option>
+                                {% for item in fila.cargos %}
+                                <option value="SOLO_{{ item.cargo.id }}">
+                                    &#9888; Faltó solo a: {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }} ({{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }})
+                                </option>
+                                {% endfor %}
+                                <option value="TODAS_I">&#10006; Faltó a todas las materias</option>
+                                <option value="TODAS_LIC">&#128196; Licencia en todas</option>
+                                <option value="TODAS_NATALICIO">🎂 Natalicio (Art. 320-H) en todas</option>
+                            </select>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
 
                 <!-- Lista de Materias / Cargos del Docente -->
@@ -193,7 +209,8 @@
                                             class="select-licencia text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
                                         <option value="">-- Sin licencia --</option>
                                         {% for tl in tipos_licencia %}
-                                        <option value="{{ tl.id }}" {% if item.registro.tipo_licencia_id == tl.id %}selected{% endif %}>
+                                        <option value="{{ tl.id }}" {% if item.registro.tipo_licencia_id == tl.id %}selected{% endif %}
+                                                data-es-natalicio="{% if 'natalicio' in tl.descripcion|lower %}true{% else %}false{% endif %}">
                                             {% if tl.articulo %}{{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
                                         </option>
                                         {% endfor %}
@@ -332,6 +349,24 @@
                         if (selMarca) selMarca.value = 'LIC';
                         fila.classList.add('bg-amber-50/60');
                     });
+                } else if (valor === 'TODAS_NATALICIO') {
+                    filasCargo.forEach(function(fila) {
+                        const selEstado = fila.querySelector('.select-estado');
+                        const selMarca = fila.querySelector('.select-marca');
+                        const selLic = fila.querySelector('.select-licencia');
+                        const inputObs = fila.querySelector('.input-observaciones');
+                        if (selEstado) selEstado.value = 'JUSTIFICADO';
+                        if (selMarca) selMarca.value = 'P';
+                        if (selLic) {
+                            const optNatalicio = selLic.querySelector('option[data-es-natalicio="true"]');
+                            if (optNatalicio) selLic.value = optNatalicio.value;
+                        }
+                        if (inputObs && !inputObs.value) {
+                            inputObs.value = 'Permiso por Natalicio del Docente (Art. 320 inc. h)';
+                        }
+                        fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                        fila.classList.add('bg-pink-50/70');
+                    });
                 } else if (valor.startsWith('SOLO_')) {
                     const targetCargoId = valor.replace('SOLO_', '');
                     filasCargo.forEach(function(fila) {
@@ -389,13 +424,46 @@
                     m.value = 'PR';
                 });
                 document.querySelectorAll('.fila-cargo').forEach(function(f) {
-                    f.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                    f.classList.remove('bg-red-50/60', 'bg-amber-50/60', 'bg-pink-50/70');
                 });
                 document.querySelectorAll('.selector-falta-materia').forEach(function(sm) {
                     sm.value = 'TODAS_PR';
                 });
             });
         }
+
+        // 5. Botón rápido aplicar Natalicio
+        document.querySelectorAll('.btn-aplicar-natalicio').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const bloque = this.closest('.docente-bloque');
+                if (!bloque) return;
+                const defaultLicId = this.getAttribute('data-licencia-id');
+                const filasCargo = bloque.querySelectorAll('.fila-cargo');
+                filasCargo.forEach(function(fila) {
+                    const selEstado = fila.querySelector('.select-estado');
+                    const selMarca = fila.querySelector('.select-marca');
+                    const selLic = fila.querySelector('.select-licencia');
+                    const inputObs = fila.querySelector('.input-observaciones');
+                    if (selEstado) selEstado.value = 'JUSTIFICADO';
+                    if (selMarca) selMarca.value = 'P';
+                    if (selLic) {
+                        if (defaultLicId && selLic.querySelector('option[value="' + defaultLicId + '"]')) {
+                            selLic.value = defaultLicId;
+                        } else {
+                            const optNatalicio = selLic.querySelector('option[data-es-natalicio="true"]');
+                            if (optNatalicio) selLic.value = optNatalicio.value;
+                        }
+                    }
+                    if (inputObs && !inputObs.value) {
+                        inputObs.value = 'Permiso por Natalicio del Docente (Art. 320 inc. h)';
+                    }
+                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                    fila.classList.add('bg-pink-50/70');
+                });
+                const selMateria = bloque.querySelector('.selector-falta-materia');
+                if (selMateria) selMateria.value = 'TODAS_NATALICIO';
+            });
+        });
     });
     </script>
 </div>

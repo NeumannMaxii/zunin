@@ -1427,6 +1427,48 @@ class GranularidadMultiTurnoAsistenciaTests(TestCase):
         self.assertEqual(reg_m.estado, "AUSENTE")
         self.assertEqual(reg_t.estado, "AUSENTE")
 
+    def test_asistencia_diaria_view_detecta_natalicio_del_docente(self):
+        """
+        Detección de Natalicio: Cuando la fecha coincide con el día y mes
+        de nacimiento del docente, AsistenciaDiariaView marca es_natalicio=True
+        y renderiza el distintivo visual.
+        """
+        self.docente.fecha_nacimiento = datetime.date(1985, 6, 15)
+        self.docente.save()
+
+        fecha_natalicio = datetime.date(2026, 6, 15)
+        url = (
+            f"{reverse('asistencia:asistencia_diaria')}?"
+            f"fecha={fecha_natalicio.isoformat()}"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+        docentes_grilla = resp.context["docentes_grilla"]
+        doc_entry = next(
+            (d for d in docentes_grilla if d["docente"].id == self.docente.id),
+            None,
+        )
+        self.assertIsNotNone(doc_entry)
+        self.assertTrue(doc_entry["es_natalicio"])
+        self.assertContains(resp, "¡Hoy es su Natalicio!")
+
+        fecha_otra = datetime.date(2026, 6, 16)
+        url_otra = (
+            f"{reverse('asistencia:asistencia_diaria')}?"
+            f"fecha={fecha_otra.isoformat()}"
+        )
+        resp_otra = self.client.get(url_otra)
+        doc_entry_otra = next(
+            (
+                d
+                for d in resp_otra.context["docentes_grilla"]
+                if d["docente"].id == self.docente.id
+            ),
+            None,
+        )
+        self.assertFalse(doc_entry_otra["es_natalicio"])
+
     def test_registro_asistencia_form_permite_cargos_distintos_mismo_dia(self):
         """
         Formulario RegistroAsistenciaForm: Permite registrar asistencia para
