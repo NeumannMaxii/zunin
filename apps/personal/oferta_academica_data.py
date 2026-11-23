@@ -203,15 +203,17 @@ OFERTA_ACADEMICA_DATA = [
     {
         "codigo": "PROF-INF",
         "nombre": "Profesorado de Informática para la Educación Superior",
-        "activo": True,
+        "activo": False,
         "plan": {
             "nombre": "Plan 2025",
-            "resolucion": "En proceso de publicación institucional / Res. MECCyT",
+            "resolucion": (
+                "En proceso de publicación institucional / Res. MECCyT"
+            ),
             "anio_implementacion": 2025,
-            "activo": True,
+            "activo": False,
             "descripcion": (
                 "Profesorado de Informática para la Educación Superior. "
-                "Plan curricular institucional de 4 años."
+                "Plan curricular en proceso (Próximamente)."
             ),
         },
         "materias": [
