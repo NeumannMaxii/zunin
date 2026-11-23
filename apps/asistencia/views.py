@@ -508,10 +508,11 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         or request.POST.get(f"justifica_{cargo.docente_id}")
                     )
 
-                    if not marca:
-                        if estado == "PRESENTE":
-                            marca = "PR"
-                        elif estado == "AUSENTE":
+                    if estado == "PRESENTE":
+                        marca = "PR"
+                        lic_val = None
+                    elif not marca:
+                        if estado == "AUSENTE":
                             marca = "I"
                         elif estado == "LICENCIA":
                             marca = "LIC"

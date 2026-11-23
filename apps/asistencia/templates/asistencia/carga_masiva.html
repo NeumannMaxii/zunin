@@ -421,6 +421,32 @@
             });
         });
 
+        // 3.b Sincronización automática de marca_diaria -> estado al cambiar manualmente
+        document.querySelectorAll('.select-marca').forEach(function(sel) {
+            sel.addEventListener('change', function() {
+                const fila = this.closest('tr');
+                if (!fila) return;
+                const selEstado = fila.querySelector('.select-estado');
+                if (!selEstado) return;
+
+                if (this.value === 'PR') {
+                    selEstado.value = 'PRESENTE';
+                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60', 'bg-pink-50/70');
+                } else if (this.value === 'I' || this.value === 'INA') {
+                    selEstado.value = 'AUSENTE';
+                    fila.classList.remove('bg-amber-50/60', 'bg-pink-50/70');
+                    fila.classList.add('bg-red-50/60');
+                } else if (this.value === 'LIC' || this.value === 'LT') {
+                    selEstado.value = 'LICENCIA';
+                    fila.classList.remove('bg-red-50/60', 'bg-pink-50/70');
+                    fila.classList.add('bg-amber-50/60');
+                } else if (this.value === 'P') {
+                    selEstado.value = 'JUSTIFICADO';
+                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
+                }
+            });
+        });
+
         // 4. Marcar todos presentes globalmente
         if (btnTodosPresentes) {
             btnTodosPresentes.addEventListener('click', function() {
