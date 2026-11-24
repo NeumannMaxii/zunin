@@ -333,14 +333,20 @@ def parse_markdown_to_flowables(md_path, styles):
     return story
 
 
-def build_pdf():
+def build_pdf(md_path=None, pdf_path=None):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    md_path = os.path.join(base_dir, "docs", "manual_usuario.md")
-    pdf_path = os.path.join(base_dir, "docs", "manual_usuario_zunin.pdf")
+    if md_path is None:
+        md_path = os.path.join(base_dir, "docs", "manual_usuario.md")
+    if pdf_path is None:
+        pdf_path = os.path.join(base_dir, "docs", "manual_usuario_zunin.pdf")
 
     if not os.path.exists(md_path):
         print(f"Error: No se encontró el archivo {md_path}")
         return False
+
+    pdf_dir = os.path.dirname(pdf_path)
+    if pdf_dir and not os.path.exists(pdf_dir):
+        os.makedirs(pdf_dir, exist_ok=True)
 
     print(f"Leyendo documento Markdown: {md_path}")
 
@@ -481,6 +487,9 @@ def build_pdf():
     else:
         print("Error: El archivo PDF no se generó.")
         return False
+
+
+generar_manual_pdf = build_pdf
 
 
 if __name__ == "__main__":

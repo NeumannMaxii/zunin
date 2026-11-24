@@ -2,11 +2,14 @@
 Vistas para la aplicación Core (Panel de control / Dashboard principal).
 """
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views import View
+from django.views.generic import TemplateView
 from apps.core.backup import generar_backup_completo_zip
 from apps.core.mixins import SoloAdminInstitucionalMixin
 from apps.core.services import obtener_panel_alertas_docentes
@@ -86,3 +89,56 @@ class ExportarBackupView(SoloAdminInstitucionalMixin, View):
         )
         response["Content-Length"] = len(zip_buffer.getvalue())
         return response
+
+
+class ManualUsuarioView(LoginRequiredMixin, TemplateView):
+    """
+    Vista web oficial del Manual de Usuario del Sistema Zunin (Ticket 25).
+    Presenta los 5 módulos institucionales interactivos y navegación rápida.
+    """
+
+    template_name = "core/manual_usuario.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Manual de Usuario Oficial"
+        return context
+
+
+class ManualUsuarioPdfView(LoginRequiredMixin, View):
+    """
+    Descarga del Manual de Usuario Oficial en formato PDF de alta fidelidad (Ticket 25).
+    Verifica la existencia del archivo compilado y lo genera dinámicamente si falta
+    o si el archivo Markdown fuente fue actualizado recientemente.
+    """
+
+    def get(self, request, *args, **kwargs):
+        pdf_path = settings.BASE_DIR / "docs" / "manual_usuario_zunin.pdf"
+        md_path = settings.BASE_DIR / "docs" / "manual_usuario.md"
+
+        # Si el PDF no existe o es más viejo que el Markdown, regenerarlo
+        regenerar = not pdf_path.exists()
+        if not regenerar and md_path.exists():
+            try:
+                regenerar = pdf_path.stat().st_mtime < md_path.stat().st_mtime
+            except OSError:
+                regenerar = False
+
+        if regenerar and md_path.exists():
+            try:
+                from generar_manual_pdf import generar_manual_pdf
+
+                generar_manual_pdf(str(md_path), str(pdf_path))
+            except Exception:
+                pass
+
+        if not pdf_path.exists():
+            raise Http404("El manual en formato PDF no se encuentra disponible.")
+
+        as_attachment = request.GET.get("view") != "inline"
+        return FileResponse(
+            open(pdf_path, "rb"),
+            as_attachment=as_attachment,
+            filename="Manual_Usuario_Zunin_IESETyFP.pdf",
+            content_type="application/pdf",
+        )
