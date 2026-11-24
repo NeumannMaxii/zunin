@@ -965,12 +965,16 @@ class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
                 obtener_siguiente_correlativo_disposicion,
             )
 
-            num_actual, anio_actual = extraer_numero_y_anio_disposicion(
-                renglon.numero_instrumento
+            post_num = (
+                request.POST.get("numero_instrumento")
+                or request.POST.get("numero_disposicion")
             )
+            candidato = (post_num.strip() if post_num else "") or renglon.numero_instrumento
+            num_actual, anio_actual = extraer_numero_y_anio_disposicion(candidato)
             if num_actual and (
                 anio_actual == renglon.anio or anio_actual == renglon.anio % 100
             ):
+                renglon.numero_instrumento = candidato
                 confirmar_correlativo_disposicion(
                     renglon.numero_instrumento,
                     anio=renglon.anio,

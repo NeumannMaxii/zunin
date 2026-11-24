@@ -435,11 +435,31 @@ class JustificacionDiferidaForm(TailwindForm):
         tipo_licencia = self.cleaned_data.get("tipo_licencia")
         tipo_instrumento = self.cleaned_data.get("tipo_instrumento") or "DISPOSICION"
         numero_resolucion = self.cleaned_data.get("numero_resolucion")
+        numero_disposicion = self.cleaned_data.get("numero_disposicion")
         observaciones = self.cleaned_data.get("observaciones")
         fecha_desde = self.cleaned_data.get("fecha_desde")
 
         if tipo_instrumento == "RESOLUCION" and numero_resolucion:
             num_final = numero_resolucion.strip()
+        elif numero_disposicion and numero_disposicion.strip():
+            # Si se proporcionó un número explícito de disposición (tests o pre-cargado)
+            num_final = numero_disposicion.strip()
+            from apps.licencias.services import confirmar_correlativo_disposicion
+
+            target_anio = (
+                fecha_desde.year
+                if fecha_desde
+                else (
+                    registro.fecha.year
+                    if registro and registro.fecha
+                    else datetime.date.today().year
+                )
+            )
+            confirmar_correlativo_disposicion(
+                num_final,
+                anio=target_anio,
+                usuario=usuario,
+            )
         else:
             # Ticket 20: Disposición Interna 100% autoincremental no editable
             from apps.licencias.services import (
