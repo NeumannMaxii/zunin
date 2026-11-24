@@ -21,7 +21,13 @@
                 Gestión y mantenimiento de tablas maestras del sistema académico (Carreras, Materias, Cargos y Tipos de Autorización).
             </p>
         </div>
-        <div class="flex items-center space-x-3">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="{% url 'core:exportar_backup' %}" class="inline-flex items-center gap-1.5 px-4 py-2 border border-emerald-600 shadow-xs text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Exportar Backup (.zip)
+            </a>
             <a href="{% url 'core:dashboard_home' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                 &larr; Volver al Dashboard
             </a>
@@ -194,6 +200,39 @@
                     Ver Catálogo &rarr;
                 </a>
             </div>
+        </div>
+    </div>
+
+    <!-- Sección de Respaldo y Seguridad de Datos (Ticket 22) -->
+    <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <h2 class="text-lg font-bold text-slate-900">
+                        Copia de Seguridad Institucional (Backup)
+                    </h2>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Base de Datos en ZIP
+                    </span>
+                </div>
+                <p class="text-xs sm:text-sm text-slate-500 max-w-2xl">
+                    Exporta una copia de seguridad íntegra de toda la base de datos institucional en un archivo ZIP comprimido.
+                    Incluye volcado serializado JSON con relaciones foráneas naturales, copia de SQLite y manifiesto de auditoría con conteo de registros.
+                </p>
+            </div>
+        </div>
+        <div class="shrink-0 w-full md:w-auto">
+            <a href="{% url 'core:exportar_backup' %}" class="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-emerald-600 shadow-sm text-sm font-semibold rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Descargar Copia de Seguridad (.zip)
+            </a>
         </div>
     </div>
 </div>
