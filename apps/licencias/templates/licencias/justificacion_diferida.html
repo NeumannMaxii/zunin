@@ -219,7 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (inputDisp && !inputDisp.value) {
                     inputDisp.value = data.siguiente;
                 }
-                if (badgeDisp) badgeDisp.textContent = `Siguiente: ${data.siguiente}`;
+                if (badgeDisp) {
+                    badgeDisp.textContent = data.anterior ? `Anterior: ${data.anterior}` : 'Sin anterior';
+                }
             }
         } catch(e) {}
     }

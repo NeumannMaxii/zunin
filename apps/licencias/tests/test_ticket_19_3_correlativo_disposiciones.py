@@ -208,7 +208,15 @@ class Ticket193CorrelativoDisposicionesTest(TestCase):
         data = response.json()
         self.assertEqual(data["status"], "success")
         self.assertEqual(data["siguiente"], "006/2026")
+        self.assertEqual(data["anterior"], "005/2026")
         self.assertEqual(data["anio"], 2026)
+
+        api_url = reverse("api_licencias:licencias_siguiente_disposicion")
+        self.assertEqual(api_url, "/api/licencias/siguiente-disposicion/")
+        api_response = self.client.get(f"{api_url}?anio=2026")
+        self.assertEqual(api_response.status_code, 200)
+        self.assertEqual(api_response.json()["siguiente"], "006/2026")
+        self.assertEqual(api_response.json()["anterior"], "005/2026")
 
     def test_api_validar_disposicion(self):
         """Prueba endpoint GET /api/licencias/validar-disposicion/."""
@@ -237,6 +245,12 @@ class Ticket193CorrelativoDisposicionesTest(TestCase):
         self.assertEqual(resp_ok.status_code, 200)
         data_ok = resp_ok.json()
         self.assertFalse(data_ok["duplicado"])
+
+        api_url = reverse("api_licencias:licencias_validar_disposicion")
+        self.assertEqual(api_url, "/api/licencias/validar-disposicion/")
+        api_resp = self.client.get(f"{api_url}?numero=020/2026&anio=2026")
+        self.assertEqual(api_resp.status_code, 200)
+        self.assertTrue(api_resp.json()["duplicado"])
 
     def test_formulario_licencia_rechaza_duplicado(self):
         """LicenciaOtorgadaForm rechaza números de disposición duplicados."""

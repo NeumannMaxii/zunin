@@ -1983,10 +1983,14 @@ class SiguienteDisposicionAPIView(View):
             reservar=False,
         )
         final_anio = target_anio or datetime.date.today().year
+        num_sig = int(siguiente.split("/")[0])
+        num_ant = num_sig - 1
+        anterior = f"{num_ant:03d}/{final_anio}" if num_ant > 0 else None
         return JsonResponse(
             {
                 "status": "success",
                 "siguiente": siguiente,
+                "anterior": anterior,
                 "anio": final_anio,
             },
             status=200,
