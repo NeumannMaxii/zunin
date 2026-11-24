@@ -110,34 +110,37 @@
                 {% endif %}
             </form>
 
-            <!-- Filtro de Turno por Pills -->
-            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-                <span class="text-xs font-bold text-slate-500 px-2 uppercase text-[11px] tracking-wider">Turno:</span>
-                <a href="?fecha={{ fecha|date:'Y-m-d' }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if not turno_actual %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
-                    Todos
-                </a>
-                {% for t_cod, t_nom in turnos %}
-                <a href="?fecha={{ fecha|date:'Y-m-d' }}&turno={{ t_cod }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if turno_actual == t_cod %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
-                    {{ t_nom }}
-                </a>
-                {% endfor %}
-            </div>
+            <!-- Filtros Operativos: Turno y Carrera -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Filtro Desplegable de Turno -->
+                <div class="flex items-center gap-2">
+                    <label for="select-turno" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Turno:</label>
+                    <select id="select-turno" 
+                            onchange="aplicarFiltroTurno(this.value)"
+                            class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
+                        <option value="">-- Todos los Turnos --</option>
+                        {% for t_cod, t_nom in turnos %}
+                        <option value="{{ t_cod }}" {% if turno_actual == t_cod %}selected{% endif %}>
+                            {{ t_nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <!-- Filtro Desplegable de Carrera -->
-            <div class="flex items-center gap-2">
-                <label for="select-carrera" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Carrera:</label>
-                <select id="select-carrera" 
-                        onchange="aplicarFiltroCarrera(this.value)"
-                        class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
-                    <option value="">-- Todas las Carreras --</option>
-                    {% for c in carreras %}
-                    <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
-                        {{ c.nombre }}
-                    </option>
-                    {% endfor %}
-                </select>
+                <!-- Filtro Desplegable de Carrera -->
+                <div class="flex items-center gap-2">
+                    <label for="select-carrera" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Carrera:</label>
+                    <select id="select-carrera" 
+                            onchange="aplicarFiltroCarrera(this.value)"
+                            class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
+                        <option value="">-- Todas las Carreras --</option>
+                        {% for c in carreras %}
+                        <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
+                            {{ c.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -884,6 +887,15 @@ function cambiarVista(tipo) {
         btnDocentes.classList.remove('text-slate-600');
         btnPlanilla.classList.remove('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnPlanilla.classList.add('text-slate-600');
+    }
+}
+
+// Envío rápido de filtro de turno
+function aplicarFiltroTurno(turnoCod) {
+    const inputTurno = document.getElementById('input-filtro-turno');
+    if (inputTurno) {
+        inputTurno.value = turnoCod;
+        document.getElementById('form-filtro-principal').submit();
     }
 }
 
