@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manual de Usuario Oficial - IESETyFP{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header Institucional -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs mb-8">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+                <nav class="flex items-center text-xs font-medium text-slate-500 mb-2">
+                    <a href="{% url 'core:dashboard_home' %}" class="hover:text-slate-700">Inicio</a>
+                    <span class="mx-2 text-slate-400">/</span>
+                    <span class="text-institucional-700 font-semibold">Documentación Oficial</span>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-institucional-50 border border-institucional-200 flex items-center justify-center text-institucional-700 shadow-2xs">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Manual de Usuario Oficial</h1>
+                        <p class="text-sm text-slate-500 mt-0.5">Sistema Integral Zunin &bull; IESETyFP &bull; Versión 2.0 (Sprint 3)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Destacado de Descarga PDF Oficial -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <a href="{% url 'core:manual_usuario_pdf' %}" 
+                   class="inline-flex items-center justify-center space-x-2.5 px-5 py-3 rounded-xl text-white bg-institucional-700 hover:bg-institucional-800 shadow-sm hover:shadow transition-all font-semibold text-sm cursor-pointer border border-institucional-800"
+                   download="Manual_Usuario_Zunin_IESETyFP.pdf">
+                    <svg class="w-5 h-5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Descargar PDF Oficial</span>
+                </a>
+                <a href="{% url 'core:manual_usuario_pdf' %}?view=inline" target="_blank"
+                   class="inline-flex items-center justify-center space-x-1.5 px-3.5 py-3 rounded-xl text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 font-medium text-sm transition-colors cursor-pointer">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    <span>Ver en Navegador</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Principal: Índice Lateral + Contenido de Módulos -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Sidebar de Navegación Lateral (Sticky en Desktop) -->
+        <div class="lg:col-span-1">
+            <div class="sticky top-20 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-2">Estructura Modular</h3>
+                
+                <nav class="space-y-1">
+                    <a href="#modulo-1" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">1</span>
+                        <span>Inicio y Roles</span>
+                    </a>
+                    <a href="#modulo-2" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">2</span>
+                        <span>Planta Docente y Cargos</span>
+                    </a>
+                    <a href="#modulo-3" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">3</span>
+                        <span>Asistencia y Parte Diario</span>
+                    </a>
+                    <a href="#modulo-4" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">4</span>
+                        <span>Régimen de Licencias</span>
+                    </a>
+                    <a href="#modulo-5" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">5</span>
+                        <span>Feriados y Resguardo</span>
+                    </a>
+                    <a href="#preguntas-frecuentes" class="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:text-institucional-700 hover:bg-institucional-50 transition-colors group">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-institucional-100 text-slate-600 group-hover:text-institucional-700 flex items-center justify-center text-xs font-bold mr-2.5">?</span>
+                        <span>Preguntas Frecuentes</span>
+                    </a>
+                </nav>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-2">
+                        <div class="font-semibold text-slate-800 flex items-center space-x-1.5">
+                            <svg class="w-4 h-4 text-institucional-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Soporte Bedelía</span>
+                        </div>
+                        <p>IESETyFP &bull; Gestión Académica y Control de Asistencia Oficial.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Contenido Principal -->
+        <div class="lg:col-span-3 space-y-10">
+
+            <!-- ==============================================================================
+                 MÓDULO 1: INICIO Y ROLES
+                 ============================================================================== -->
+            <section id="modulo-1" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">Módulo 1</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Inicio y Roles Institucionales</h2>
+                </div>
+
+                <div class="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+                    <p>
+                        El <strong>Sistema Zunin</strong> es la plataforma oficial del IESETyFP para la administración del personal docente, registro diario de asistencia multi-turno y emisión de las planillas mensuales de licencias para el Ministerio de Educación.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">1.1. Acceso al Sistema y Seguridad</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Ingreso:</strong> Acceda con su nombre de usuario y contraseña desde el formulario institucional en <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">/login/</code>.</li>
+                        <li><strong>Cierre de Sesión Seguro:</strong> Utilice el botón <em>Cerrar Sesión</em> en el encabezado. Se procesa mediante solicitud POST con token CSRF para invalidar de forma inmediata la sesión en el servidor.</li>
+                        <li><strong>Cambio Periódico de Clave:</strong> Se recomienda modificar periódicamente su contraseña para preservar la confidencialidad de los datos institucionales.</li>
+                    </ul>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-4">1.2. Perfiles y Roles de Usuario (RBAC)</h3>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 mt-3">
+                        <table class="tabla-institucional">
+                            <thead>
+                                <tr>
+                                    <th>Rol Institucional</th>
+                                    <th>Perfil / Grupo</th>
+                                    <th>Competencias y Alcance Operativo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Operador de Bedelía</td>
+                                    <td><span class="px-2 py-0.5 rounded text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Bedelia_Operadoras</span></td>
+                                    <td>Carga diaria masiva de asistencia en turnos mañana, tarde y noche; justificaciones por lote y diferidas; visualización de calendarios de feriados y consultas de partes.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Secretaría Académica</td>
+                                    <td><span class="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Admin_Institucional</span></td>
+                                    <td>Administración del padrón docente; altas obligatorias de cargos con fecha y disposición; conmutación de instrumentos legales; control y rectificación de planillas mensuales IL-01 / IL-02; catálogos.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Dirección / Supervisión</td>
+                                    <td><span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Consulta_Directiva</span></td>
+                                    <td>Acceso de sólo lectura; seguimiento del semáforo de ausentismo docente en el Dashboard; consultas multicriterio; visualización y descarga de planillas sin permisos de edición.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Administrador General</td>
+                                    <td><span class="px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Superusuario</span></td>
+                                    <td>Control técnico total; gestión de cuentas de usuario; resguardo integral y descarga de backups de base de datos en paquetes ZIP con firma criptográfica SHA-256.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-4">1.3. Navegación e Interfaz Institucional</h3>
+                    <p>
+                        La barra de navegación superior permite transitar entre los módulos clave: <em>Dashboard</em>, <em>Asistencia</em>, <em>Licencias</em>, <em>Planillas</em>, <em>Personal</em>, <em>Catálogos</em> (administradores), <em>Feriados</em> y <em>Manual</em>. Además, Zunin es una <strong>Aplicación Web Progresiva (PWA)</strong> instalable en computadoras de escritorio o dispositivos móviles.
+                    </p>
+                </div>
+            </section>
+
+            <!-- ==============================================================================
+                 MÓDULO 2: PLANTA DOCENTE Y CARGOS
+                 ============================================================================== -->
+            <section id="modulo-2" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">Módulo 2</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Planta Docente y Cargos</h2>
+                </div>
+
+                <div class="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+                    <h3 class="text-base font-bold text-slate-900">2.1. Padrón Docente Institucional</h3>
+                    <p>
+                        Disponible en <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">/personal/docentes/</code>. Centraliza el legajo completo de cada docente (apellido, nombres, DNI, CUIL, género, fecha de nacimiento y datos de contacto). La interfaz unifica el DNI directamente debajo del nombre completo para agilizar la lectura de Bedelía.
+                    </p>
+
+                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
+                        <div class="font-bold flex items-center space-x-2 text-amber-800">
+                            <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            <span>Regla de Negocio Crítica (Ticket 21)</span>
+                        </div>
+                        <p class="text-xs">
+                            Ningún docente puede registrar asistencia ni ser computado en liquidaciones sin poseer al menos un cargo o materia activo asignado con su correspondiente fecha de alta e instrumento de designación obligatorio.
+                        </p>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">2.2. Alta Obligatoria de Cargos y Designaciones</h3>
+                    <p>Para registrar una nueva designación:</p>
+                    <ol class="list-decimal pl-5 space-y-2">
+                        <li>En el listado de docentes, localice al profesional y presione el botón <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">+ Cargo</code>.</li>
+                        <li>Seleccione el <strong>Espacio Curricular / Materia</strong> correspondiente a la tecnicatura o formación profesional.</li>
+                        <li>Indique la <strong>Situación de Revista:</strong> <em>Titular (TIT)</em>, <em>Interino (INT)</em> o <em>Suplente (SUP)</em>.</li>
+                        <li>Indique el <strong>Turno de Cursado:</strong> <em>Mañana</em>, <em>Tarde</em> o <em>Noche</em>.</li>
+                        <li><strong>Instrumento / Disposición de Designación (Obligatorio):</strong> Ingrese el número formal de designación ministerial o institucional (ej: <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">Disp. 145/26</code> o <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">Res. 102/20</code>).</li>
+                        <li><strong>Fecha de Alta (Obligatorio):</strong> Consigne la fecha efectiva de toma de posesión frente a la cátedra o cargo.</li>
+                    </ol>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">2.3. Asignación de Horarios y Distribución por Día</h3>
+                    <p>
+                        Se debe cargar el total de horas cátedra semanales y desglosar las horas correspondientes a cada día de la semana (lunes a viernes). Esto permite al motor de asistencia controlar exactamente qué docentes deben estar frente a clase en cada turno y jornada.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">2.4. Régimen de Suplencias y Trazabilidad DP-01</h3>
+                    <p>
+                        Cuando la situación de revista sea <strong>Suplente</strong>, es obligatorio seleccionar al <strong>Docente Reemplazado</strong>. Esto asegura la trazabilidad estricta requerida por los formularios oficiales DP-01 del Ministerio de Educación.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">2.5. Cese Puntual de Cargos vs. Baja de Legajo</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Cesar Cargo Individual:</strong> Se ejecuta cuando el docente deja de dictar una materia en particular pero continúa en la institución. Se indica la fecha de cese sin alterar otros cargos.</li>
+                        <li><strong>Dar de Baja al Docente:</strong> Se utiliza cuando finaliza toda relación institucional. Cesa en cascada todas sus designaciones y resguarda de forma inalterable su historial de asistencias y licencias.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ==============================================================================
+                 MÓDULO 3: ASISTENCIA Y PARTE DIARIO
+                 ============================================================================== -->
+            <section id="modulo-3" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">Módulo 3</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Asistencia y Parte Diario</h2>
+                </div>
+
+                <div class="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+                    <h3 class="text-base font-bold text-slate-900">3.1. Modelo Multi-Turno por Cargo (Regla Bedelía / SIE)</h3>
+                    <p>
+                        Zunin maneja la restricción compuesta <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">(docente, cargo, fecha)</code>, permitiendo asentar de forma totalmente independiente el presentismo en diferentes materias y turnos durante una misma jornada escolar.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">3.2. Operatoria de Toma Diaria y Marcas Institucionales</h3>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 mt-3">
+                        <table class="tabla-institucional">
+                            <thead>
+                                <tr>
+                                    <th>Marca</th>
+                                    <th>Estado</th>
+                                    <th>Significado Operativo</th>
+                                    <th>Imputación en Haberes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">PR</span></td>
+                                    <td class="font-bold text-slate-900">PRESENTE</td>
+                                    <td>Docente presente en clase o función asignada.</td>
+                                    <td>Liquidación normal y completa de haberes.</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">I</span></td>
+                                    <td class="font-bold text-slate-900">INASISTENCIA</td>
+                                    <td>Ausencia sin aviso ni justificación reglamentaria.</td>
+                                    <td>Descuento automático de horas cátedra / día.</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">LIC</span></td>
+                                    <td class="font-bold text-slate-900">LICENCIA</td>
+                                    <td>Inasistencia amparada en normativa docente estatutaria.</td>
+                                    <td>Deriva al Cuadro IL correspondiente (con o sin goce).</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300">P</span></td>
+                                    <td class="font-bold text-slate-900">PERMISO / JUSTIFICADO</td>
+                                    <td>Comisión oficial de servicio o justificación reglamentaria.</td>
+                                    <td>Sin descuento de haberes según normativa aplicable.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-4">3.3. Vistas del Parte Diario de Bedelía (Ticket 19.5)</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Vista Planilla Continua (Tipo Excel):</strong> Grilla tabular optimizada para carga masiva y ágil en tiempo real, permitiendo seleccionar rápidamente estados de asistencia y marcas con teclado y mouse.</li>
+                        <li><strong>Vista por Docente (Tarjetas Agrupadas):</strong> Muestra los cargos y turnos del día agrupados bajo la tarjeta de cada docente.</li>
+                        <li><strong>Conmutador Rápido:</strong> El operador puede alternar entre ambas vistas en la parte superior sin perder filtros aplicados ni la fecha de trabajo.</li>
+                    </ul>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">3.4. Filtros Operativos y Panel de KPIs</h3>
+                    <p>
+                        El parte diario cuenta con un menú desplegable limpio para filtrar por <strong>Turno</strong> (<em>Mañana</em>, <em>Tarde</em>, <em>Noche</em> o <em>Todos</em>), selector de <strong>Carrera</strong> y un <strong>Panel de KPIs Colapsable</strong> que cuantifica en vivo los totales de presentes, ausentes y licencias del día.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">3.5. Justificaciones por Lote y Justificación Diferida (Ticket 23)</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Justificaciones por Lote:</strong> Permite seleccionar múltiples cargos y aplicar una misma justificación en bloque.</li>
+                        <li><strong>Justificación Diferida (Acceso Directo desde Asistencia):</strong> Situado en la cabecera de <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">/asistencia/</code>. Facilita la regularización de inasistencias pasadas tras la entrega diferida de certificados médicos, actualizando automáticamente el parte diario y los cuadros mensuales de licencias.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ==============================================================================
+                 MÓDULO 4: RÉGIMEN DE LICENCIAS Y PLANILLAS MENSUALES
+                 ============================================================================== -->
+            <section id="modulo-4" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">Módulo 4</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Régimen de Licencias y Planillas Mensuales</h2>
+                </div>
+
+                <div class="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+                    <h3 class="text-base font-bold text-slate-900">4.1. Tipos de Licencia Estatutarios y Situación de Revista</h3>
+                    <p>
+                        El sistema implementa el régimen de la <strong>Ley 647-E</strong> (Estatuto del Docente del Chaco) distinguiendo los topes de días con goce de haberes según la revista:
+                    </p>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 mt-3">
+                        <table class="tabla-institucional">
+                            <thead>
+                                <tr>
+                                    <th>Revista Docente</th>
+                                    <th>Artículo Principal</th>
+                                    <th>Causal Reglamentaria</th>
+                                    <th>Régimen de Haberes y Topes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Docente Titular</td>
+                                    <td><span class="font-mono text-xs font-bold text-institucional-700">Art. 308</span></td>
+                                    <td>Afecciones comunes de salud</td>
+                                    <td>Hasta 30 días anuales continuos o discontinuos con goce íntegro de haberes.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Docente Interino</td>
+                                    <td><span class="font-mono text-xs font-bold text-institucional-700">Art. 331-A</span></td>
+                                    <td>Afecciones comunes de salud</td>
+                                    <td>Hasta 20 días anuales con goce de haberes, requiriendo antigüedad mínima estatutaria.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Docente Suplente</td>
+                                    <td><span class="font-mono text-xs font-bold text-institucional-700">Art. 340-A</span></td>
+                                    <td>Afecciones comunes de salud</td>
+                                    <td>Hasta 10 días continuos o discontinuos en el ciclo lectivo con goce de haberes.</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-slate-900">Todas las Revistas</td>
+                                    <td><span class="font-mono text-xs font-bold text-institucional-700">Art. 309 / 310</span></td>
+                                    <td>Largo tratamiento / Maternidad</td>
+                                    <td>Períodos prolongados regulados por junta médica de salud ocupacional.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-4">4.2. Números de Disposición Autoincrementales y Correlativos (Ticket 20)</h3>
+                    <p>
+                        Para evitar omisiones o saltos en las disposiciones de licencia, el sistema calcula de forma automática el próximo número correlativo institucional del ciclo lectivo (ej: <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">Disp. 001/2026</code>, <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">Disp. 002/2026</code>) en el instante de su emisión oficial.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">4.3. Conmutación de Instrumentos Legales</h3>
+                    <p>
+                        Desde la grilla de planillas mensuales, el operador puede conmutar entre <strong>Disposición Interna</strong> y <strong>Resolución Ministerial</strong> para asentar el número ministerial definitivo cuando la licencia es homologada centralmente.
+                    </p>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">4.4. Emisión de Cuadros IL-01 e IL-02</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Cuadro IL-01 (Salud):</strong> Licencias médicas por afecciones comunes, largo tratamiento, accidentes de trabajo y maternidad.</li>
+                        <li><strong>Cuadro IL-02 (Otras Causales):</strong> Exámenes de estudio, duelo familiar, comisiones de servicio, razones particulares, gremiales y políticas.</li>
+                    </ul>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">4.5. Exportación a Excel/CSV Optimizada con BOM UTF-8</h3>
+                    <p>
+                        La descarga de planillas incorpora la cabecera binaria <strong>BOM UTF-8</strong> (<code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">\ufeff</code>). Esto garantiza que Microsoft Excel en cualquier equipo Windows abra el archivo de inmediato mostrando con total nitidez tildes, eñes y caracteres especiales sin errores de codificación.
+                    </p>
+                </div>
+            </section>
+
+            <!-- ==============================================================================
+                 MÓDULO 5: FERIADOS Y RESGUARDO DE DATOS
+                 ============================================================================== -->
+            <section id="modulo-5" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">Módulo 5</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Feriados y Resguardo de Datos</h2>
+                </div>
+
+                <div class="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+                    <h3 class="text-base font-bold text-slate-900">5.1. Feriados y Días No Laborables</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Gestión Centralizada:</strong> Acceda desde <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">/asistencia/feriados/</code> para asentar feriados nacionales, provinciales o jornadas pedagógicas.</li>
+                        <li><strong>Alerta Visual:</strong> La grilla diaria resalta en tono de advertencia si la fecha elegida es feriado.</li>
+                        <li><strong>Exención Automática:</strong> El cálculo mensual omite los días no laborables para impedir que se descuenten haberes de forma indebida.</li>
+                        <li><strong>Permisos:</strong> Solo usuarios con rol <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">Admin_Institucional</code> están facultados para eliminar feriados cargados.</li>
+                    </ul>
+
+                    <h3 class="text-base font-bold text-slate-900 pt-2">5.2. Resguardo Institucional y Descarga de Backups en ZIP (Ticket 22)</h3>
+                    <p>
+                        Para garantizar la seguridad de la información institucional, Zunin cuenta con un servicio de exportación de copias de seguridad accesible para Administradores Institucionales en <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">/backup/exportar/</code>.
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Generación en Memoria:</strong> El archivo ZIP se compila sin bloquear ni interrumpir las tareas activas de Bedelía.</li>
+                        <li><strong>Contenido del Paquete:</strong> Incluye la base de datos relacional completa con todos los docentes, cargos y asistencias, acompañada de un archivo de verificación <code class="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">manifest.json</code> con la firma criptográfica <strong>SHA-256</strong> para certificar su inalterabilidad ante auditorías externas.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ==============================================================================
+                 PREGUNTAS FRECUENTES Y RESOLUCIÓN DE INCIDENCIAS
+                 ============================================================================== -->
+            <section id="preguntas-frecuentes" class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs scroll-mt-24">
+                <div class="flex items-center space-x-3 pb-4 mb-6 border-b border-slate-200">
+                    <span class="px-3 py-1 rounded-lg bg-institucional-100 text-institucional-800 text-xs font-bold uppercase tracking-wide">FAQ</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Preguntas Frecuentes y Soporte Operativo</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                        <h4 class="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                            <span class="text-institucional-600 font-extrabold">&bull;</span>
+                            <span>¿Por qué un docente recién contratado no figura en el parte diario de hoy?</span>
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed pl-3">
+                            <strong>Causa:</strong> El docente fue dado de alta en el padrón pero aún no cuenta con una designación de <strong>Cargo Docente</strong> con fecha igual o anterior a la fecha seleccionada.<br>
+                            <strong>Solución:</strong> Diríjase a <em>Personal &rarr; Docentes</em>, localice al profesor y presione <code class="bg-white px-1 py-0.5 border rounded">+ Cargo</code>, completando obligatoriamente la fecha de alta, materia, turno y disposición de designación.
+                        </p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                        <h4 class="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                            <span class="text-institucional-600 font-extrabold">&bull;</span>
+                            <span>¿Cómo justificar una inasistencia de días anteriores ante la presentación de un certificado médico?</span>
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed pl-3">
+                            <strong>Solución:</strong> Ingrese a la pantalla de <em>Asistencia</em> y presione el botón superior <strong>Justificación Diferida</strong>. Ubique la inasistencia injustificada previa por docente o rango de fechas, seleccione el artículo de licencia estatutario y confirme. El sistema actualizará de inmediato la novedad y recalculará las planillas mensuales retroactivamente.
+                        </p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                        <h4 class="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                            <span class="text-institucional-600 font-extrabold">&bull;</span>
+                            <span>¿Quién tiene autorización para descargar la copia de seguridad de la base de datos?</span>
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed pl-3">
+                            <strong>Respuesta:</strong> Por razones de protección de datos personales, la descarga del resguardo integral en formato ZIP está restringida exclusivamente a usuarios con rol <code class="bg-white px-1 py-0.5 border rounded">Admin_Institucional</code> y Administradores Generales.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

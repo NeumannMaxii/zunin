@@ -15,4 +15,14 @@ urlpatterns = [
         views.ExportarBackupView.as_view(),
         name="exportar_backup",
     ),
+    path(
+        "manual/",
+        views.ManualUsuarioView.as_view(),
+        name="manual_usuario",
+    ),
+    path(
+        "manual/pdf/",
+        views.ManualUsuarioPdfView.as_view(),
+        name="manual_usuario_pdf",
+    ),
 ]
