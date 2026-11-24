@@ -9,14 +9,13 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.asistencia.models import RegistroAsistencia
-from apps.licencias.forms import JustificacionDiferidaForm, LicenciaOtorgadaForm
+from apps.licencias.forms import JustificacionDiferidaForm
 from apps.licencias.models import (
     LicenciaOtorgada,
     NumeradorDisposicion,
     RenglonPlanillaMensual,
     TipoLicencia,
 )
-from apps.licencias.services import obtener_siguiente_correlativo_disposicion
 from apps.personal.models import CargoCatalogo, CargoDocente, Docente
 
 User = get_user_model()
@@ -64,7 +63,9 @@ class Ticket20DisposicionNoEditableTests(TestCase):
         self.fecha_prueba = datetime.date(2026, 6, 8)  # Lunes
 
     def test_justificacion_diferida_form_campo_readonly(self):
-        """El campo numero_disposicion debe tener atributo readonly y clase deshabilitada."""
+        """
+        El campo numero_disposicion debe tener atributo readonly y clase deshabilitada.
+        """
         form = JustificacionDiferidaForm()
         widget = form.fields["numero_disposicion"].widget
         self.assertIn("readonly", widget.attrs)
@@ -139,7 +140,8 @@ class Ticket20DisposicionNoEditableTests(TestCase):
     def test_conmutar_instrumento_a_disposicion_autoasigna(self):
         """
         Al conmutar un RenglonPlanillaMensual hacia Disposición Interna, si venía
-        de Resolución externa, el sistema auto-asigna de forma atómica la siguiente Disposición.
+        de Resolución externa, el sistema auto-asigna de forma atómica la
+        siguiente Disposición.
         """
         renglon = RenglonPlanillaMensual.objects.create(
             anio=2026,

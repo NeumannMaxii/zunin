@@ -969,7 +969,10 @@ class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
                 request.POST.get("numero_instrumento")
                 or request.POST.get("numero_disposicion")
             )
-            candidato = (post_num.strip() if post_num else "") or renglon.numero_instrumento
+            candidato = (
+                (post_num.strip() if post_num else "")
+                or renglon.numero_instrumento
+            )
             num_actual, anio_actual = extraer_numero_y_anio_disposicion(candidato)
             if num_actual and (
                 anio_actual == renglon.anio or anio_actual == renglon.anio % 100
@@ -2227,7 +2230,8 @@ class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
                 if form.instance.fecha_desde
                 else None
             )
-            # Ticket 20: Siempre asignar de forma atómica y automática el siguiente correlativo oficial
+            # Ticket 20: Siempre asignar de forma atómica y automática
+            # el siguiente correlativo oficial
             form.instance.instrumento_legal = (
                 obtener_siguiente_correlativo_disposicion(
                     anio=anio_lic,

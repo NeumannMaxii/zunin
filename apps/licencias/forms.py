@@ -3,6 +3,7 @@ Formularios para el módulo de Licencias y Justificación Diferida.
 Implementa el buscador de licencias y el flujo en papel (RF-09, RF-11, RF-15, Ticket 8).
 """
 
+import datetime
 import unicodedata
 from django import forms
 from django.db.models import Q
@@ -218,7 +219,10 @@ class JustificacionDiferidaForm(TailwindForm):
         widget=forms.TextInput(
             attrs={
                 "readonly": "readonly",
-                "class": "bg-slate-100 cursor-not-allowed font-mono font-bold text-slate-800",
+                "class": (
+                    "bg-slate-100 cursor-not-allowed "
+                    "font-mono font-bold text-slate-800"
+                ),
                 "placeholder": "Asignación automática (NNN/AAAA)",
             }
         ),
@@ -416,7 +420,8 @@ class JustificacionDiferidaForm(TailwindForm):
                     "numero_resolucion",
                     "Debe ingresar el número de Resolución Ministerial externa.",
                 )
-        # Si es DISPOSICION, la numeración es 100% autoincremental no editable y se genera en save()
+        # Si es DISPOSICION, la numeración es 100% autoincremental no editable
+        # y se genera en save()
 
         return cleaned_data
 
@@ -608,7 +613,10 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
             self.fields["instrumento_legal"].widget.attrs.update(
                 {
                     "readonly": "readonly",
-                    "class": "bg-slate-100 cursor-not-allowed font-mono font-bold text-slate-800",
+                    "class": (
+                        "bg-slate-100 cursor-not-allowed "
+                        "font-mono font-bold text-slate-800"
+                    ),
                 }
             )
 
