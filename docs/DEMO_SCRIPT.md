@@ -149,7 +149,7 @@ Abre en el navegador: `http://127.0.0.1:8000/`.
 
 ### ACTO 9: Cierre y Preguntas (1 minuto)
 1. **Resumen final:**
-   - **242 pruebas automatizadas** en verde cubriendo el 100% de los requerimientos.
+   - **500 pruebas automatizadas** en verde cubriendo el 100% de los requerimientos.
    - **0 errores de flake8** (código limpio, tipado y estricto).
    - Documentación exhaustiva en `/docs`: Matriz de Trazabilidad, Decisiones de Arquitectura y Diagrama DER.
    - Agradecer a la cátedra y quedar a disposición para responder preguntas técnicas o funcionales.
