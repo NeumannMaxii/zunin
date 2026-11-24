@@ -377,18 +377,20 @@ def construir_libro_excel_planillas(
 
     font_sello = Font(name="Calibri", size=9, bold=True, color="475569")
     font_titulo_il01 = Font(name="Calibri", size=12, bold=True, color="0369A1")
-    font_titulo_il02 = Font(name="Calibri", size=12, bold=True, color="4338CA")
+    font_titulo_il02 = Font(name="Calibri", size=12, bold=True, color="3730A3")
     font_meta_label = Font(name="Calibri", size=9, bold=True, color="334155")
     font_meta_val = Font(name="Calibri", size=9, color="0F172A")
-    font_header = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    font_header = Font(name="Calibri", size=10, bold=True, color="0F172A")
     font_data = Font(name="Calibri", size=9, color="1E293B")
     font_empty = Font(name="Calibri", size=9, italic=True, color="64748B")
 
+    # Tonos pasteles sobrios y amigables para impresión
+    # (IL-01 celeste pastel, IL-02 lavanda/pizarra pastel)
     fill_header_il01 = PatternFill(
-        start_color="0369A1", end_color="0369A1", fill_type="solid"
+        start_color="BAE6FD", end_color="BAE6FD", fill_type="solid"
     )
     fill_header_il02 = PatternFill(
-        start_color="4338CA", end_color="4338CA", fill_type="solid"
+        start_color="E0E7FF", end_color="E0E7FF", fill_type="solid"
     )
 
     thin_side = Side(border_style="thin", color="CBD5E1")
@@ -399,7 +401,7 @@ def construir_libro_excel_planillas(
         left=Side(border_style="thin", color="94A3B8"),
         right=Side(border_style="thin", color="94A3B8"),
         top=Side(border_style="thin", color="94A3B8"),
-        bottom=Side(border_style="medium", color="0F172A"),
+        bottom=Side(border_style="medium", color="475569"),
     )
 
     align_center = Alignment(horizontal="center", vertical="center")
