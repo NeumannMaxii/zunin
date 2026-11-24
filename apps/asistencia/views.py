@@ -271,14 +271,34 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
         docentes = Docente.objects.activos()
 
+        # Identificar tipo de licencia oficial para Natalicio (Art. 320 inc. h)
+        tipo_licencia_natalicio = (
+            TipoLicencia.objects.filter(
+                activo=True,
+                descripcion__icontains="natalicio",
+            )
+            .order_by("id")
+            .first()
+        )
+        tipo_licencia_natalicio_id = (
+            tipo_licencia_natalicio.id if tipo_licencia_natalicio else None
+        )
+
         # Agrupar cargos por docente único para evitar duplicaciones en la interfaz
         docentes_map = {}
         for cargo in cargos_vigentes:
             d_id = cargo.docente_id
             if d_id not in docentes_map:
+                fn = cargo.docente.fecha_nacimiento
+                es_natalicio = bool(
+                    fn is not None
+                    and fn.day == fecha.day
+                    and fn.month == fecha.month
+                )
                 docentes_map[d_id] = {
                     "docente": cargo.docente,
                     "cargos": [],
+                    "es_natalicio": es_natalicio,
                 }
             reg = registros_map.get(cargo.id)
             docentes_map[d_id]["cargos"].append({
@@ -299,6 +319,7 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             "cargos": cargos_vigentes,
             "docentes": docentes,
             "tipos_licencia": tipos_licencia,
+            "tipo_licencia_natalicio_id": tipo_licencia_natalicio_id,
         }
         return render(request, "asistencia/carga_masiva.html", context)
 
@@ -347,12 +368,11 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     docente_id__in=docente_ids_post, activo=True
                 ).select_related("docente")
             )
-            doc_cargo_dict = {}
+            cargos_por_docente = {}
             for c in doc_cargos:
-                if c.docente_id not in doc_cargo_dict:
-                    doc_cargo_dict[c.docente_id] = c
+                cargos_por_docente.setdefault(c.docente_id, []).append(c)
             missing_d_ids = [
-                d_id for d_id in docente_ids_post if d_id not in doc_cargo_dict
+                d_id for d_id in docente_ids_post if d_id not in cargos_por_docente
             ]
             if missing_d_ids:
                 missing_docentes = Docente.objects.filter(
@@ -372,11 +392,14 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     for c in CargoDocente.objects.filter(
                         docente_id__in=missing_d_ids, activo=True
                     ).select_related("docente"):
-                        if c.docente_id not in doc_cargo_dict:
-                            doc_cargo_dict[c.docente_id] = c
+                        cargos_por_docente.setdefault(c.docente_id, []).append(c)
             for d_id in docente_ids_post:
-                if d_id in doc_cargo_dict:
-                    cargos_a_procesar.append(doc_cargo_dict[d_id])
+                c_list = cargos_por_docente.get(d_id, [])
+                con_clase = [c for c in c_list if c.obtener_horas_en_fecha(fecha) > 0]
+                if con_clase:
+                    cargos_a_procesar.extend(con_clase)
+                else:
+                    cargos_a_procesar.extend(c_list)
         else:
             cargos_by_id = (
                 CargoDocente.objects.filter(id__in=raw_ids)
@@ -390,13 +413,19 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                     CargoDocente.objects.filter(docente_id__in=missing_ids, activo=True)
                     .select_related("docente")
                 )
-                doc_cargo_dict = {}
+                cargos_por_docente = {}
                 for c in doc_cargos:
-                    if c.docente_id not in doc_cargo_dict:
-                        doc_cargo_dict[c.docente_id] = c
+                    cargos_por_docente.setdefault(c.docente_id, []).append(c)
                 for d_id in missing_ids:
-                    if d_id in doc_cargo_dict:
-                        cargos_a_procesar.append(doc_cargo_dict[d_id])
+                    if d_id in cargos_por_docente:
+                        c_list = cargos_por_docente[d_id]
+                        con_clase = [
+                            c for c in c_list if c.obtener_horas_en_fecha(fecha) > 0
+                        ]
+                        if con_clase:
+                            cargos_a_procesar.extend(con_clase)
+                        else:
+                            cargos_a_procesar.extend(c_list)
                     else:
                         d_obj = Docente.objects.filter(id=d_id).first()
                         if d_obj:
@@ -479,10 +508,11 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                         or request.POST.get(f"justifica_{cargo.docente_id}")
                     )
 
-                    if not marca:
-                        if estado == "PRESENTE":
-                            marca = "PR"
-                        elif estado == "AUSENTE":
+                    if estado == "PRESENTE":
+                        marca = "PR"
+                        lic_val = None
+                    elif not marca:
+                        if estado == "AUSENTE":
                             marca = "I"
                         elif estado == "LICENCIA":
                             marca = "LIC"

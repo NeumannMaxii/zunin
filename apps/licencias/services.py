@@ -425,9 +425,24 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         "registros": [reg],
                     }
                 else:
+                    # RN-06: Una inasistencia injustificada o falta simple se computa
+                    # únicamente por el día puntual en que ocurrió. Las inasistencias
+                    # solamente pueden ser por un día y no deben agruparse en bloques.
+                    es_falta_simple = (
+                        reg.marca_diaria in ["I", "INA"]
+                        and reg.tipo_licencia is None
+                        and not reg.justifica
+                    )
+                    current_es_falta_simple = (
+                        current_block["marca_origen"] in ["I", "INA"]
+                        and current_block["tipo_licencia"] is None
+                    )
+
                     es_compatible = (
                         current_block["tipo_licencia"] == tipo_lic
                         and current_block["cuadro"] == cuadro
+                        and not es_falta_simple
+                        and not current_es_falta_simple
                     )
 
                     es_contiguo = False
@@ -481,7 +496,7 @@ def generar_planilla_mes(mes, anio, usuario=None):
                         cargos_registros.append(r.cargo)
 
                 if cargos_registros:
-                    cargos_a_evaluar = cargos_registros
+                    cargos_a_evaluar = list(cargos_registros)
                 elif bloque["cargo_fijado"]:
                     cargos_a_evaluar = [bloque["cargo_fijado"]]
                 else:

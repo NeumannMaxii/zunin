@@ -335,16 +335,20 @@
                                         </svg>
                                         <span>Reclasificar Artículo</span>
                                     </summary>
-                                    <form method="post" action="{% url 'licencias:renglon_cambiar_licencia' r.id %}" class="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2 shadow-xs min-w-[240px]">
+                                    <form method="post" action="{% url 'licencias:renglon_cambiar_licencia' r.id %}" class="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2 shadow-xs min-w-[260px]">
                                         {% csrf_token %}
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                         <div>
-                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Nuevo Artículo / Cuadro:</label>
+                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Asistente Artículo / Código (RF-15):</label>
+                                            <input type="text" placeholder="Buscar art. (ej: 44) o código..." 
+                                                   oninput="filtrarOpcionesArticulo(this)"
+                                                   class="text-xs w-full py-1 px-2 border border-slate-200 rounded-md bg-white focus:ring-emerald-500 focus:border-emerald-500 mb-1">
                                             <select name="tipo_licencia" 
-                                                    class="text-xs w-full py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                                                    class="select-reclasificar-articulo text-xs w-full py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
                                                 {% for tl in tipos_licencia %}
-                                                <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}>
-                                                    [{{ tl.cuadro_mensual }}] {{ tl.codigo }} - {{ tl.descripcion|truncatechars:26 }}
+                                                <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}
+                                                        data-text="{% if tl.articulo %}{{ tl.articulo|lower }} {% endif %}{{ tl.codigo|lower }} {{ tl.descripcion|lower }}">
+                                                    [{{ tl.cuadro_mensual }}] {% if tl.articulo %}{{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:24 }}
                                                 </option>
                                                 {% endfor %}
                                             </select>
@@ -465,4 +469,16 @@
         </div>
     </div>
 </div>
+
+<script>
+function filtrarOpcionesArticulo(input) {
+    const q = input.value.toLowerCase().trim();
+    const select = input.parentElement.querySelector('select');
+    if (!select) return;
+    Array.from(select.options).forEach(opt => {
+        const text = (opt.getAttribute('data-text') || opt.textContent).toLowerCase();
+        opt.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
+}
+</script>
 {% endblock %}

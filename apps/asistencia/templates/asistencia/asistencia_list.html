@@ -137,10 +137,16 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4">
-                            {% if a.justifica %}
-                                <span class="text-emerald-600 font-semibold text-xs">&check; Sí</span>
+                            {% if a.estado == 'PRESENTE' %}
+                                <span class="text-slate-400 text-xs font-mono">&mdash;</span>
+                            {% elif a.justifica %}
+                                <span class="inline-flex items-center text-emerald-700 font-semibold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    &check; Justificada
+                                </span>
                             {% else %}
-                                <span class="text-rose-600 font-semibold text-xs">&cross; No</span>
+                                <span class="inline-flex items-center text-rose-700 font-semibold text-xs bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                    &cross; Injustificada
+                                </span>
                             {% endif %}
                         </td>
                         {% if user|puede_gestionar_asistencia %}

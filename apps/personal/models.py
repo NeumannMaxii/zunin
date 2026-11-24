@@ -339,12 +339,15 @@ class Docente(models.Model):
             return fc.date() if hasattr(fc, "date") else fc
         return None
 
-    def obtener_resumen_inasistencias(self, anio=None, limite_reglamentario=10):
+    def obtener_resumen_inasistencias(self, anio=None, limite_reglamentario=None):
         """
         RF-18: Calcula el acumulado anual de inasistencias ('I' o 'INA')
         y permisos ('P' o 'PERM') para el docente, retornando los totales
         y el nivel de alerta reglamentario ('NORMAL', 'PRECAUCION', 'CRITICO').
         """
+        if limite_reglamentario is None or limite_reglamentario <= 0:
+            limite_reglamentario = getattr(settings, "LIMITE_ANUAL_INASISTENCIAS", 15)
+
         if anio is None:
             anio = timezone.now().year if timezone.now() else 2026
 

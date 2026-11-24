@@ -14,10 +14,11 @@ from django.db.models import (
     Value,
     When,
 )
+from django.conf import settings
 from apps.personal.models import Docente
 
 
-def obtener_panel_alertas_docentes(limite_legal=15, anio=None, solo_alertas=False):
+def obtener_panel_alertas_docentes(limite_legal=None, anio=None, solo_alertas=False):
     """
     Ticket 12 (RF-18): Calcula el porcentaje de inasistencia docente respecto al
     límite legal anual (tope normativo) utilizando annotate con ExpressionWrapper
@@ -36,7 +37,7 @@ def obtener_panel_alertas_docentes(limite_legal=15, anio=None, solo_alertas=Fals
     - nivel_alerta ('NORMAL', 'PRECAUCION', 'CRITICO')
     """
     if limite_legal is None or limite_legal <= 0:
-        limite_legal = 15
+        limite_legal = getattr(settings, "LIMITE_ANUAL_INASISTENCIAS", 15)
 
     filtro_asistencias = Q(asistencias__marca_diaria__in=["I", "INA"]) | Q(
         asistencias__estado="AUSENTE", asistencias__justifica=False
