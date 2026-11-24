@@ -82,17 +82,31 @@
                         </svg>
                     </a>
 
-                    <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" 
+                    <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}"
                            onchange="this.form.submit()"
                            class="mx-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-bold text-slate-800 focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
 
+                    {% if fecha >= hoy %}
+                    <button type="button"
+                            id="btn-dia-siguiente"
+                            title="Día Siguiente"
+                            disabled
+                            aria-disabled="true"
+                            class="p-2 text-slate-300 rounded-lg cursor-not-allowed opacity-50 pointer-events-none">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    {% else %}
                     <a href="?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                       id="btn-dia-siguiente"
                        title="Día Siguiente"
                        class="p-2 hover:bg-white text-slate-700 hover:text-institucional-600 rounded-lg transition-colors shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </a>
+                    {% endif %}
                 </div>
 
                 <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
