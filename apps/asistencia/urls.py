@@ -36,6 +36,11 @@ urlpatterns = [
         name="asistencia_diaria",
     ),
     path(
+        "diaria/excel/",
+        views.AsistenciaDiariaExcelView.as_view(),
+        name="asistencia_diaria_excel",
+    ),
+    path(
         "carga-masiva/",
         RedirectView.as_view(
             pattern_name="asistencia:asistencia_diaria", permanent=True

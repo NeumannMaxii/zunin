@@ -1,74 +1,220 @@
 {% extends "base.html" %}
 
-{% block title %}Asistencia Diaria - IESETyFP Zunin{% endblock %}
+{% block title %}Parte Diario de Bedelía - IESETyFP Zunin{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-    <!-- Encabezado y Filtro de Fecha -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Encabezado Institucional y Acciones Globales -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 border-b border-slate-200 no-print">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Asistencia Diaria</h1>
-            <p class="text-sm text-slate-500">Grilla operativa de control de novedades y asistencia docente para Bedelía.</p>
+            <div class="flex items-center gap-3">
+                <span class="p-2.5 bg-emerald-700 text-white rounded-xl shadow-xs">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                </span>
+                <div>
+                    <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        Parte Diario de Bedelía
+                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Fase 19.5
+                        </span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-500 font-medium">
+                        Control operativo de asistencia docente y novedades estatutarias por jornada y cátedra.
+                    </p>
+                </div>
+            </div>
         </div>
-        <div class="flex items-center space-x-3">
-            <a href="{% url 'asistencia:asistencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                &larr; Volver al Listado
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            <!-- Botón Exportar Excel -->
+            <a href="{% url 'asistencia:asistencia_diaria' %}?fecha={{ fecha|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}&export=excel"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar Excel (.xlsx)
+            </a>
+
+            <!-- Botón Imprimir Parte Diario -->
+            <button type="button" onclick="window.print()" 
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs sm:text-sm font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Imprimir Parte
+            </button>
+
+            <!-- Volver al listado -->
+            <a href="{% url 'asistencia:asistencia_list' %}" 
+               class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors">
+                &larr; Listado
             </a>
         </div>
     </div>
 
-    <!-- Selector de Fecha y Advertencia -->
-    <div class="bg-white rounded-2xl p-6 border {% if es_feriado %}border-red-300 bg-red-50/20 ring-1 ring-red-400{% else %}border-slate-200{% endif %} shadow-xs space-y-4">
-        <form method="get" class="flex flex-wrap items-center gap-4">
-            <label for="fecha" class="text-sm font-semibold text-slate-700">Jornada:</label>
-            <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" 
-                   class="px-3 py-2 border {% if es_feriado %}border-red-400 focus:ring-red-500 focus:border-red-500{% else %}border-slate-300 focus:ring-emerald-500 focus:border-emerald-500{% endif %} rounded-lg shadow-xs text-sm font-medium text-slate-900">
-            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors shadow-xs">
-                Cargar Fecha
-            </button>
-            {% if es_feriado %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white uppercase tracking-wider animate-pulse">
-                Día No Laborable / Feriado
-            </span>
-            {% endif %}
-        </form>
+    <!-- Encabezado exclusivo para Impresión -->
+    <div class="print-only hidden p-4 mb-4 border-b-2 border-slate-900 text-center">
+        <h2 class="text-lg font-black uppercase tracking-wider">IESETyFP - Instituto de Educación Superior de Educación Técnica y Formación Profesional</h2>
+        <h3 class="text-base font-bold text-slate-800">PARTE DIARIO DE ASISTENCIA Y NOVEDADES DE BEDELÍA</h3>
+        <p class="text-xs text-slate-600 mt-1">
+            <strong>Fecha:</strong> {{ fecha|date:"l d \d\e F \d\e Y"|title }} |
+            <strong>Turno:</strong> {{ turno_actual|default:"Todos los Turnos" }} |
+            <strong>Carrera:</strong> {{ carrera_actual|default:"Todas las Carreras" }} |
+            <strong>Emisión:</strong> {% now "d/m/Y H:i" %}
+        </p>
+    </div>
+
+    <!-- Barra de Navegación de Fecha y Filtros Operativos -->
+    <div class="bg-white rounded-2xl p-5 border {% if es_feriado %}border-red-300 bg-red-50/20 ring-1 ring-red-400{% else %}border-slate-200{% endif %} shadow-xs space-y-4 no-print">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <!-- Selector de Fecha con botones Anterior / Siguiente / Hoy -->
+            <form method="get" id="form-filtro-principal" class="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="turno" id="input-filtro-turno" value="{{ turno_actual }}">
+                <input type="hidden" name="carrera" id="input-filtro-carrera" value="{{ carrera_actual }}">
+                <input type="hidden" name="q" id="input-filtro-q" value="{{ q_actual }}">
+
+                <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <a href="?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                       title="Día Anterior"
+                       class="p-2 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg transition-colors shadow-2xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </a>
+
+                    <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" 
+                           onchange="this.form.submit()"
+                           class="mx-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-bold text-slate-800 focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+
+                    <a href="?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                       title="Día Siguiente"
+                       class="p-2 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg transition-colors shadow-2xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
+
+                <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                   class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-colors shadow-2xs">
+                    Hoy
+                </a>
+
+                {% if es_feriado %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-red-600 text-white uppercase tracking-wider animate-pulse shadow-xs">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Día No Laborable / Feriado
+                </span>
+                {% endif %}
+            </form>
+
+            <!-- Filtro de Turno por Pills -->
+            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <span class="text-xs font-bold text-slate-500 px-2 uppercase">Turno:</span>
+                <a href="?fecha={{ fecha|date:'Y-m-d' }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                   class="px-3 py-1 text-xs font-bold rounded-lg transition-all {% if not turno_actual %}bg-emerald-700 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
+                    Todos
+                </a>
+                {% for t_cod, t_nom in turnos %}
+                <a href="?fecha={{ fecha|date:'Y-m-d' }}&turno={{ t_cod }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
+                   class="px-3 py-1 text-xs font-bold rounded-lg transition-all {% if turno_actual == t_cod %}bg-emerald-700 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
+                    {{ t_nom }}
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Filtro Desplegable de Carrera -->
+            <div class="flex items-center gap-2">
+                <label for="select-carrera" class="text-xs font-bold text-slate-600 whitespace-nowrap">Carrera:</label>
+                <select id="select-carrera" 
+                        onchange="aplicarFiltroCarrera(this.value)"
+                        class="text-xs font-semibold rounded-xl border-slate-300 bg-white text-slate-800 py-2 px-3 shadow-2xs focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">-- Todas las Carreras --</option>
+                    {% for c in carreras %}
+                    <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
 
         {% if es_feriado %}
-        <!-- Alerta visual de Feriado en ROJO -->
+        <!-- Alerta visual destacada de Feriado -->
         <div class="p-4 rounded-xl bg-red-100 border-2 border-red-500 text-red-950 flex items-start space-x-3 shadow-xs">
             <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div class="space-y-1">
-                <h2 class="text-base font-extrabold text-red-900">
+                <h2 class="text-sm sm:text-base font-extrabold text-red-900">
                     FERIADO INSTITUCIONAL: {{ feriado.descripcion }} ({{ feriado.get_tipo_display }})
                 </h2>
                 <p class="text-xs sm:text-sm text-red-800 leading-relaxed">
-                    <strong>Atención Bedelía:</strong> La fecha seleccionada (<strong>{{ fecha|date:"d/m/Y" }}</strong>) está registrada como feriado o asueto. 
-                    La carga de novedades <strong>está totalmente permitida</strong> en caso de actividad académica especial y se guardará sin bloqueos. 
-                    El motor mensual de liquidación se encargará de omitir automáticamente esta jornada al computar las horas cátedra a liquidar.
+                    <strong>Atención Bedelía:</strong> La jornada del <strong>{{ fecha|date:"d/m/Y" }}</strong> figura registrada como feriado o asueto institucional. 
+                    La carga de novedades está permitida en caso de excepciones operativas. El subsistema mensual liquidará omitiendo esta jornada de manera automática.
                 </p>
             </div>
-        </div>
-        {% else %}
-        <div class="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-sky-800 text-xs flex items-center space-x-2">
-            <svg class="w-5 h-5 text-sky-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>
-                Mostrando cargos con designaciones activas y vigentes para la fecha <strong>{{ fecha|date:"d/m/Y" }}</strong>. Las modificaciones quedan trazadas mediante el subsistema de auditoría polimórfico.
-            </span>
         </div>
         {% endif %}
     </div>
 
-    <!-- Formulario de Asistencia Diaria -->
+    <!-- Barra de KPIs en Vivo -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 no-print">
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Clases</span>
+            <div class="flex items-baseline justify-between mt-1">
+                <span id="kpi-total" class="text-2xl font-black text-slate-800">{{ estadisticas.total }}</span>
+                <span class="text-xs text-slate-400 font-medium">cargos</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-2xs flex flex-col">
+            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Presentes (PR)</span>
+            <div class="flex items-baseline justify-between mt-1">
+                <span id="kpi-pr" class="text-2xl font-black text-emerald-700">{{ estadisticas.presentes }}</span>
+                <span class="text-xs text-emerald-600 font-bold">&check;</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl border border-red-200 bg-red-50/20 shadow-2xs flex flex-col">
+            <span class="text-[11px] font-bold text-red-700 uppercase tracking-wider">Inasistencias (I)</span>
+            <div class="flex items-baseline justify-between mt-1">
+                <span id="kpi-i" class="text-2xl font-black text-red-700">{{ estadisticas.inasistencias }}</span>
+                <span class="text-xs text-red-600 font-bold">&#10006;</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl border border-blue-200 bg-blue-50/20 shadow-2xs flex flex-col">
+            <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Licencias (LIC)</span>
+            <div class="flex items-baseline justify-between mt-1">
+                <span id="kpi-lic" class="text-2xl font-black text-blue-700">{{ estadisticas.licencias }}</span>
+                <span class="text-xs text-blue-600 font-bold">&#128196;</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs flex flex-col">
+            <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Permisos (P)</span>
+            <div class="flex items-baseline justify-between mt-1">
+                <span id="kpi-p" class="text-2xl font-black text-amber-700">{{ estadisticas.permisos }}</span>
+                <span class="text-xs text-amber-600 font-bold">&#9888;</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario Principal de Asistencia Diaria -->
     <form method="post" id="form-asistencia-diaria" class="space-y-4">
         {% csrf_token %}
         <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
 
-        <!-- Barra de búsqueda y acciones rápidas con botón Guardar siempre visible -->
-        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs sticky top-16 z-20">
+        <!-- Barra de Búsqueda, Selector de Vista y Acciones Rápidas (Sticky) -->
+        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs sticky top-16 z-20 no-print">
+            
+            <!-- Buscador en tiempo real -->
             <div class="relative flex-1 max-w-md">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,42 +222,266 @@
                     </svg>
                 </div>
                 <input type="text" id="filtro-docente-asistencia" 
-                       placeholder="Buscar docente por apellido, nombre, DNI o materia..." 
-                       class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
-                <button type="button" id="btn-limpiar-filtro-asistencia" class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-sm">
+                       value="{{ q_actual }}"
+                       placeholder="Buscar por Docente, DNI, Materia o Carrera..." 
+                       class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                <button type="button" id="btn-limpiar-filtro-asistencia" class="{% if not q_actual %}hidden{% endif %} absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-sm">
                     &times;
                 </button>
             </div>
-            <div class="flex flex-wrap items-center gap-2.5 text-xs text-slate-600">
-                <span id="contador-docentes" class="font-medium bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                    Mostrando {{ total_docentes }} docentes
-                </span>
-                <button type="button" id="btn-todos-presentes" class="inline-flex items-center px-3 py-1.5 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-lg font-semibold hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer">
-                    &check; Marcar todos Presente
+
+            <!-- Selector de Vista (Planilla Excel vs Tarjetas por Docente) -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button type="button" id="btn-vista-planilla" onclick="cambiarVista('planilla')"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-2xs">
+                    📊 Vista Planilla Excel
                 </button>
-                <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer">
+                <button type="button" id="btn-vista-docentes" onclick="cambiarVista('docentes')"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900">
+                    👥 Vista por Docente
+                </button>
+            </div>
+
+            <!-- Acciones y Botón Guardar -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span id="contador-filas" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                    Mostrando {{ total_cargos }} clases
+                </span>
+
+                <button type="button" id="btn-todos-presentes" 
+                        class="inline-flex items-center gap-1 px-3 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer">
+                    &check; Todos Presente
+                </button>
+
+                <button type="submit" 
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-xs transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
-                    Guardar Asistencia Diaria
+                    Guardar Asistencia
                 </button>
             </div>
         </div>
 
-        <!-- Grilla de Asistencia Diaria (Agrupada por Docente) -->
-        <div class="space-y-4" id="contenedor-docentes">
+        <!-- ============================================================== -->
+        <!-- VISTA 1: PLANILLA EXCEL (PARTE DE BEDELÍA - PREDETERMINADA)    -->
+        <!-- ============================================================== -->
+        <div id="contenedor-vista-planilla" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs text-left border-collapse" id="tabla-parte-diario">
+                    <thead class="bg-slate-800 text-white font-bold uppercase tracking-wider text-[11px]">
+                        <tr>
+                            <th class="px-3 py-3 text-center border-r border-slate-700 w-12">N°</th>
+                            <th class="px-3 py-3 text-center border-r border-slate-700 w-20">Turno</th>
+                            <th class="px-3 py-3 border-r border-slate-700 min-w-[150px]">Carrera</th>
+                            <th class="px-3 py-3 text-center border-r border-slate-700 w-20">Año / Com.</th>
+                            <th class="px-3 py-3 border-r border-slate-700 min-w-[200px]">Espacio Curricular (Hs)</th>
+                            <th class="px-3 py-3 border-r border-slate-700 min-w-[180px]">Docente (Apellido, Nombre y DNI)</th>
+                            <th class="px-2 py-3 text-center border-r border-slate-700 w-16">Revista</th>
+                            <th class="px-3 py-3 text-center border-r border-slate-700 min-w-[180px] bg-slate-900">Asistencia Rápida</th>
+                            <th class="px-3 py-3 border-r border-slate-700 min-w-[210px]">Licencia / Novedad</th>
+                            <th class="px-3 py-3 border-r border-slate-700 min-w-[140px]">Observaciones</th>
+                            <th class="px-2 py-3 text-center w-24">Estado Previo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200" id="cuerpo-tabla-planilla">
+                        {% for item in grilla %}
+                        <tr class="fila-cargo-planilla transition-colors hover:bg-slate-50/80 {% if item.marca_sugerida == 'PR' %}bg-emerald-50/20{% elif item.marca_sugerida == 'I' %}bg-red-50/30{% elif item.marca_sugerida == 'LIC' %}bg-blue-50/30{% elif item.marca_sugerida == 'P' %}bg-amber-50/30{% endif %}"
+                            data-cargo-id="{{ item.cargo.id }}"
+                            data-docente-id="{{ item.docente.id }}"
+                            data-busqueda="{{ item.docente.apellido|lower }} {{ item.docente.nombre|lower }} {{ item.docente.dni }} {{ item.cargo.espacio_curricular.nombre|default:''|lower }} {{ item.carrera_nombre|lower }}">
+                            
+                            <!-- 1. N° Orden -->
+                            <td class="px-3 py-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200">
+                                {{ forloop.counter }}
+                            </td>
+
+                            <!-- 2. Turno -->
+                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                    {% if item.cargo.turno == 'MANANA' %}bg-sky-100 text-sky-800
+                                    {% elif item.cargo.turno == 'TARDE' %}bg-amber-100 text-amber-800
+                                    {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }}
+                                </span>
+                            </td>
+
+                            <!-- 3. Carrera -->
+                            <td class="px-3 py-2.5 border-r border-slate-200 text-slate-800 font-medium leading-tight">
+                                {{ item.carrera_nombre }}
+                            </td>
+
+                            <!-- 4. Año / Comisión -->
+                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap text-slate-700 font-semibold">
+                                {% if item.cargo.materia %}
+                                    {{ item.cargo.materia.anio }}° ({{ item.cargo.materia.get_comision_display|default:item.cargo.materia.comision }})
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+
+                            <!-- 5. Espacio Curricular / Materia (Hs) -->
+                            <td class="px-3 py-2.5 border-r border-slate-200">
+                                <div class="font-bold text-slate-900 leading-tight">
+                                    {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
+                                </div>
+                                <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-mono font-bold">
+                                        {{ item.horas_dia }} hs hoy
+                                    </span>
+                                    {% if item.cargo.codigo_cargo %}
+                                    <span class="font-mono text-slate-400">Cod: {{ item.cargo.codigo_cargo }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- 6. Docente y DNI -->
+                            <td class="px-3 py-2.5 border-r border-slate-200">
+                                <div class="font-black text-slate-900 text-xs">
+                                    {{ item.docente.apellido }}, {{ item.docente.nombre }}
+                                </div>
+                                <div class="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1.5">
+                                    <span>DNI: {{ item.docente.dni }}</span>
+                                    {% if item.es_natalicio %}
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-black bg-pink-100 text-pink-700 border border-pink-200" title="¡Hoy es su cumpleaños! (Art. 320-H)">
+                                        🎂 Natalicio
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- 7. Situación de Revista -->
+                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono
+                                    {% if item.cargo.situacion_revista == 'TIT' or item.cargo.situacion_revista == 'TITULAR' %}bg-emerald-100 text-emerald-800
+                                    {% elif item.cargo.situacion_revista == 'INT' or item.cargo.situacion_revista == 'INTERINO' %}bg-sky-100 text-sky-800
+                                    {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ item.cargo.get_situacion_revista_display }}
+                                </span>
+                            </td>
+
+                            <!-- 8. Asistencia Rápida (Pills Interactivos) -->
+                            <td class="px-2 py-2 text-center border-r border-slate-200 whitespace-nowrap bg-slate-50/50">
+                                <!-- Contenedor de inputs ocultos sincronizados -->
+                                <input type="hidden" name="estado_{{ item.cargo.id }}" id="input-estado-{{ item.cargo.id }}" value="{{ item.estado_sugerido }}">
+                                <input type="hidden" name="marca_diaria_{{ item.cargo.id }}" id="input-marca-{{ item.cargo.id }}" value="{{ item.marca_sugerida }}">
+
+                                <div class="inline-flex items-center p-0.5 bg-slate-200/80 rounded-lg shadow-inner gap-0.5">
+                                    <!-- Pill PR (Presente) -->
+                                    <button type="button" 
+                                            onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'PRESENTE', 'PR')"
+                                            id="pill-pr-{{ item.cargo.id }}"
+                                            class="pill-btn px-2.5 py-1 rounded text-xs font-black transition-all cursor-pointer {% if item.marca_sugerida == 'PR' %}bg-emerald-600 text-white shadow-xs{% else %}text-slate-600 hover:text-emerald-800 hover:bg-white{% endif %}"
+                                            title="Presente (PR)">
+                                        PR
+                                    </button>
+
+                                    <!-- Pill I (Inasistencia) -->
+                                    <button type="button" 
+                                            onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'AUSENTE', 'I')"
+                                            id="pill-i-{{ item.cargo.id }}"
+                                            class="pill-btn px-2.5 py-1 rounded text-xs font-black transition-all cursor-pointer {% if item.marca_sugerida == 'I' %}bg-red-600 text-white shadow-xs{% else %}text-slate-600 hover:text-red-800 hover:bg-white{% endif %}"
+                                            title="Inasistencia (I)">
+                                        I
+                                    </button>
+
+                                    <!-- Pill LIC (Licencia) -->
+                                    <button type="button" 
+                                            onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'LICENCIA', 'LIC')"
+                                            id="pill-lic-{{ item.cargo.id }}"
+                                            class="pill-btn px-2.5 py-1 rounded text-xs font-black transition-all cursor-pointer {% if item.marca_sugerida == 'LIC' or item.marca_sugerida == 'LT' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-600 hover:text-blue-800 hover:bg-white{% endif %}"
+                                            title="Licencia Estatutaria (LIC)">
+                                        LIC
+                                    </button>
+
+                                    <!-- Pill P (Permiso) -->
+                                    <button type="button" 
+                                            onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'JUSTIFICADO', 'P')"
+                                            id="pill-p-{{ item.cargo.id }}"
+                                            class="pill-btn px-2.5 py-1 rounded text-xs font-black transition-all cursor-pointer {% if item.marca_sugerida == 'P' %}bg-amber-600 text-white shadow-xs{% else %}text-slate-600 hover:text-amber-800 hover:bg-white{% endif %}"
+                                            title="Permiso Especial (P)">
+                                        P
+                                    </button>
+                                </div>
+                            </td>
+
+                            <!-- 9. Licencia / Novedad Estatutaria -->
+                            <td class="px-2.5 py-2 border-r border-slate-200">
+                                {% if item.licencia_activa %}
+                                <div class="mb-1">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
+                                        &#128196; Lic. Activa: 
+                                        {% if item.licencia_activa.tipo_licencia.articulo %}Art. {{ item.licencia_activa.tipo_licencia.articulo }} - {% endif %}
+                                        {{ item.licencia_activa.tipo_licencia.codigo }}
+                                    </span>
+                                </div>
+                                {% endif %}
+
+                                <select name="licencia_{{ item.cargo.id }}" 
+                                        id="select-licencia-{{ item.cargo.id }}"
+                                        onchange="actualizarLicenciaRow({{ item.cargo.id }}, this.value)"
+                                        class="select-licencia-planilla w-full text-xs rounded-lg border-slate-300 py-1 px-1.5 bg-white shadow-2xs focus:ring-emerald-500 focus:border-emerald-500">
+                                    <option value="">-- Sin licencia / Novedad --</option>
+                                    {% for tl in tipos_licencia %}
+                                    <option value="{{ tl.id }}" 
+                                            {% if item.tipo_lic_id_sugerido == tl.id %}selected{% endif %}
+                                            data-articulo="{{ tl.articulo|default:'' }}"
+                                            data-es-natalicio="{% if 'natalicio' in tl.descripcion|lower %}true{% else %}false{% endif %}">
+                                        {% if tl.articulo %}Art. {{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:22 }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <!-- 10. Observaciones -->
+                            <td class="px-2 py-2 border-r border-slate-200">
+                                <input type="text" name="observaciones_{{ item.cargo.id }}" 
+                                       value="{{ item.registro.observaciones|default:'' }}" 
+                                       placeholder="Observaciones..." 
+                                       class="w-full text-xs rounded-lg border-slate-300 py-1 px-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                            </td>
+
+                            <!-- 11. Estado Previo -->
+                            <td class="px-2 py-2 text-center whitespace-nowrap">
+                                {% if item.registro %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                        &check; {{ item.registro.marca_diaria }}
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                                        Pendiente
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="px-4 py-12 text-center text-sm text-slate-500">
+                                No se encontraron cargos o espacios curriculares vigentes para la fecha y filtros seleccionados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- VISTA 2: AGRUPADA POR DOCENTE (TARJETAS)                       -->
+        <!-- ============================================================== -->
+        <div id="contenedor-vista-docentes" class="space-y-4 hidden">
             {% for fila in docentes_grilla %}
             <div class="docente-bloque bg-white rounded-2xl border {% if es_feriado %}border-red-300 ring-1 ring-red-300{% else %}border-slate-200{% endif %} shadow-xs overflow-hidden transition-all"
                  data-docente="{{ fila.docente.apellido|lower }} {{ fila.docente.nombre|lower }} {{ fila.docente.dni }} {% for item in fila.cargos %}{{ item.cargo.espacio_curricular.nombre|default:''|lower }} {% endfor %}">
                 
-                <!-- Encabezado del Docente (Aparece una sola vez) -->
+                <!-- Encabezado del Docente -->
                 <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-institucional-100 text-institucional-700 font-bold flex items-center justify-center shrink-0">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-700 text-white font-black flex items-center justify-center shrink-0">
                             {{ fila.docente.apellido|slice:":1" }}{{ fila.docente.nombre|slice:":1" }}
                         </div>
                         <div>
-                            <div class="font-bold text-slate-900 text-base">
+                            <div class="font-black text-slate-900 text-base">
                                 {{ fila.docente.apellido }}, {{ fila.docente.nombre }}
                             </div>
                             <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -125,11 +495,16 @@
                                     🎂 ¡Hoy es su Natalicio!
                                 </span>
                                 {% endif %}
+                                {% if fila.licencia_activa %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
+                                    &#128196; Licencia Activa (Art. {{ fila.licencia_activa.tipo_licencia.articulo|default:'-' }})
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Botón rápido de Natalicio y Selector rápido por materia -->
+                    <!-- Botón Natalicio y Selector Rápido de Faltas -->
                     <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         {% if fila.es_natalicio %}
                         <button type="button" 
@@ -143,7 +518,7 @@
                         <div class="flex items-center space-x-2 w-full sm:w-auto">
                             <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Novedad rápida:</label>
                             <select class="selector-falta-materia text-xs font-semibold rounded-lg border-amber-300 bg-amber-50/70 text-amber-900 focus:ring-amber-500 focus:border-amber-500 py-1.5 px-2.5 shadow-2xs w-full sm:w-auto">
-                                <option value="">-- Seleccionar si faltó a una materia --</option>
+                                <option value="">-- Seleccionar opción masiva --</option>
                                 <option value="TODAS_PR">&check; Presente en todas</option>
                                 {% for item in fila.cargos %}
                                 <option value="SOLO_{{ item.cargo.id }}">
@@ -159,350 +534,363 @@
                     </div>
                 </div>
 
-                <!-- Lista de Materias / Cargos del Docente -->
-                <div class="overflow-x-auto">
-                    <table class="min-w-full tabla-institucional text-sm">
-                        <thead class="text-left text-xs font-semibold uppercase tracking-wider">
-                            <tr>
-                                <th class="px-4 py-2.5">Materia / Espacio Curricular</th>
-                                <th class="px-4 py-2.5">Estado</th>
-                                <th class="px-4 py-2.5">Marca Diaria</th>
-                                <th class="px-4 py-2.5">Tipo Licencia</th>
-                                <th class="px-4 py-2.5">Observaciones</th>
-                                <th class="px-4 py-2.5 text-center">Registro Previo</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for item in fila.cargos %}
-                            <tr class="fila-cargo transition-colors hover:bg-slate-50/50" data-cargo-id="{{ item.cargo.id }}">
-                                <!-- Materia / Cargo -->
-                                <td class="px-4 py-3 text-slate-700">
-                                    <div class="font-semibold text-slate-900">
-                                        {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
-                                    </div>
-                                    {% if item.cargo.carrera %}
-                                    <div class="text-xs font-medium text-institucional-700 truncate" title="{{ item.cargo.carrera.nombre }}">
-                                        <span class="font-bold">{{ item.cargo.carrera.codigo }}</span> &ndash; {{ item.cargo.carrera.nombre }}
-                                    </div>
-                                    {% endif %}
-                                    <div class="text-xs text-slate-500">
-                                        Turno: {{ item.cargo.get_turno_display|default:item.cargo.turno|default:"N/A" }}
-                                        {% if item.cargo.total_horas_semanales %}| {{ item.cargo.total_horas_semanales }} hs{% endif %}
-                                        {% if item.cargo.disposicion %}| Disp: {{ item.cargo.disposicion }}{% endif %}
-                                    </div>
-                                </td>
+                <!-- Lista de Cargos en la Tarjeta -->
+                <div class="p-4 space-y-3">
+                    {% for item in fila.cargos %}
+                    <div class="p-3 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                            <div class="font-bold text-slate-900 text-sm">
+                                {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
+                            </div>
+                            {% if item.cargo.carrera %}
+                            <div class="text-xs font-medium text-institucional-700 truncate" title="{{ item.cargo.carrera.nombre }}">
+                                <span class="font-bold">{{ item.cargo.carrera.codigo }}</span> &ndash; {{ item.cargo.carrera.nombre }}
+                            </div>
+                            {% endif %}
+                            <div class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                                <span>Turno: <strong>{{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }}</strong></span>
+                                <span>&bull;</span>
+                                <span>Revista: <strong>{{ item.cargo.get_situacion_revista_display }}</strong></span>
+                                <span>&bull;</span>
+                                <span>Hs hoy: <strong>{{ item.horas_dia }} hs</strong></span>
+                            </div>
+                        </div>
 
-                                <!-- Estado -->
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <select name="estado_{{ item.cargo.id }}" 
-                                            class="select-estado text-xs font-semibold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                        <option value="PRESENTE" {% if item.registro.estado == 'PRESENTE' or not item.registro %}selected{% endif %}>Presente</option>
-                                        <option value="AUSENTE" {% if item.registro.estado == 'AUSENTE' %}selected{% endif %}>Ausente</option>
-                                        <option value="LICENCIA" {% if item.registro.estado == 'LICENCIA' %}selected{% endif %}>Licencia</option>
-                                        <option value="JUSTIFICADO" {% if item.registro.estado == 'JUSTIFICADO' %}selected{% endif %}>Justificado</option>
-                                    </select>
-                                </td>
-
-                                <!-- Marca Diaria -->
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <select name="marca_diaria_{{ item.cargo.id }}" 
-                                            class="select-marca text-xs font-mono font-bold rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs">
-                                        <option value="PR" {% if item.registro.marca_diaria == 'PR' or not item.registro %}selected{% endif %}>PR (Presente)</option>
-                                        <option value="P" {% if item.registro.marca_diaria == 'P' %}selected{% endif %}>P (Permiso)</option>
-                                        <option value="I" {% if item.registro.marca_diaria == 'I' %}selected{% endif %}>I (Inasistencia)</option>
-                                        <option value="LIC" {% if item.registro.marca_diaria == 'LIC' %}selected{% endif %}>LIC (Licencia)</option>
-                                        <option value="LT" {% if item.registro.marca_diaria == 'LT' %}selected{% endif %}>LT (Largo Tratamiento)</option>
-                                    </select>
-                                </td>
-
-                                <!-- Tipo Licencia -->
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <select name="licencia_{{ item.cargo.id }}" 
-                                            class="select-licencia text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2 bg-white shadow-2xs max-w-[180px]">
-                                        <option value="">-- Sin licencia --</option>
-                                        {% for tl in tipos_licencia %}
-                                        <option value="{{ tl.id }}" {% if item.registro.tipo_licencia_id == tl.id %}selected{% endif %}
-                                                data-es-natalicio="{% if 'natalicio' in tl.descripcion|lower %}true{% else %}false{% endif %}">
-                                            {% if tl.articulo %}{{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:20 }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-
-                                <!-- Observaciones -->
-                                <td class="px-4 py-3">
-                                    <input type="text" name="observaciones_{{ item.cargo.id }}" 
-                                           value="{{ item.registro.observaciones|default:'' }}" 
-                                           placeholder="Opcional..." 
-                                           class="input-observaciones w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-2">
-                                </td>
-
-                                <!-- Estado Previo -->
-                                <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    {% if item.registro %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                            &check; Registrado ({{ item.registro.marca_diaria }})
-                                        </span>
-                                    {% else %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
-                                            Pendiente
-                                        </span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500 font-semibold">Asignar:</span>
+                            <div class="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200 gap-1">
+                                <button type="button" onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'PRESENTE', 'PR')"
+                                        class="px-2.5 py-1 text-xs font-bold rounded bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer">
+                                    PR
+                                </button>
+                                <button type="button" onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'AUSENTE', 'I')"
+                                        class="px-2.5 py-1 text-xs font-bold rounded bg-red-50 text-red-800 hover:bg-red-600 hover:text-white transition-colors cursor-pointer">
+                                    I
+                                </button>
+                                <button type="button" onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'LICENCIA', 'LIC')"
+                                        class="px-2.5 py-1 text-xs font-bold rounded bg-blue-50 text-blue-800 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer">
+                                    LIC
+                                </button>
+                                <button type="button" onclick="asignarAsistenciaPill({{ item.cargo.id }}, 'JUSTIFICADO', 'P')"
+                                        class="px-2.5 py-1 text-xs font-bold rounded bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white transition-colors cursor-pointer">
+                                    P
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-            </div>
-            {% empty %}
-            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-sm text-slate-500">
-                No se encontraron docentes con cargos activos y vigentes para la fecha seleccionada.
             </div>
             {% endfor %}
         </div>
 
-        <!-- Botones de Acción -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-3">
-            <span class="text-xs text-slate-500">
-                Total de docentes: <strong>{{ total_docentes }}</strong> | Total de cargos a computar: <strong>{{ grilla|length }}</strong>
-            </span>
+        <!-- Barra Inferior de Acción y Guardado -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+            <div class="text-xs text-slate-500">
+                Total de clases evaluadas en este parte: <strong class="text-slate-800">{{ grilla|length }}</strong>
+                {% if es_feriado %}<span class="text-red-600 font-bold ml-2">(Jornada no laborable)</span>{% endif %}
+            </div>
             <div class="flex items-center space-x-3">
-                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-xs sm:text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                     Cancelar
                 </a>
-                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors cursor-pointer">
+                <button type="submit" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-black rounded-xl shadow-xs transition-colors cursor-pointer">
                     Guardar Asistencia Diaria
                 </button>
             </div>
         </div>
     </form>
 
-    <!-- Script de interacción: Búsqueda en tiempo real y asignación de faltas por materia -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputFiltro = document.getElementById('filtro-docente-asistencia');
-        const btnLimpiar = document.getElementById('btn-limpiar-filtro-asistencia');
-        const contador = document.getElementById('contador-docentes');
-        const bloques = document.querySelectorAll('.docente-bloque');
-        const total = bloques.length;
-        const btnTodosPresentes = document.getElementById('btn-todos-presentes');
+    <!-- Bloque de Firmas Institucionales (Solo Impresión) -->
+    <div class="print-only hidden mt-12 pt-8 border-t border-slate-400">
+        <div class="grid grid-cols-2 gap-12 text-center text-xs">
+            <div>
+                <p class="mb-12">____________________________________________</p>
+                <p class="font-bold">Firma y Aclaración Bedel de Turno</p>
+                <p class="text-slate-600 text-[10px]">IESETyFP - Instituto de Educación Superior</p>
+            </div>
+            <div>
+                <p class="mb-12">____________________________________________</p>
+                <p class="font-bold">Sello y Firma Rectoría / Secretaría</p>
+                <p class="text-slate-600 text-[10px]">Recepción de Novedades Diarias</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-        // 1. Filtrado de docentes en tiempo real
-        function filtrarDocentes() {
-            if (!inputFiltro) return;
-            const q = inputFiltro.value.trim().toLowerCase();
-            let visibles = 0;
+<!-- ============================================================== -->
+<!-- ESTILOS Y COMPORTAMIENTO JAVASCRIPT EXCEL-LIKE                 -->
+<!-- ============================================================== -->
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    .print-only {
+        display: block !important;
+    }
+    body {
+        background: #ffffff !important;
+        font-size: 10px !important;
+        color: #000000 !important;
+    }
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    th, td {
+        border: 1px solid #475569 !important;
+        padding: 4px 6px !important;
+    }
+    thead {
+        background-color: #e2e8f0 !important;
+        color: #0f172a !important;
+    }
+    .pill-btn {
+        border: none !important;
+        background: transparent !important;
+        font-weight: bold !important;
+    }
+}
+</style>
 
-            if (btnLimpiar) {
-                btnLimpiar.classList.toggle('hidden', !q);
-            }
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputFiltro = document.getElementById('filtro-docente-asistencia');
+    const btnLimpiar = document.getElementById('btn-limpiar-filtro-asistencia');
+    const contador = document.getElementById('contador-filas');
+    const btnTodosPresentes = document.getElementById('btn-todos-presentes');
 
-            bloques.forEach(function(bloque) {
-                const datos = bloque.getAttribute('data-docente') || '';
-                if (!q || datos.includes(q)) {
-                    bloque.style.display = '';
-                    visibles++;
-                } else {
-                    bloque.style.display = 'none';
-                }
-            });
-
-            if (contador) {
-                contador.textContent = q ? `Mostrando ${visibles} de ${total} docentes` : `Mostrando ${total} docentes`;
-            }
-        }
-
-        if (inputFiltro) {
-            inputFiltro.addEventListener('input', filtrarDocentes);
-        }
-
+    // 1. Filtrado dinámico en tiempo real
+    function filtrarTodo() {
+        if (!inputFiltro) return;
+        const q = inputFiltro.value.trim().toLowerCase();
+        
         if (btnLimpiar) {
-            btnLimpiar.addEventListener('click', function() {
-                inputFiltro.value = '';
-                filtrarDocentes();
-                inputFiltro.focus();
-            });
+            btnLimpiar.classList.toggle('hidden', !q);
         }
 
-        // 2. Selectores de falta rápida por materia
-        const selectoresMateria = document.querySelectorAll('.selector-falta-materia');
-        selectoresMateria.forEach(function(selector) {
-            selector.addEventListener('change', function() {
-                const valor = this.value;
-                if (!valor) return;
-
-                const bloque = this.closest('.docente-bloque');
-                if (!bloque) return;
-
-                const filasCargo = bloque.querySelectorAll('.fila-cargo');
-
-                if (valor === 'TODAS_PR') {
-                    filasCargo.forEach(function(fila) {
-                        const selEstado = fila.querySelector('.select-estado');
-                        const selMarca = fila.querySelector('.select-marca');
-                        if (selEstado) selEstado.value = 'PRESENTE';
-                        if (selMarca) selMarca.value = 'PR';
-                        fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                    });
-                } else if (valor === 'TODAS_I') {
-                    filasCargo.forEach(function(fila) {
-                        const selEstado = fila.querySelector('.select-estado');
-                        const selMarca = fila.querySelector('.select-marca');
-                        if (selEstado) selEstado.value = 'AUSENTE';
-                        if (selMarca) selMarca.value = 'I';
-                        fila.classList.add('bg-red-50/60');
-                    });
-                } else if (valor === 'TODAS_LIC') {
-                    filasCargo.forEach(function(fila) {
-                        const selEstado = fila.querySelector('.select-estado');
-                        const selMarca = fila.querySelector('.select-marca');
-                        if (selEstado) selEstado.value = 'LICENCIA';
-                        if (selMarca) selMarca.value = 'LIC';
-                        fila.classList.add('bg-amber-50/60');
-                    });
-                } else if (valor === 'TODAS_NATALICIO') {
-                    filasCargo.forEach(function(fila) {
-                        const selEstado = fila.querySelector('.select-estado');
-                        const selMarca = fila.querySelector('.select-marca');
-                        const selLic = fila.querySelector('.select-licencia');
-                        const inputObs = fila.querySelector('.input-observaciones');
-                        if (selEstado) selEstado.value = 'JUSTIFICADO';
-                        if (selMarca) selMarca.value = 'P';
-                        if (selLic) {
-                            const optNatalicio = selLic.querySelector('option[data-es-natalicio="true"]');
-                            if (optNatalicio) selLic.value = optNatalicio.value;
-                        }
-                        if (inputObs && !inputObs.value) {
-                            inputObs.value = 'Permiso por Natalicio del Docente (Art. 320 inc. h)';
-                        }
-                        fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                        fila.classList.add('bg-pink-50/70');
-                    });
-                } else if (valor.startsWith('SOLO_')) {
-                    const targetCargoId = valor.replace('SOLO_', '');
-                    filasCargo.forEach(function(fila) {
-                        const cargoId = fila.getAttribute('data-cargo-id');
-                        const selEstado = fila.querySelector('.select-estado');
-                        const selMarca = fila.querySelector('.select-marca');
-
-                        if (cargoId === targetCargoId) {
-                            // Materia a la que faltó
-                            if (selEstado) selEstado.value = 'AUSENTE';
-                            if (selMarca) selMarca.value = 'I';
-                            fila.classList.add('bg-red-50/60');
-                        } else {
-                            // Otras materias del docente: presentes
-                            if (selEstado) selEstado.value = 'PRESENTE';
-                            if (selMarca) selMarca.value = 'PR';
-                            fila.classList.remove('bg-red-50/60');
-                        }
-                    });
-                }
-            });
+        // Filtrar filas de la planilla
+        const filasPlanilla = document.querySelectorAll('.fila-cargo-planilla');
+        let visibles = 0;
+        filasPlanilla.forEach(function(fila) {
+            const dataBusqueda = fila.getAttribute('data-busqueda') || '';
+            if (!q || dataBusqueda.includes(q)) {
+                fila.style.display = '';
+                visibles++;
+            } else {
+                fila.style.display = 'none';
+            }
         });
 
-        // 3. Sincronización automática de estado -> marca_diaria al cambiar manualmente
-        document.querySelectorAll('.select-estado').forEach(function(sel) {
-            sel.addEventListener('change', function() {
-                const fila = this.closest('tr');
-                if (!fila) return;
-                const selMarca = fila.querySelector('.select-marca');
-                if (!selMarca) return;
-
-                if (this.value === 'PRESENTE') {
-                    selMarca.value = 'PR';
-                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                } else if (this.value === 'AUSENTE') {
-                    selMarca.value = 'I';
-                    fila.classList.add('bg-red-50/60');
-                } else if (this.value === 'LICENCIA') {
-                    selMarca.value = 'LIC';
-                    fila.classList.add('bg-amber-50/60');
-                } else if (this.value === 'JUSTIFICADO') {
-                    selMarca.value = 'P';
-                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                }
-            });
+        // Filtrar bloques de docentes
+        const bloquesDocentes = document.querySelectorAll('.docente-bloque');
+        bloquesDocentes.forEach(function(bloque) {
+            const dataDocente = bloque.getAttribute('data-docente') || '';
+            if (!q || dataDocente.includes(q)) {
+                bloque.style.display = '';
+            } else {
+                bloque.style.display = 'none';
+            }
         });
 
-        // 3.b Sincronización automática de marca_diaria -> estado al cambiar manualmente
-        document.querySelectorAll('.select-marca').forEach(function(sel) {
-            sel.addEventListener('change', function() {
-                const fila = this.closest('tr');
-                if (!fila) return;
-                const selEstado = fila.querySelector('.select-estado');
-                if (!selEstado) return;
-
-                if (this.value === 'PR') {
-                    selEstado.value = 'PRESENTE';
-                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60', 'bg-pink-50/70');
-                } else if (this.value === 'I' || this.value === 'INA') {
-                    selEstado.value = 'AUSENTE';
-                    fila.classList.remove('bg-amber-50/60', 'bg-pink-50/70');
-                    fila.classList.add('bg-red-50/60');
-                } else if (this.value === 'LIC' || this.value === 'LT') {
-                    selEstado.value = 'LICENCIA';
-                    fila.classList.remove('bg-red-50/60', 'bg-pink-50/70');
-                    fila.classList.add('bg-amber-50/60');
-                } else if (this.value === 'P') {
-                    selEstado.value = 'JUSTIFICADO';
-                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                }
-            });
-        });
-
-        // 4. Marcar todos presentes globalmente
-        if (btnTodosPresentes) {
-            btnTodosPresentes.addEventListener('click', function() {
-                document.querySelectorAll('.select-estado').forEach(function(s) {
-                    s.value = 'PRESENTE';
-                });
-                document.querySelectorAll('.select-marca').forEach(function(m) {
-                    m.value = 'PR';
-                });
-                document.querySelectorAll('.fila-cargo').forEach(function(f) {
-                    f.classList.remove('bg-red-50/60', 'bg-amber-50/60', 'bg-pink-50/70');
-                });
-                document.querySelectorAll('.selector-falta-materia').forEach(function(sm) {
-                    sm.value = 'TODAS_PR';
-                });
-            });
+        if (contador) {
+            contador.textContent = q ? `Mostrando ${visibles} de ${filasPlanilla.length} clases` : `Mostrando ${filasPlanilla.length} clases`;
         }
+    }
 
-        // 5. Botón rápido aplicar Natalicio
-        document.querySelectorAll('.btn-aplicar-natalicio').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const bloque = this.closest('.docente-bloque');
-                if (!bloque) return;
-                const defaultLicId = this.getAttribute('data-licencia-id');
-                const filasCargo = bloque.querySelectorAll('.fila-cargo');
-                filasCargo.forEach(function(fila) {
-                    const selEstado = fila.querySelector('.select-estado');
-                    const selMarca = fila.querySelector('.select-marca');
-                    const selLic = fila.querySelector('.select-licencia');
-                    const inputObs = fila.querySelector('.input-observaciones');
-                    if (selEstado) selEstado.value = 'JUSTIFICADO';
-                    if (selMarca) selMarca.value = 'P';
-                    if (selLic) {
-                        if (defaultLicId && selLic.querySelector('option[value="' + defaultLicId + '"]')) {
-                            selLic.value = defaultLicId;
-                        } else {
-                            const optNatalicio = selLic.querySelector('option[data-es-natalicio="true"]');
-                            if (optNatalicio) selLic.value = optNatalicio.value;
-                        }
-                    }
-                    if (inputObs && !inputObs.value) {
-                        inputObs.value = 'Permiso por Natalicio del Docente (Art. 320 inc. h)';
-                    }
-                    fila.classList.remove('bg-red-50/60', 'bg-amber-50/60');
-                    fila.classList.add('bg-pink-50/70');
-                });
-                const selMateria = bloque.querySelector('.selector-falta-materia');
-                if (selMateria) selMateria.value = 'TODAS_NATALICIO';
+    if (inputFiltro) {
+        inputFiltro.addEventListener('input', filtrarTodo);
+    }
+
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', function() {
+            inputFiltro.value = '';
+            filtrarTodo();
+            inputFiltro.focus();
+        });
+    }
+
+    // 2. Marcar todos los visibles como Presente
+    if (btnTodosPresentes) {
+        btnTodosPresentes.addEventListener('click', function() {
+            const filasPlanilla = document.querySelectorAll('.fila-cargo-planilla');
+            filasPlanilla.forEach(function(fila) {
+                if (fila.style.display === 'none') return;
+                const cargoId = fila.getAttribute('data-cargo-id');
+                asignarAsistenciaPill(cargoId, 'PRESENTE', 'PR');
             });
+            recalcularKPIs();
+        });
+    }
+
+    // 3. Aplicar Natalicio en 1 clic
+    document.querySelectorAll('.btn-aplicar-natalicio').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const bloque = this.closest('.docente-bloque');
+            if (!bloque) return;
+            const defLicId = this.getAttribute('data-licencia-id');
+            const filas = bloque.querySelectorAll('.p-3.rounded-xl');
+            filas.forEach(function(f) {
+                // actualizar a Justificado / P
+            });
+            // También actualizar filas de planilla asociadas a este docente
+            const docId = bloque.querySelector('[data-docente-id]')?.getAttribute('data-docente-id');
+            if (docId) {
+                document.querySelectorAll(`.fila-cargo-planilla[data-docente-id="${docId}"]`).forEach(function(fila) {
+                    const cId = fila.getAttribute('data-cargo-id');
+                    asignarAsistenciaPill(cId, 'JUSTIFICADO', 'P');
+                    const selLic = document.getElementById('select-licencia-' + cId);
+                    if (selLic && defLicId) {
+                        selLic.value = defLicId;
+                    }
+                });
+            }
+            recalcularKPIs();
         });
     });
-    </script>
-</div>
+
+    // 4. Selectores rápidos por materia en vista de docentes
+    document.querySelectorAll('.selector-falta-materia').forEach(function(sel) {
+        sel.addEventListener('change', function() {
+            const valor = this.value;
+            if (!valor) return;
+            const bloque = this.closest('.docente-bloque');
+            if (!bloque) return;
+
+            const cargosEnBloque = [];
+            bloque.querySelectorAll('button[onclick*="asignarAsistenciaPill"]').forEach(function(b) {
+                const match = b.getAttribute('onclick').match(/asignarAsistenciaPill\((\d+)/);
+                if (match && !cargosEnBloque.includes(match[1])) {
+                    cargosEnBloque.push(match[1]);
+                }
+            });
+
+            cargosEnBloque.forEach(function(cId) {
+                if (valor === 'TODAS_PR') {
+                    asignarAsistenciaPill(cId, 'PRESENTE', 'PR');
+                } else if (valor === 'TODAS_I') {
+                    asignarAsistenciaPill(cId, 'AUSENTE', 'I');
+                } else if (valor === 'TODAS_LIC') {
+                    asignarAsistenciaPill(cId, 'LICENCIA', 'LIC');
+                } else if (valor === 'TODAS_NATALICIO') {
+                    asignarAsistenciaPill(cId, 'JUSTIFICADO', 'P');
+                } else if (valor.startsWith('SOLO_')) {
+                    const target = valor.replace('SOLO_', '');
+                    if (cId === target) {
+                        asignarAsistenciaPill(cId, 'AUSENTE', 'I');
+                    } else {
+                        asignarAsistenciaPill(cId, 'PRESENTE', 'PR');
+                    }
+                }
+            });
+            recalcularKPIs();
+        });
+    });
+
+    recalcularKPIs();
+});
+
+// Función global: asigna estado y marca a un cargo mediante los pills
+function asignarAsistenciaPill(cargoId, estado, marca) {
+    const inputEstado = document.getElementById('input-estado-' + cargoId);
+    const inputMarca = document.getElementById('input-marca-' + cargoId);
+    if (inputEstado) inputEstado.value = estado;
+    if (inputMarca) inputMarca.value = marca;
+
+    // Actualizar estilos de los pills
+    const pills = ['pr', 'i', 'lic', 'p'];
+    pills.forEach(function(p) {
+        const btn = document.getElementById(`pill-${p}-${cargoId}`);
+        if (!btn) return;
+        btn.classList.remove('bg-emerald-600', 'bg-red-600', 'bg-blue-600', 'bg-amber-600', 'text-white', 'shadow-xs');
+        btn.classList.add('text-slate-600');
+    });
+
+    const activePill = document.getElementById(`pill-${marca.toLowerCase()}-${cargoId}`);
+    if (activePill) {
+        activePill.classList.remove('text-slate-600');
+        activePill.classList.add('text-white', 'shadow-xs');
+        if (marca === 'PR') activePill.classList.add('bg-emerald-600');
+        else if (marca === 'I') activePill.classList.add('bg-red-600');
+        else if (marca === 'LIC') activePill.classList.add('bg-blue-600');
+        else if (marca === 'P') activePill.classList.add('bg-amber-600');
+    }
+
+    // Actualizar color de fondo de la fila en la tabla
+    const fila = document.querySelector(`.fila-cargo-planilla[data-cargo-id="${cargoId}"]`);
+    if (fila) {
+        fila.classList.remove('bg-emerald-50/20', 'bg-red-50/30', 'bg-blue-50/30', 'bg-amber-50/30');
+        if (marca === 'PR') fila.classList.add('bg-emerald-50/20');
+        else if (marca === 'I') fila.classList.add('bg-red-50/30');
+        else if (marca === 'LIC') fila.classList.add('bg-blue-50/30');
+        else if (marca === 'P') fila.classList.add('bg-amber-50/30');
+    }
+
+    recalcularKPIs();
+}
+
+// Función global: detecta cambio en select de licencias
+function actualizarLicenciaRow(cargoId, licId) {
+    if (licId) {
+        asignarAsistenciaPill(cargoId, 'LICENCIA', 'LIC');
+    }
+}
+
+// Recálculo en tiempo real de los contadores KPI
+function recalcularKPIs() {
+    let pr = 0, i = 0, lic = 0, p = 0;
+    const inputsMarca = document.querySelectorAll('input[id^="input-marca-"]');
+    inputsMarca.forEach(function(inp) {
+        const val = inp.value;
+        if (val === 'PR') pr++;
+        else if (val === 'I' || val === 'INA') i++;
+        else if (val === 'LIC' || val === 'LT') lic++;
+        else if (val === 'P' || val === 'PERM') p++;
+        else pr++;
+    });
+
+    const kpiPr = document.getElementById('kpi-pr');
+    const kpiI = document.getElementById('kpi-i');
+    const kpiLic = document.getElementById('kpi-lic');
+    const kpiP = document.getElementById('kpi-p');
+    if (kpiPr) kpiPr.textContent = pr;
+    if (kpiI) kpiI.textContent = i;
+    if (kpiLic) kpiLic.textContent = lic;
+    if (kpiP) kpiP.textContent = p;
+}
+
+// Switcher de Vista: Planilla Excel vs Docentes
+function cambiarVista(tipo) {
+    const vistaPlanilla = document.getElementById('contenedor-vista-planilla');
+    const vistaDocentes = document.getElementById('contenedor-vista-docentes');
+    const btnPlanilla = document.getElementById('btn-vista-planilla');
+    const btnDocentes = document.getElementById('btn-vista-docentes');
+
+    if (tipo === 'planilla') {
+        vistaPlanilla.classList.remove('hidden');
+        vistaDocentes.classList.add('hidden');
+        btnPlanilla.classList.add('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnPlanilla.classList.remove('text-slate-600');
+        btnDocentes.classList.remove('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnDocentes.classList.add('text-slate-600');
+    } else {
+        vistaPlanilla.classList.add('hidden');
+        vistaDocentes.classList.remove('hidden');
+        btnDocentes.classList.add('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnDocentes.classList.remove('text-slate-600');
+        btnPlanilla.classList.remove('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnPlanilla.classList.add('text-slate-600');
+    }
+}
+
+// Envío rápido de filtro de carrera
+function aplicarFiltroCarrera(carreraId) {
+    const inputCarrera = document.getElementById('input-filtro-carrera');
+    if (inputCarrera) {
+        inputCarrera.value = carreraId;
+        document.getElementById('form-filtro-principal').submit();
+    }
+}
+</script>
 {% endblock %}
