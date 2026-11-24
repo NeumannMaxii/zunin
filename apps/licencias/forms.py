@@ -214,8 +214,14 @@ class JustificacionDiferidaForm(TailwindForm):
     numero_disposicion = forms.CharField(
         max_length=50,
         required=False,
-        label="Número de Disposición / Instrumento",
-        widget=forms.TextInput(attrs={"placeholder": "Ej: Disp. Interna 042/2026"}),
+        label="Número de Disposición Interna",
+        widget=forms.TextInput(
+            attrs={
+                "readonly": "readonly",
+                "class": "bg-slate-100 cursor-not-allowed font-mono font-bold text-slate-800",
+                "placeholder": "Asignación automática (NNN/AAAA)",
+            }
+        ),
     )
     numero_resolucion = forms.CharField(
         max_length=50,
@@ -257,6 +263,19 @@ class JustificacionDiferidaForm(TailwindForm):
             self.fields["tipo_licencia"].queryset = (
                 filtrar_tipos_licencia_por_regimen(cargo=cargo_target)
             )
+
+        # Sugerir siguiente número de disposición oficial no editable (Ticket 20)
+        if not self.initial.get("numero_disposicion"):
+            from apps.licencias.services import (
+                obtener_siguiente_correlativo_disposicion,
+            )
+
+            try:
+                self.fields["numero_disposicion"].initial = (
+                    obtener_siguiente_correlativo_disposicion(reservar=False)
+                )
+            except Exception:
+                pass
 
     def clean(self):
         cleaned_data = super().clean()
@@ -388,21 +407,16 @@ class JustificacionDiferidaForm(TailwindForm):
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
 
-        # Validación de duplicación de Disposición Interna (Ticket 19.3)
+        # Validación de Instrumento Legal (Ticket 19.3 / Ticket 20)
         tipo_inst = cleaned_data.get("tipo_instrumento") or "DISPOSICION"
-        num_disp = cleaned_data.get("numero_disposicion")
-        if tipo_inst == "DISPOSICION" and num_disp:
-            from apps.licencias.services import verificar_disposicion_duplicada
-
-            target_anio = fecha_desde.year if fecha_desde else (
-                registro.fecha.year if registro and registro.fecha else None
-            )
-            dup_info = verificar_disposicion_duplicada(
-                numero_str=num_disp,
-                anio=target_anio,
-            )
-            if dup_info["duplicado"]:
-                self.add_error("numero_disposicion", dup_info["mensaje"])
+        if tipo_inst == "RESOLUCION":
+            num_res = cleaned_data.get("numero_resolucion")
+            if not num_res or not num_res.strip():
+                self.add_error(
+                    "numero_resolucion",
+                    "Debe ingresar el número de Resolución Ministerial externa.",
+                )
+        # Si es DISPOSICION, la numeración es 100% autoincremental no editable y se genera en save()
 
         return cleaned_data
 
@@ -410,6 +424,8 @@ class JustificacionDiferidaForm(TailwindForm):
         """
         Aplica la justificación delegando a la lógica individual del modelo
         o al servicio de rango con omisión de feriados y regla RN-03.
+        Ticket 20: Si es Disposición Interna, se auto-asigna y reserva
+        atómicamente el siguiente correlativo oficial NNN/AAAA.
         """
         if not self.is_valid():
             raise ValueError("No se puede guardar un formulario con errores.")
@@ -419,13 +435,31 @@ class JustificacionDiferidaForm(TailwindForm):
         tipo_licencia = self.cleaned_data.get("tipo_licencia")
         tipo_instrumento = self.cleaned_data.get("tipo_instrumento") or "DISPOSICION"
         numero_resolucion = self.cleaned_data.get("numero_resolucion")
-        numero_disposicion = self.cleaned_data.get("numero_disposicion")
         observaciones = self.cleaned_data.get("observaciones")
+        fecha_desde = self.cleaned_data.get("fecha_desde")
 
         if tipo_instrumento == "RESOLUCION" and numero_resolucion:
-            num_final = numero_resolucion
+            num_final = numero_resolucion.strip()
         else:
-            num_final = numero_disposicion or numero_resolucion
+            # Ticket 20: Disposición Interna 100% autoincremental no editable
+            from apps.licencias.services import (
+                obtener_siguiente_correlativo_disposicion,
+            )
+
+            target_anio = (
+                fecha_desde.year
+                if fecha_desde
+                else (
+                    registro.fecha.year
+                    if registro and registro.fecha
+                    else datetime.date.today().year
+                )
+            )
+            num_final = obtener_siguiente_correlativo_disposicion(
+                anio=target_anio,
+                reservar=True,
+                usuario=usuario,
+            )
 
         if registro:
             registro.justificar_con_formulario(
@@ -532,7 +566,7 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
                 docente=target_docente, activo=True
             )
 
-        # Sugerir correlativo automático si es nueva licencia (Ticket 19.3)
+        # Sugerir correlativo automático si es nueva licencia (Ticket 19.3 / Ticket 20)
         if not self.instance.pk and not self.initial.get("instrumento_legal"):
             from apps.licencias.services import (
                 obtener_siguiente_correlativo_disposicion,
@@ -545,6 +579,18 @@ class LicenciaOtorgadaForm(TailwindForm, forms.ModelForm):
                 self.fields["instrumento_legal"].initial = siguiente
             except Exception:
                 pass
+
+        # Ticket 20: Si es Disposición, es de solo lectura y asignación automática
+        tipo_inst = self.initial.get("tipo_instrumento") or getattr(
+            self.instance, "tipo_instrumento", "DISPOSICION"
+        )
+        if tipo_inst == "DISPOSICION" or not self.instance.pk:
+            self.fields["instrumento_legal"].widget.attrs.update(
+                {
+                    "readonly": "readonly",
+                    "class": "bg-slate-100 cursor-not-allowed font-mono font-bold text-slate-800",
+                }
+            )
 
     def clean(self):
         cleaned_data = super().clean()

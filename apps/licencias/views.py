@@ -945,30 +945,45 @@ class CambiarLicenciaRenglonView(PermisosEstrictosMixin, View):
                 if not request.POST.get("numero_instrumento"):
                     renglon.numero_instrumento = num_original
 
-        # 2. Conmutación de Instrumento (Ticket 10.3)
+        # 2. Conmutación de Instrumento (Ticket 10.3 y Ticket 20)
         tipo_inst = request.POST.get("tipo_instrumento")
         if tipo_inst in ["DISPOSICION", "RESOLUCION"]:
             renglon.tipo_instrumento = tipo_inst
 
-        # 3. Número oficial externo o interno
-        nuevo_num = (
-            request.POST.get("numero_instrumento")
-            or request.POST.get("numero_resolucion")
-            or request.POST.get("numero_disposicion")
-        )
-        if nuevo_num is not None and nuevo_num.strip():
-            renglon.numero_instrumento = nuevo_num.strip()
-
-        if renglon.tipo_instrumento == "DISPOSICION" and renglon.numero_instrumento:
+        # 3. Número oficial externo o interno (Ticket 20)
+        if renglon.tipo_instrumento == "RESOLUCION":
+            nuevo_num = (
+                request.POST.get("numero_instrumento")
+                or request.POST.get("numero_resolucion")
+            )
+            if nuevo_num and nuevo_num.strip():
+                renglon.numero_instrumento = nuevo_num.strip()
+        elif renglon.tipo_instrumento == "DISPOSICION":
             from apps.licencias.services import (
                 confirmar_correlativo_disposicion,
+                extraer_numero_y_anio_disposicion,
+                obtener_siguiente_correlativo_disposicion,
             )
 
-            confirmar_correlativo_disposicion(
-                renglon.numero_instrumento,
-                anio=renglon.anio,
-                usuario=request.user,
+            num_actual, anio_actual = extraer_numero_y_anio_disposicion(
+                renglon.numero_instrumento
             )
+            if num_actual and (
+                anio_actual == renglon.anio or anio_actual == renglon.anio % 100
+            ):
+                confirmar_correlativo_disposicion(
+                    renglon.numero_instrumento,
+                    anio=renglon.anio,
+                    usuario=request.user,
+                )
+            else:
+                renglon.numero_instrumento = (
+                    obtener_siguiente_correlativo_disposicion(
+                        anio=renglon.anio,
+                        reservar=True,
+                        usuario=request.user,
+                    )
+                )
 
         audit_save(renglon, user=request.user, created=False)
 
@@ -2200,7 +2215,6 @@ class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
         tipo_inst = getattr(form.instance, "tipo_instrumento", "DISPOSICION")
         if tipo_inst == "DISPOSICION":
             from apps.licencias.services import (
-                confirmar_correlativo_disposicion,
                 obtener_siguiente_correlativo_disposicion,
             )
 
@@ -2209,20 +2223,14 @@ class LicenciaOtorgadaCreateView(PermisosEstrictosMixin, CreateView):
                 if form.instance.fecha_desde
                 else None
             )
-            if not form.instance.instrumento_legal:
-                form.instance.instrumento_legal = (
-                    obtener_siguiente_correlativo_disposicion(
-                        anio=anio_lic,
-                        reservar=True,
-                        usuario=self.request.user,
-                    )
-                )
-            else:
-                confirmar_correlativo_disposicion(
-                    form.instance.instrumento_legal,
+            # Ticket 20: Siempre asignar de forma atómica y automática el siguiente correlativo oficial
+            form.instance.instrumento_legal = (
+                obtener_siguiente_correlativo_disposicion(
                     anio=anio_lic,
+                    reservar=True,
                     usuario=self.request.user,
                 )
+            )
 
         response = super().form_valid(form)
         if form.instance.estado in ("OTORGADA", "APROBADA"):
