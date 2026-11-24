@@ -107,6 +107,11 @@
                                         {{ a.cargo.situacion_revista|default:"Cargo Docente" }}
                                     {% endif %}
                                 </div>
+                                {% if a.cargo.carrera %}
+                                <div class="text-[11px] font-medium text-institucional-700 truncate" title="{{ a.cargo.carrera.nombre }}">
+                                    <span class="font-bold">{{ a.cargo.carrera.codigo }}</span> &ndash; {{ a.cargo.carrera.nombre }}
+                                </div>
+                                {% endif %}
                                 <div class="text-[11px] text-slate-500">
                                     Turno: {{ a.cargo.get_turno_display|default:a.cargo.turno|default:"-" }}
                                     {% if a.cargo.disposicion %} | Disp: {{ a.cargo.disposicion }}{% endif %}

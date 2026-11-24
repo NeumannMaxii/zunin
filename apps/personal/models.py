@@ -876,6 +876,17 @@ class CargoDocente(models.Model):
             return self.materia.get_turno_display()
         return ""
 
+    @property
+    def carrera(self):
+        """
+        Retorna la carrera asociada al cargo docente (directa o vía espacio curricular).
+        """
+        if self.carrera_ref:
+            return self.carrera_ref
+        if self.materia and getattr(self.materia, "carrera", None):
+            return self.materia.carrera
+        return None
+
     class Meta:
         verbose_name = "Cargo Docente"
         verbose_name_plural = "Cargos Docentes"
@@ -892,8 +903,9 @@ class CargoDocente(models.Model):
                 else self.get_tipo_cargo_display()
             )
         )
+        carrera_info = f" [{self.carrera.codigo}]" if self.carrera else ""
         return (
-            f"{self.docente.nombre_completo} en {materia_display} "
+            f"{self.docente.nombre_completo} en {materia_display}{carrera_info} "
             f"({self.get_situacion_revista_display()})"
         )
 

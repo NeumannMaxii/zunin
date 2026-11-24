@@ -77,6 +77,11 @@
                                     {{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"-" }}
                                 </span>
                             </div>
+                            {% if cargo.carrera %}
+                            <div class="text-xs font-medium text-institucional-700 truncate" title="{{ cargo.carrera.nombre }}">
+                                <span class="font-bold">{{ cargo.carrera.codigo }}</span> &ndash; {{ cargo.carrera.nombre }}
+                            </div>
+                            {% endif %}
                             <div class="text-xs text-slate-500">
                                 Turno: {{ cargo.get_turno_display|default:cargo.turno|default:"-" }}
                                 {% if cargo.disposicion %} | Disp: {{ cargo.disposicion }}{% endif %}

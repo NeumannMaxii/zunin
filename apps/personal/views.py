@@ -379,7 +379,12 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
         qs = (
             super()
             .get_queryset()
-            .select_related("docente", "materia", "docente_reemplazado")
+            .select_related(
+                "docente",
+                "materia__carrera",
+                "carrera_ref",
+                "docente_reemplazado",
+            )
         )
         q = self.request.GET.get("q", "").strip()
         if q:
@@ -390,6 +395,10 @@ class CargoDocenteListView(LoginRequiredMixin, ListView):
                     | Q(docente__dni__icontains=token)
                     | Q(materia__nombre__icontains=token)
                     | Q(materia__codigo__icontains=token)
+                    | Q(materia__carrera__codigo__icontains=token)
+                    | Q(materia__carrera__nombre__icontains=token)
+                    | Q(carrera_ref__codigo__icontains=token)
+                    | Q(carrera_ref__nombre__icontains=token)
                     | Q(codigo_cargo__icontains=token)
                     | Q(situacion_revista__icontains=token)
                     | Q(docente_reemplazado__apellido__icontains=token)

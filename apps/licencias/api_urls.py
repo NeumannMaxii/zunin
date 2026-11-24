@@ -10,9 +10,11 @@ from apps.licencias.views import (
     EvaluarImpactoRevistaAPIView,
     TiposLicenciaPorRegimenAPIView,
     ValidarAntiguedadLicenciaAPIView,
+    ValidarDisposicionAPIView,
     ValidarRegimenLicenciaAPIView,
     ValidarSaldosLicenciaAPIView,
     ValidarSolapamientoLicenciaAPIView,
+    SiguienteDisposicionAPIView,
 )
 
 app_name = "api_licencias"
@@ -107,5 +109,25 @@ urlpatterns = [
         "licencias/evaluar-impacto-revista/",
         EvaluarImpactoRevistaAPIView.as_view(),
         name="licencias_evaluar_impacto_revista",
+    ),
+    path(
+        "siguiente-disposicion/",
+        SiguienteDisposicionAPIView.as_view(),
+        name="siguiente_disposicion",
+    ),
+    path(
+        "licencias/siguiente-disposicion/",
+        SiguienteDisposicionAPIView.as_view(),
+        name="licencias_siguiente_disposicion",
+    ),
+    path(
+        "validar-disposicion/",
+        ValidarDisposicionAPIView.as_view(),
+        name="validar_disposicion",
+    ),
+    path(
+        "licencias/validar-disposicion/",
+        ValidarDisposicionAPIView.as_view(),
+        name="licencias_validar_disposicion",
     ),
 ]

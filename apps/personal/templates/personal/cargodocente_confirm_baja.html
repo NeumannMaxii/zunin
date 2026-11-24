@@ -30,9 +30,12 @@
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-500">Materia / Espacio Curricular:</span>
-                <span class="font-medium text-slate-800">
-                    {{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"Sin materia asignada" }}
-                    <span class="text-xs text-slate-500 font-normal">(Turno: {{ cargo.get_turno_display|default:cargo.turno|default:"-" }})</span>
+                <span class="font-medium text-slate-800 text-right">
+                    <div>{{ cargo.materia.nombre|default:cargo.codigo_cargo|default:"Sin materia asignada" }}</div>
+                    {% if cargo.carrera %}
+                    <div class="text-xs text-institucional-700 font-medium">{{ cargo.carrera.codigo }} &ndash; {{ cargo.carrera.nombre }}</div>
+                    {% endif %}
+                    <div class="text-xs text-slate-500 font-normal">Turno: {{ cargo.get_turno_display|default:cargo.turno|default:"-" }}</div>
                 </span>
             </div>
             <div class="flex justify-between">

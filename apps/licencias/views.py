@@ -114,7 +114,8 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = RenglonPlanillaMensual.objects.vigentes().select_related(
             "docente",
-            "cargo__materia",
+            "cargo__materia__carrera",
+            "cargo__carrera_ref",
             "cargo__cargo_catalogo",
             "tipo_licencia",
         )
@@ -280,10 +281,13 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         for r in queryset:
             materia_str = ""
             if r.cargo:
+                carr_cod = (
+                    f" [{r.cargo.carrera.codigo}]" if r.cargo.carrera else ""
+                )
                 if r.cargo.materia and r.cargo.materia.nombre:
-                    materia_str = r.cargo.materia.nombre
+                    materia_str = f"{r.cargo.materia.nombre}{carr_cod}"
                 elif r.cargo.cargo_catalogo and r.cargo.cargo_catalogo.descripcion:
-                    materia_str = r.cargo.cargo_catalogo.descripcion
+                    materia_str = f"{r.cargo.cargo_catalogo.descripcion}{carr_cod}"
                 else:
                     materia_str = str(r.cargo)
 
@@ -706,7 +710,8 @@ class ExportarPlanillaExcelView(LoginRequiredMixin, View):
 
         vigentes = RenglonPlanillaMensual.objects.vigentes().select_related(
             "docente",
-            "cargo__materia",
+            "cargo__materia__carrera",
+            "cargo__carrera_ref",
             "cargo__cargo_catalogo",
             "tipo_licencia",
         )

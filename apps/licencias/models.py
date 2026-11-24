@@ -274,6 +274,29 @@ class TipoLicencia(models.Model):
             fecha_referencia=fecha_referencia,
         )
 
+    def get_situacion_revista_label(self):
+        """
+        Retorna la etiqueta legible de la situación de revista estatutaria
+        aplicable (ej: 'Titular', 'Interino', 'Suplente',
+        'Titular / Interino / Suplente').
+        """
+        regimenes = self.obtener_regimenes_permitidos()
+        if not regimenes:
+            return ""
+
+        orden = ["TIT", "INT", "SUP"]
+        mapa = {
+            "TIT": "Titular",
+            "INT": "Interino",
+            "SUP": "Suplente",
+        }
+        labels = [mapa[r] for r in orden if r in regimenes]
+        if not labels:
+            return ""
+        if len(labels) == 3:
+            return "Titular / Interino / Suplente"
+        return " / ".join(labels)
+
     class Meta:
         verbose_name = "Tipo de Licencia"
         verbose_name_plural = "Tipos de Licencias"
@@ -283,7 +306,10 @@ class TipoLicencia(models.Model):
     def __str__(self):
         goce = "C/Goce" if self.goce_haberes else "S/Goce"
         art = f"{self.articulo} " if self.articulo else ""
-        return f"{art}({self.codigo}) - {self.descripcion} [{goce}]".strip()
+        revista = self.get_situacion_revista_label()
+        revista_tag = f"[{revista}] " if revista else ""
+        desc = self.descripcion
+        return f"{art}({self.codigo}) {revista_tag}- {desc} [{goce}]".strip()
 
     def save(self, *args, **kwargs):
         if self.forma_goce in ["Sin goce", "SIN_GOCE"]:

@@ -82,6 +82,9 @@
                     {% for cargo in resumen.cargos %}
                     <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium border border-white/20 bg-white/10 text-white backdrop-blur-xs">
                         {{ cargo.materia.nombre|default:cargo }}
+                        {% if cargo.carrera %}
+                        <span class="text-institucional-200 ml-1 font-semibold">[{{ cargo.carrera.codigo }}]</span>
+                        {% endif %}
                         <span class="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-bold uppercase
                             {% if cargo.situacion_revista == 'TIT' %}bg-indigo-400 text-indigo-950
                             {% elif cargo.situacion_revista == 'INT' %}bg-emerald-400 text-emerald-950

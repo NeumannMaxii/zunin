@@ -141,12 +141,17 @@
                 <tbody id="licencias-tbody" class="divide-y divide-slate-200 text-sm">
                     {% for lic in tipo_licencias %}
                     <tr class="hover:bg-slate-50/75 transition-colors"
-                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }} {{ lic.cantidad_duracion|default:'' }} {{ lic.periodo_tope|default:'' }}">
+                        data-search="{{ lic.codigo }} {{ lic.articulo }} {{ lic.get_situacion_revista_label }} {{ lic.descripcion }} {{ lic.get_categoria_display }} {{ lic.get_forma_pago_display }} {{ lic.cuadro_mensual }} {{ lic.cantidad_duracion|default:'' }} {{ lic.periodo_tope|default:'' }}">
                         <td class="px-4 py-3.5 font-mono font-bold text-institucional-700 whitespace-nowrap">
                             {{ lic.codigo }}
                         </td>
                         <td class="px-4 py-3.5 font-semibold text-slate-900 whitespace-nowrap">
-                            {{ lic.articulo|default:"-" }}
+                            <div>{{ lic.articulo|default:"-" }}</div>
+                            {% if lic.get_situacion_revista_label %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 mt-0.5">
+                                {{ lic.get_situacion_revista_label }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="px-4 py-3.5 text-slate-700 min-w-[180px] max-w-sm">
                             <div class="font-medium text-slate-900 leading-snug">{{ lic.descripcion }}</div>

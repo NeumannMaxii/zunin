@@ -323,6 +323,25 @@ class JustificacionDiferidaForm(TailwindForm):
                 )
             except forms.ValidationError as exc:
                 self.add_error("tipo_licencia", exc)
+        elif docente and tipo_licencia:
+            from apps.licencias.validaciones import (
+                evaluar_impacto_licencia_por_revista,
+            )
+
+            impactos = evaluar_impacto_licencia_por_revista(
+                docente=docente,
+                tipo_licencia=tipo_licencia,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+            )
+            if impactos and not any(imp.get("aplica", False) for imp in impactos):
+                detalles = "; ".join(
+                    imp.get("detalle", "") for imp in impactos if imp.get("detalle")
+                )
+                self.add_error(
+                    "tipo_licencia",
+                    f"La licencia no aplica a ningún cargo del docente: {detalles}",
+                )
 
         if tipo_licencia:
             from apps.licencias.validaciones import validar_antiguedad_minima
