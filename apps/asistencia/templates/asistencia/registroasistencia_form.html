@@ -48,6 +48,11 @@
                         {{ registro.cargo.situacion_revista|default:"Cargo Docente" }}
                     {% endif %}
                 </p>
+                {% if registro.cargo.carrera %}
+                <p class="text-xs text-institucional-700 font-medium truncate" title="{{ registro.cargo.carrera.nombre }}">
+                    <span class="font-bold">{{ registro.cargo.carrera.codigo }}</span> &ndash; {{ registro.cargo.carrera.nombre }}
+                </p>
+                {% endif %}
                 <p class="text-xs text-slate-500">
                     Turno: {{ registro.cargo.get_turno_display|default:registro.cargo.turno|default:"-" }}
                     {% if registro.cargo.situacion_revista %} | {{ registro.cargo.situacion_revista }}{% endif %}

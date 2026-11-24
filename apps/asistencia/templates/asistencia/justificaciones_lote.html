@@ -111,12 +111,19 @@
                                     <div class="text-xs text-slate-500 font-mono">DNI: {{ reg.docente.dni|default:"-" }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-slate-700">
-                                    <span class="font-medium text-slate-800">{{ reg.cargo.nombre_mostrar|default:"Sin materia asignada" }}</span>
-                                    <span class="text-slate-400">({{ reg.cargo.get_turno_display|default:reg.cargo.turno|default:"-" }})</span>
-                                    {% if reg.cargo.situacion_revista %}
-                                    <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
-                                        {{ reg.cargo.situacion_revista }}
-                                    </span>
+                                    <div class="font-medium text-slate-800">
+                                        {{ reg.cargo.nombre_mostrar|default:"Sin materia asignada" }}
+                                        <span class="text-slate-400 font-normal">({{ reg.cargo.get_turno_display|default:reg.cargo.turno|default:"-" }})</span>
+                                        {% if reg.cargo.situacion_revista %}
+                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                            {{ reg.cargo.situacion_revista }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% if reg.cargo.carrera %}
+                                    <div class="text-[11px] font-medium text-institucional-700 truncate" title="{{ reg.cargo.carrera.nombre }}">
+                                        <span class="font-bold">{{ reg.cargo.carrera.codigo }}</span> &ndash; {{ reg.cargo.carrera.nombre }}
+                                    </div>
                                     {% endif %}
                                 </td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap">

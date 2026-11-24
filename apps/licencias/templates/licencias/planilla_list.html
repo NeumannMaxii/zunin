@@ -195,7 +195,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 text-sm">
                     {% for r in renglones %}
-                    <tr class="fila-planilla hover:bg-slate-50/75 transition-colors" data-docente="{{ r.docente.apellido|lower }} {{ r.docente.nombre|lower }} {{ r.docente.dni }} {{ r.cargo.espacio_curricular.nombre|default:''|lower }} {{ r.numero_instrumento|default:''|lower }}">
+                    <tr class="fila-planilla hover:bg-slate-50/75 transition-colors" data-docente="{{ r.docente.apellido|lower }} {{ r.docente.nombre|lower }} {{ r.docente.dni }} {{ r.cargo.espacio_curricular.nombre|default:''|lower }} {% if r.cargo.carrera %}{{ r.cargo.carrera.codigo|lower }} {{ r.cargo.carrera.nombre|lower }}{% endif %} {{ r.numero_instrumento|default:''|lower }}">
                         <!-- Cuadro y Período / Estado -->
                         <td class="px-4 py-4 whitespace-nowrap">
                             <div class="flex items-center space-x-1.5">
@@ -297,7 +297,7 @@
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                                     {{ r.horas_afectadas }} hs
                                 </span>
-                                <span class="font-semibold text-slate-900 truncate">
+                                <span class="font-semibold text-slate-900 truncate" title="{{ r.cargo.nombre_mostrar }}">
                                     {% if r.cargo.materia %}
                                         {{ r.cargo.materia.nombre }}
                                     {% elif r.cargo.cargo_catalogo %}
@@ -307,6 +307,11 @@
                                     {% endif %}
                                 </span>
                             </div>
+                            {% if r.cargo.carrera %}
+                            <div class="text-[11px] font-medium text-institucional-700 truncate" title="{{ r.cargo.carrera.nombre }}">
+                                <span class="font-bold">{{ r.cargo.carrera.codigo }}</span> &ndash; {{ r.cargo.carrera.nombre }}
+                            </div>
+                            {% endif %}
                             <div class="text-[11px] text-slate-500">
                                 Turno: {{ r.cargo.get_turno_display|default:r.cargo.turno|default:"-" }}
                                 {% if r.cargo.disposicion %} | Disp: {{ r.cargo.disposicion }}{% endif %}
@@ -348,7 +353,7 @@
                                                 {% for tl in tipos_licencia %}
                                                 <option value="{{ tl.id }}" {% if tl.id == r.tipo_licencia_id %}selected{% endif %}
                                                         data-text="{% if tl.articulo %}{{ tl.articulo|lower }} {% endif %}{{ tl.codigo|lower }} {{ tl.descripcion|lower }}">
-                                                    [{{ tl.cuadro_mensual }}] {% if tl.articulo %}{{ tl.articulo }} &bull; {% endif %}{{ tl.codigo }} - {{ tl.descripcion|truncatechars:24 }}
+                                                    [{{ tl.cuadro_mensual }}] {% if tl.articulo %}{{ tl.articulo }} {% endif %}{% if tl.get_situacion_revista_label %}[{{ tl.get_situacion_revista_label }}] {% endif %}&bull; {{ tl.codigo }} - {{ tl.descripcion|truncatechars:24 }}
                                                 </option>
                                                 {% endfor %}
                                             </select>

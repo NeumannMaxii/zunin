@@ -114,7 +114,8 @@ class RenglonPlanillaMensualListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = RenglonPlanillaMensual.objects.vigentes().select_related(
             "docente",
-            "cargo__materia",
+            "cargo__materia__carrera",
+            "cargo__carrera_ref",
             "cargo__cargo_catalogo",
             "tipo_licencia",
         )
@@ -706,7 +707,8 @@ class ExportarPlanillaExcelView(LoginRequiredMixin, View):
 
         vigentes = RenglonPlanillaMensual.objects.vigentes().select_related(
             "docente",
-            "cargo__materia",
+            "cargo__materia__carrera",
+            "cargo__carrera_ref",
             "cargo__cargo_catalogo",
             "tipo_licencia",
         )

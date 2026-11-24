@@ -542,6 +542,11 @@
                             <div class="font-bold text-slate-900 text-sm">
                                 {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
                             </div>
+                            {% if item.cargo.carrera %}
+                            <div class="text-xs font-medium text-institucional-700 truncate" title="{{ item.cargo.carrera.nombre }}">
+                                <span class="font-bold">{{ item.cargo.carrera.codigo }}</span> &ndash; {{ item.cargo.carrera.nombre }}
+                            </div>
+                            {% endif %}
                             <div class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                                 <span>Turno: <strong>{{ item.cargo.get_turno_display|default:item.cargo.turno|default:"-" }}</strong></span>
                                 <span>&bull;</span>

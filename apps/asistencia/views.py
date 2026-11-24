@@ -72,7 +72,8 @@ class RegistroAsistenciaListView(LoginRequiredMixin, ListView):
             .get_queryset()
             .select_related(
                 "docente",
-                "cargo__materia",
+                "cargo__materia__carrera",
+                "cargo__carrera_ref",
                 "cargo__cargo_catalogo",
                 "tipo_licencia",
             )
