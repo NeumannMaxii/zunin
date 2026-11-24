@@ -258,14 +258,19 @@
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                         <div>
                                             <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Instrumento:</label>
-                                            <select name="tipo_instrumento" class="text-xs w-full py-1 px-2 bg-white border border-slate-300 rounded focus:ring-institucional-500 focus:border-institucional-500">
-                                                <option value="DISPOSICION" {% if r.tipo_instrumento == 'DISPOSICION' %}selected{% endif %}>Disposición Interna</option>
-                                                <option value="RESOLUCION" {% if r.tipo_instrumento == 'RESOLUCION' %}selected{% endif %}>Resolución Ministerial</option>
+                                            <select name="tipo_instrumento" 
+                                                    onchange="const campoRes = document.getElementById('campo-res-{{ r.id }}'); const infoDisp = document.getElementById('info-disp-{{ r.id }}'); if(this.value === 'RESOLUCION'){ campoRes.classList.remove('hidden'); infoDisp.classList.add('hidden'); } else { campoRes.classList.add('hidden'); infoDisp.classList.remove('hidden'); }"
+                                                    class="text-xs w-full py-1 px-2 bg-white border border-slate-300 rounded focus:ring-institucional-500 focus:border-institucional-500">
+                                                <option value="DISPOSICION" {% if r.tipo_instrumento == 'DISPOSICION' %}selected{% endif %}>Disposición Interna (Auto)</option>
+                                                <option value="RESOLUCION" {% if r.tipo_instrumento == 'RESOLUCION' %}selected{% endif %}>Resolución Ministerial (Externa)</option>
                                             </select>
                                         </div>
-                                        <div>
-                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">N° Oficial Externo:</label>
-                                            <input type="text" name="numero_instrumento" value="{{ r.numero_instrumento|default:'' }}" 
+                                        <div id="info-disp-{{ r.id }}" class="{% if r.tipo_instrumento == 'RESOLUCION' %}hidden{% endif %} p-1.5 bg-sky-50 border border-sky-200 rounded text-[11px] text-sky-800">
+                                            <span class="font-bold">Asignación automática:</span> Correlativo oficial no editable.
+                                        </div>
+                                        <div id="campo-res-{{ r.id }}" class="{% if r.tipo_instrumento != 'RESOLUCION' %}hidden{% endif %}">
+                                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">N° Resolución Ministerial:</label>
+                                            <input type="text" name="numero_instrumento" value="{% if r.tipo_instrumento == 'RESOLUCION' %}{{ r.numero_instrumento|default:'' }}{% endif %}" 
                                                    placeholder="Ej: Res. 1450/2026 M.E.C.C.y T." 
                                                    class="text-xs w-full py-1 px-2 bg-white border border-slate-300 rounded focus:ring-institucional-500 focus:border-institucional-500">
                                         </div>

@@ -134,17 +134,20 @@
                         {% endif %}
                     </div>
 
-                    <!-- Número de Disposición Interna -->
+                    <!-- Número de Disposición Interna (Ticket 20) -->
                     <div id="container-disposicion" class="space-y-1.5">
                         <div class="flex items-center justify-between">
                             <label for="{{ form.numero_disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
                                 N° Disposición Interna
                             </label>
                             <span id="disp-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                Auto NNN/AAAA
+                                Asignación automática
                             </span>
                         </div>
                         {{ form.numero_disposicion }}
+                        <p class="text-[11px] text-slate-500">
+                            El número correlativo oficial de Disposición Interna es asignado automáticamente por el sistema de forma incremental (no editable).
+                        </p>
                         <div id="disp-alerta-duplicado" class="hidden text-xs text-rose-600 font-medium mt-1"></div>
                         {% if form.numero_disposicion.errors %}
                         <div class="text-xs text-rose-600 font-medium mt-1">{{ form.numero_disposicion.errors }}</div>
@@ -216,11 +219,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const res = await fetch(`/api/licencias/siguiente-disposicion/?anio=${anio}`);
             const data = await res.json();
             if (data.status === 'success' && data.siguiente) {
-                if (inputDisp && !inputDisp.value) {
+                if (inputDisp) {
                     inputDisp.value = data.siguiente;
+                    inputDisp.setAttribute('readonly', 'readonly');
+                    inputDisp.classList.add('bg-slate-100', 'cursor-not-allowed');
                 }
                 if (badgeDisp) {
-                    badgeDisp.textContent = data.anterior ? `Anterior: ${data.anterior}` : 'Sin anterior';
+                    badgeDisp.textContent = data.anterior ? `Anterior: ${data.anterior} (Auto)` : 'Asignación automática';
                 }
             }
         } catch(e) {}

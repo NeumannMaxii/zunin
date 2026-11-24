@@ -207,11 +207,11 @@
                                     N° Instrumento Legal
                                 </label>
                                 <span id="instrumento-correlativo-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                    Auto NNN/AAAA
+                                    Asignación automática
                                 </span>
                             </div>
                             {{ form.instrumento_legal }}
-                            <p id="instrumento-helper-text" class="text-[11px] text-slate-500">Correlativo anual sugerido automáticamente. Editable por Bedelía.</p>
+                            <p id="instrumento-helper-text" class="text-[11px] text-slate-500">Correlativo anual asignado automáticamente por el sistema (no editable).</p>
                             <div id="instrumento-alerta-duplicado" class="hidden text-xs text-rose-600 font-medium mt-1 flex items-center space-x-1"></div>
                             {% if form.instrumento_legal.errors %}
                             <div class="text-xs text-rose-600 font-medium mt-1">{{ form.instrumento_legal.errors }}</div>
@@ -793,12 +793,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (data.status === 'success' && data.siguiente) {
                 numeroSugeridoActual = data.siguiente;
-                if (instrumentoLegalInput && (!instrumentoLegalInput.value || !manualEditado || forzar)) {
+                if (instrumentoLegalInput) {
                     instrumentoLegalInput.value = data.siguiente;
+                    instrumentoLegalInput.setAttribute('readonly', 'readonly');
+                    instrumentoLegalInput.classList.add('bg-slate-100', 'cursor-not-allowed');
                     manualEditado = false;
                 }
                 if (badgeCorrelativo) {
-                    badgeCorrelativo.textContent = data.anterior ? `Anterior: ${data.anterior}` : 'Sin anterior';
+                    badgeCorrelativo.textContent = data.anterior ? `Anterior: ${data.anterior} (Auto)` : 'Asignación automática';
                     badgeCorrelativo.classList.remove('hidden');
                 }
             }
@@ -857,15 +859,29 @@ document.addEventListener('DOMContentLoaded', function () {
     if (tipoInstrumentoSelect) {
         tipoInstrumentoSelect.addEventListener('change', function () {
             if (this.value === 'DISPOSICION') {
-                if (badgeCorrelativo) badgeCorrelativo.classList.remove('hidden');
-                if (helperInstrumento) helperInstrumento.textContent = 'Correlativo anual sugerido automáticamente. Editable por Bedelía.';
+                if (badgeCorrelativo) {
+                    badgeCorrelativo.classList.remove('hidden');
+                    badgeCorrelativo.textContent = 'Asignación automática';
+                }
+                if (helperInstrumento) helperInstrumento.textContent = 'Correlativo anual asignado automáticamente por el sistema (no editable).';
+                if (instrumentoLegalInput) {
+                    instrumentoLegalInput.setAttribute('readonly', 'readonly');
+                    instrumentoLegalInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+                }
                 actualizarSiguienteDisposicion(true);
             } else {
-                if (badgeCorrelativo) badgeCorrelativo.classList.add('hidden');
+                if (badgeCorrelativo) {
+                    badgeCorrelativo.classList.remove('hidden');
+                    badgeCorrelativo.textContent = 'Resolución Externa';
+                }
                 if (alertaDuplicado) alertaDuplicado.classList.add('hidden');
                 if (helperInstrumento) helperInstrumento.textContent = 'Ingrese el número de Resolución Ministerial externa (ej: Res. 1450/2026 M.E.C.C.y T.).';
-                if (instrumentoLegalInput && instrumentoLegalInput.value === numeroSugeridoActual) {
-                    instrumentoLegalInput.value = '';
+                if (instrumentoLegalInput) {
+                    instrumentoLegalInput.removeAttribute('readonly');
+                    instrumentoLegalInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+                    if (instrumentoLegalInput.value === numeroSugeridoActual) {
+                        instrumentoLegalInput.value = '';
+                    }
                 }
             }
         });
