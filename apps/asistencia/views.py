@@ -4,12 +4,14 @@ Listados paginados, ABM de Feriados (Ticket 4), carga diaria / masiva (Ticket 5)
 y justificaciones por lote (Ticket 7).
 """
 
+import datetime
 import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -29,13 +31,19 @@ from apps.asistencia.forms import (
 )
 from apps.asistencia.models import DiaNoLaborable, RegistroAsistencia
 from apps.asistencia.services import (
+    generar_excel_parte_diario,
     justificar_lote_asistencias,
     rectificar_planillas_por_fechas,
 )
 from apps.core.audit import AuditoriaFormMixin, audit_save
 from apps.core.mixins import PermisosEstrictosMixin
-from apps.licencias.models import RenglonPlanillaMensual, TipoLicencia
-from apps.personal.models import CargoDocente, Docente
+from apps.licencias.models import (
+    LicenciaOtorgada,
+    RenglonPlanillaMensual,
+    TipoLicencia,
+)
+from apps.licencias.validaciones import ESTADOS_LICENCIA_ACTIVAS
+from apps.personal.models import CargoDocente, Carrera, Docente
 
 
 class BackendPermisoMixin(PermisosEstrictosMixin):
@@ -218,12 +226,57 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         fecha = self.get_fecha(request)
         feriado = DiaNoLaborable.objects.filter(fecha=fecha).first()
 
+        # Filtros de búsqueda y navegación rápida
+        turno_filtro = request.GET.get("turno", "").strip()
+        carrera_filtro = request.GET.get("carrera", "").strip()
+        q_filtro = request.GET.get("q", "").strip()
+        export_val = request.GET.get("export", "").strip()
+
+        # Asegurar retrocompatibilidad para docentes activos sin cargo
+        docentes_sin_cargo = list(
+            Docente.objects.activos().filter(cargos__isnull=True)
+        )
+        if docentes_sin_cargo:
+            CargoDocente.objects.bulk_create([
+                CargoDocente(docente=d, situacion_revista="TIT", activo=True)
+                for d in docentes_sin_cargo
+            ])
+
         # Consultar los cargos vigentes del día ordenados por docente y materia
         cargos_vigentes = (
             CargoDocente.objects.vigentes(fecha=fecha)
-            .select_related("docente", "espacio_curricular__carrera")
-            .order_by("docente__apellido", "espacio_curricular__nombre")
+            .select_related(
+                "docente",
+                "materia__carrera",
+                "carrera_ref",
+                "cargo_catalogo",
+            )
+            .order_by(
+                "docente__apellido",
+                "docente__nombre",
+                "materia__nombre",
+            )
         )
+
+        # Aplicar filtros si fueron provistos
+        if turno_filtro:
+            cargos_vigentes = cargos_vigentes.filter(
+                materia__turno=turno_filtro
+            )
+
+        if carrera_filtro and carrera_filtro.isdigit():
+            cargos_vigentes = cargos_vigentes.filter(
+                Q(materia__carrera_id=carrera_filtro)
+                | Q(carrera_ref_id=carrera_filtro)
+            )
+
+        if q_filtro:
+            cargos_vigentes = cargos_vigentes.filter(
+                Q(docente__apellido__icontains=q_filtro)
+                | Q(docente__nombre__icontains=q_filtro)
+                | Q(docente__dni__icontains=q_filtro)
+                | Q(materia__nombre__icontains=q_filtro)
+            )
 
         # Construir el diccionario de registros existentes indexando por cargo_id
         registros_map = {
@@ -233,42 +286,120 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             ).select_related("tipo_licencia", "cargo", "docente")
         }
 
-        # Armar la lista grilla: cada elemento contiene
-        # {'cargo': cargo, 'docente': cargo.docente, 'registro': reg}
+        # Consultar licencias estatutarias formalmente activas para la fecha
+        licencias_qs = LicenciaOtorgada.objects.filter(
+            estado__in=ESTADOS_LICENCIA_ACTIVAS,
+            fecha_desde__lte=fecha,
+            fecha_hasta_prevista__gte=fecha,
+        ).select_related("tipo_licencia", "docente", "cargo")
+
+        licencias_por_cargo = {}
+        licencias_por_docente = {}
+        for lic in licencias_qs:
+            if lic.cargo_id:
+                licencias_por_cargo[lic.cargo_id] = lic
+            else:
+                licencias_por_docente[lic.docente_id] = lic
+
+        # Armar la lista grilla: cada elemento contiene cargo, docente, registro,
+        # licencia activa detectada y cálculo de horas de cátedra
         grilla = []
+        tot_pr = 0
+        tot_i = 0
+        tot_lic = 0
+        tot_p = 0
+
         for cargo in cargos_vigentes:
             reg = registros_map.get(cargo.id)
+            lic_activa = (
+                licencias_por_cargo.get(cargo.id)
+                or licencias_por_docente.get(cargo.docente_id)
+            )
+            fn = cargo.docente.fecha_nacimiento
+            es_natalicio = bool(
+                fn is not None
+                and fn.day == fecha.day
+                and fn.month == fecha.month
+            )
+            horas_dia = cargo.obtener_horas_en_fecha(fecha)
+
+            if reg:
+                estado_sug = reg.estado
+                marca_sug = reg.marca_diaria or (
+                    "PR" if reg.estado == "PRESENTE" else ""
+                )
+                lic_id_sug = reg.tipo_licencia_id
+            elif lic_activa:
+                estado_sug = "LICENCIA"
+                marca_sug = "LIC"
+                lic_id_sug = lic_activa.tipo_licencia_id
+            else:
+                estado_sug = "PRESENTE"
+                marca_sug = "PR"
+                lic_id_sug = None
+
+            if marca_sug == "PR" or estado_sug == "PRESENTE":
+                tot_pr += 1
+            elif marca_sug in ("I", "INA") or estado_sug == "AUSENTE":
+                tot_i += 1
+            elif (
+                marca_sug in ("LIC", "LIC.", "LT")
+                or estado_sug == "LICENCIA"
+            ):
+                tot_lic += 1
+            elif marca_sug in ("P", "PERM") or estado_sug == "JUSTIFICADO":
+                tot_p += 1
+            else:
+                tot_pr += 1
+
+            carrera_obj = (
+                cargo.materia.carrera
+                if cargo.materia and cargo.materia.carrera
+                else cargo.carrera_ref
+            )
+            carrera_nom = carrera_obj.nombre if carrera_obj else "-"
+
             grilla.append({
                 "cargo": cargo,
                 "docente": cargo.docente,
                 "registro": reg,
+                "licencia_activa": lic_activa,
+                "es_natalicio": es_natalicio,
+                "horas_dia": horas_dia,
+                "carrera_nombre": carrera_nom,
+                "estado_sugerido": estado_sug,
+                "marca_sugerida": marca_sug,
+                "tipo_lic_id_sugerido": lic_id_sug,
             })
 
-        # Asegurar que docentes activos sin cargo tengan un cargo base
-        # (retrocompatibilidad)
-        docentes_sin_cargo = list(
-            Docente.objects.activos().filter(cargos__isnull=True)
-        )
-        if docentes_sin_cargo:
-            CargoDocente.objects.bulk_create([
-                CargoDocente(docente=d, situacion_revista="TIT", activo=True)
-                for d in docentes_sin_cargo
-            ])
-            cargos_vigentes = (
-                CargoDocente.objects.vigentes(fecha=fecha)
-                .select_related("docente", "espacio_curricular__carrera")
-                .order_by("docente__apellido", "espacio_curricular__nombre")
+        # Exportación en formato Excel (.xlsx) si se solicita
+        if export_val == "excel":
+            carrera_nombre = None
+            if carrera_filtro and carrera_filtro.isdigit():
+                c_obj = Carrera.objects.filter(id=int(carrera_filtro)).first()
+                if c_obj:
+                    carrera_nombre = c_obj.nombre
+            wb = generar_excel_parte_diario(
+                fecha,
+                grilla,
+                feriado=feriado,
+                turno_filtro=turno_filtro,
+                carrera_filtro=carrera_nombre,
             )
-            grilla = []
-            for cargo in cargos_vigentes:
-                reg = registros_map.get(cargo.id)
-                grilla.append({
-                    "cargo": cargo,
-                    "docente": cargo.docente,
-                    "registro": reg,
-                })
+            response = HttpResponse(
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                )
+            )
+            fname = f"Parte_Diario_Bedelia_{fecha.strftime('%Y%m%d')}.xlsx"
+            response["Content-Disposition"] = f'attachment; filename="{fname}"'
+            wb.save(response)
+            return response
 
-        tipos_licencia = TipoLicencia.objects.filter(activo=True).order_by("codigo")
+        tipos_licencia = (
+            TipoLicencia.objects.filter(activo=True).order_by("codigo")
+        )
         docentes = Docente.objects.activos()
 
         # Identificar tipo de licencia oficial para Natalicio (Art. 320 inc. h)
@@ -284,40 +415,63 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             tipo_licencia_natalicio.id if tipo_licencia_natalicio else None
         )
 
-        # Agrupar cargos por docente único para evitar duplicaciones en la interfaz
+        # Agrupar cargos por docente único para vista de tarjetas
         docentes_map = {}
-        for cargo in cargos_vigentes:
+        for item in grilla:
+            cargo = item["cargo"]
             d_id = cargo.docente_id
             if d_id not in docentes_map:
-                fn = cargo.docente.fecha_nacimiento
-                es_natalicio = bool(
-                    fn is not None
-                    and fn.day == fecha.day
-                    and fn.month == fecha.month
-                )
                 docentes_map[d_id] = {
                     "docente": cargo.docente,
                     "cargos": [],
-                    "es_natalicio": es_natalicio,
+                    "es_natalicio": item["es_natalicio"],
+                    "licencia_activa": item["licencia_activa"],
                 }
-            reg = registros_map.get(cargo.id)
             docentes_map[d_id]["cargos"].append({
                 "cargo": cargo,
-                "registro": reg,
+                "registro": item["registro"],
+                "licencia_activa": item["licencia_activa"],
+                "horas_dia": item["horas_dia"],
+                "estado_sugerido": item["estado_sugerido"],
+                "marca_sugerida": item["marca_sugerida"],
             })
 
         docentes_grilla = list(docentes_map.values())
+        carreras = Carrera.objects.filter(activo=True).order_by("nombre")
+        turnos = [
+            ("MANANA", "Mañana"),
+            ("TARDE", "Tarde"),
+            ("NOCHE", "Noche"),
+        ]
+
+        estadisticas = {
+            "total": len(grilla),
+            "presentes": tot_pr,
+            "inasistencias": tot_i,
+            "licencias": tot_lic,
+            "permisos": tot_p,
+        }
 
         context = {
             "titulo": "Asistencia Diaria",
             "fecha": fecha,
+            "fecha_anterior": fecha - datetime.timedelta(days=1),
+            "fecha_siguiente": fecha + datetime.timedelta(days=1),
+            "fecha_hoy": timezone.localdate(),
             "feriado": feriado,
             "es_feriado": feriado is not None,
             "grilla": grilla,
             "docentes_grilla": docentes_grilla,
             "total_docentes": len(docentes_grilla),
+            "total_cargos": len(grilla),
+            "estadisticas": estadisticas,
             "cargos": cargos_vigentes,
             "docentes": docentes,
+            "carreras": carreras,
+            "turnos": turnos,
+            "turno_actual": turno_filtro,
+            "carrera_actual": carrera_filtro,
+            "q_actual": q_filtro,
             "tipos_licencia": tipos_licencia,
             "tipo_licencia_natalicio_id": tipo_licencia_natalicio_id,
         }
@@ -628,6 +782,24 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
                 f"{reverse('asistencia:asistencia_diaria')}"
                 f"?fecha={fecha.isoformat()}"
             )
+
+
+class AsistenciaDiariaExcelView(BackendPermisoMixin, View):
+    """
+    Descarga directa del Parte Diario en formato Excel (.xlsx) (Ticket 19.5).
+    """
+
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        return bool(user and user.is_authenticated)
+
+    def get(self, request, *args, **kwargs):
+        req_copy = request.GET.copy()
+        req_copy["export"] = "excel"
+        request.GET = req_copy
+        return AsistenciaDiariaView.as_view()(request)
 
 
 class JustificacionesLoteView(BackendPermisoMixin, View):

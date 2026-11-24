@@ -307,3 +307,317 @@ cargar_asistencia_masiva = guardar_asistencia_diaria_masiva
 procesar_justificaciones_lote = justificar_lote_asistencias
 consultar_asistencias_multicriterio = filtrar_asistencias_multicriterio
 consultar_asistencias = filtrar_asistencias_multicriterio
+
+
+def generar_excel_parte_diario(
+    fecha, grilla, feriado=None, turno_filtro=None, carrera_filtro=None
+):
+    """
+    Genera un libro openpyxl con el Parte Diario de Asistencia de Bedelía
+    (Ticket 19.5).
+    Formato planilla institucional con membrete, metadatos, grilla con colores
+    pasteles sobrios según estado/marca, y bloque de totales.
+    """
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Parte Diario {fecha.strftime('%d-%m-%Y')}"
+    ws.views.sheetView[0].showGridLines = True
+
+    color_banner_fill = "0F766E"  # Emerald oscuro institucional
+    color_border = "CBD5E1"       # Slate 300
+
+    thin_border = Border(
+        left=Side(style="thin", color=color_border),
+        right=Side(style="thin", color=color_border),
+        top=Side(style="thin", color=color_border),
+        bottom=Side(style="thin", color=color_border),
+    )
+
+    # 1. Membrete Institucional
+    ws.merge_cells("A1:M1")
+    cell_title = ws["A1"]
+    cell_title.value = (
+        "IESETyFP - INSTITUTO DE EDUCACIÓN SUPERIOR DE EDUCACIÓN "
+        "TÉCNICA Y FORMACIÓN PROFESIONAL"
+    )
+    cell_title.font = Font(
+        name="Calibri", size=13, bold=True, color="FFFFFF"
+    )
+    cell_title.fill = PatternFill(
+        start_color=color_banner_fill,
+        end_color=color_banner_fill,
+        fill_type="solid",
+    )
+    cell_title.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 26
+
+    ws.merge_cells("A2:M2")
+    cell_sub = ws["A2"]
+    cell_sub.value = (
+        "PARTE DIARIO DE ASISTENCIA Y NOVEDADES DOCENTES - BEDELÍA"
+    )
+    cell_sub.font = Font(name="Calibri", size=10, bold=True, color="334155")
+    cell_sub.fill = PatternFill(
+        start_color="F8FAFC", end_color="F8FAFC", fill_type="solid"
+    )
+    cell_sub.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[2].height = 20
+
+    # 2. Metadatos
+    dias_semana = [
+        "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
+    ]
+    dia_txt = dias_semana[fecha.weekday()]
+    turnos_dict = {"MANANA": "Mañana", "TARDE": "Tarde", "NOCHE": "Noche"}
+    turno_txt = turnos_dict.get(turno_filtro, "Todos los turnos")
+    carrera_txt = str(carrera_filtro) if carrera_filtro else "Todas las carreras"
+    feriado_txt = (
+        f" | [DÍA NO LABORABLE / FERIADO: {feriado.descripcion}]"
+        if feriado
+        else ""
+    )
+
+    ws.merge_cells("A3:M3")
+    cell_meta = ws["A3"]
+    cell_meta.value = (
+        f"Fecha: {fecha.strftime('%d/%m/%Y')} ({dia_txt}) | "
+        f"Turno: {turno_txt} | Carrera: {carrera_txt}{feriado_txt}"
+    )
+    cell_meta.font = Font(name="Calibri", size=9, bold=True, color="475569")
+    cell_meta.fill = PatternFill(
+        start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"
+    )
+    cell_meta.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[3].height = 18
+
+    # Fila 4 vacía
+    ws.row_dimensions[4].height = 8
+
+    # 3. Encabezados de Columna
+    headers = [
+        ("N°", 5, "center"),
+        ("Turno", 11, "center"),
+        ("Carrera", 28, "left"),
+        ("Año / Com.", 12, "center"),
+        ("Espacio Curricular / Materia", 32, "left"),
+        ("Docente (Apellido y Nombre)", 30, "left"),
+        ("DNI", 12, "center"),
+        ("Revista", 10, "center"),
+        ("Hs Cát.", 9, "center"),
+        ("Estado", 13, "center"),
+        ("Marca", 9, "center"),
+        ("Licencia / Novedad", 28, "left"),
+        ("Observaciones", 24, "left"),
+    ]
+
+    header_font = Font(name="Calibri", size=9.5, bold=True, color="0F172A")
+    header_fill = PatternFill(
+        start_color="E2E8F0", end_color="E2E8F0", fill_type="solid"
+    )
+
+    for col_idx, (h_title, _, h_align) in enumerate(headers, start=1):
+        c = ws.cell(row=5, column=col_idx, value=h_title)
+        c.font = header_font
+        c.fill = header_fill
+        c.border = thin_border
+        c.alignment = Alignment(
+            horizontal=h_align, vertical="center", wrap_text=True
+        )
+
+    ws.row_dimensions[5].height = 24
+
+    fill_pr = PatternFill(
+        start_color="F0FDF4", end_color="F0FDF4", fill_type="solid"
+    )
+    fill_i = PatternFill(
+        start_color="FEF2F2", end_color="FEF2F2", fill_type="solid"
+    )
+    fill_lic = PatternFill(
+        start_color="EFF6FF", end_color="EFF6FF", fill_type="solid"
+    )
+    fill_p = PatternFill(
+        start_color="FEFCE8", end_color="FEFCE8", fill_type="solid"
+    )
+    fill_white = PatternFill(
+        start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"
+    )
+
+    fila_num = 6
+    tot_pr = 0
+    tot_i = 0
+    tot_lic = 0
+    tot_p = 0
+
+    for idx, item in enumerate(grilla, start=1):
+        cargo = item["cargo"]
+        doc = item["docente"]
+        reg = item.get("registro")
+        lic_activa = item.get("licencia_activa")
+        materia = cargo.materia
+        carrera = (
+            materia.carrera
+            if materia and materia.carrera
+            else cargo.carrera_ref
+        )
+
+        if reg:
+            estado_txt = reg.get_estado_display()
+            marca_txt = reg.marca_diaria or (
+                "PR" if reg.estado == "PRESENTE" else ""
+            )
+            lic_obj = reg.tipo_licencia
+            obs_txt = reg.observaciones or ""
+        elif lic_activa:
+            estado_txt = "Licencia"
+            marca_txt = "LIC"
+            lic_obj = lic_activa.tipo_licencia
+            obs_txt = f"Licencia Activa #{lic_activa.pk}"
+        else:
+            estado_txt = "Presente"
+            marca_txt = "PR"
+            lic_obj = None
+            obs_txt = ""
+
+        if marca_txt == "PR":
+            tot_pr += 1
+            row_fill = fill_pr
+        elif marca_txt in ("I", "INA"):
+            tot_i += 1
+            row_fill = fill_i
+        elif marca_txt in ("LIC", "LIC.", "LT"):
+            tot_lic += 1
+            row_fill = fill_lic
+        elif marca_txt in ("P", "PERM"):
+            tot_p += 1
+            row_fill = fill_p
+        else:
+            tot_pr += 1
+            row_fill = fill_white
+
+        carrera_nombre = carrera.nombre if carrera else "-"
+        anio_com = (
+            f"{materia.anio}° ({materia.get_comision_display()})"
+            if materia
+            else "-"
+        )
+        materia_nombre = (
+            materia.nombre
+            if materia
+            else (
+                cargo.cargo_catalogo.descripcion
+                if cargo.cargo_catalogo
+                else "Cargo Docente"
+            )
+        )
+        horas = item.get("horas_dia", 0)
+
+        lic_desc = ""
+        if lic_obj:
+            art_str = f"Art. {lic_obj.articulo} - " if lic_obj.articulo else ""
+            lic_desc = f"{art_str}{lic_obj.codigo} ({lic_obj.descripcion})"
+        elif lic_activa and lic_activa.tipo_licencia:
+            tl = lic_activa.tipo_licencia
+            art_str = f"Art. {tl.articulo} - " if tl.articulo else ""
+            lic_desc = f"{art_str}{tl.codigo} ({tl.descripcion})"
+
+        row_data = [
+            (idx, "center"),
+            (cargo.get_turno_display() or "-", "center"),
+            (carrera_nombre, "left"),
+            (anio_com, "center"),
+            (materia_nombre, "left"),
+            (f"{doc.apellido}, {doc.nombre}", "left"),
+            (doc.dni, "center"),
+            (cargo.get_situacion_revista_display(), "center"),
+            (horas, "center"),
+            (estado_txt, "center"),
+            (marca_txt, "center"),
+            (lic_desc, "left"),
+            (obs_txt, "left"),
+        ]
+
+        for col_idx, (val, align) in enumerate(row_data, start=1):
+            cell = ws.cell(row=fila_num, column=col_idx, value=val)
+            cell.font = Font(
+                name="Calibri", size=9, bold=(col_idx in (5, 6, 11))
+            )
+            cell.fill = row_fill
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal=align, vertical="center")
+
+        ws.row_dimensions[fila_num].height = 20
+        fila_num += 1
+
+    # Fila vacía
+    fila_num += 1
+
+    # 4. Bloque de Totales y Resumen Estadístico
+    ws.merge_cells(f"B{fila_num}:D{fila_num}")
+    ws[f"B{fila_num}"] = "RESUMEN DEL PARTE DIARIO"
+    ws[f"B{fila_num}"].font = Font(
+        name="Calibri", size=10, bold=True, color="0F172A"
+    )
+    ws[f"B{fila_num}"].fill = PatternFill(
+        start_color="E2E8F0", end_color="E2E8F0", fill_type="solid"
+    )
+    ws[f"B{fila_num}"].alignment = Alignment(
+        horizontal="center", vertical="center"
+    )
+
+    totales = [
+        ("Total Clases / Cargos:", len(grilla), "FFFFFF"),
+        ("Presentes (PR):", tot_pr, "DCFCE7"),
+        ("Inasistencias (I):", tot_i, "FEE2E2"),
+        ("Licencias (LIC / LT):", tot_lic, "E0E7FF"),
+        ("Permisos (P):", tot_p, "FEF3C7"),
+    ]
+
+    fila_tot = fila_num + 1
+    for label, val, bg_color in totales:
+        ws.cell(row=fila_tot, column=2, value=label).font = Font(
+            name="Calibri", size=9, bold=True
+        )
+        ws.cell(row=fila_tot, column=2).alignment = Alignment(
+            horizontal="left", vertical="center"
+        )
+        ws.cell(row=fila_tot, column=2).border = thin_border
+
+        c_val = ws.cell(row=fila_tot, column=3, value=val)
+        c_val.font = Font(name="Calibri", size=9.5, bold=True)
+        c_val.fill = PatternFill(
+            start_color=bg_color, end_color=bg_color, fill_type="solid"
+        )
+        c_val.alignment = Alignment(horizontal="center", vertical="center")
+        c_val.border = thin_border
+        fila_tot += 1
+
+    # 5. Sección de Firmas de Bedelía
+    firma_row = max(fila_tot + 2, fila_num + 4)
+    ws.merge_cells(f"F{firma_row}:H{firma_row}")
+    ws[f"F{firma_row}"] = "____________________________________"
+    ws[f"F{firma_row}"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(f"F{firma_row+1}:H{firma_row+1}")
+    ws[f"F{firma_row+1}"] = "Firma y Aclaración Bedel de Turno"
+    ws[f"F{firma_row+1}"].font = Font(name="Calibri", size=8.5, italic=True)
+    ws[f"F{firma_row+1}"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(f"J{firma_row}:L{firma_row}")
+    ws[f"J{firma_row}"] = "____________________________________"
+    ws[f"J{firma_row}"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(f"J{firma_row+1}:L{firma_row+1}")
+    ws[f"J{firma_row+1}"] = "Sello y Recepción Secretaría / Rectoría"
+    ws[f"J{firma_row+1}"].font = Font(name="Calibri", size=8.5, italic=True)
+    ws[f"J{firma_row+1}"].alignment = Alignment(horizontal="center")
+
+    # Ajuste de ancho de columnas
+    for col_idx, (_, col_w, _) in enumerate(headers, start=1):
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = col_w
+
+    return wb
