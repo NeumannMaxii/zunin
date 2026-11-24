@@ -281,13 +281,10 @@ class ExportarPlanillaCSVView(LoginRequiredMixin, View):
         for r in queryset:
             materia_str = ""
             if r.cargo:
-                carr_cod = (
-                    f" [{r.cargo.carrera.codigo}]" if r.cargo.carrera else ""
-                )
                 if r.cargo.materia and r.cargo.materia.nombre:
-                    materia_str = f"{r.cargo.materia.nombre}{carr_cod}"
+                    materia_str = r.cargo.materia.nombre
                 elif r.cargo.cargo_catalogo and r.cargo.cargo_catalogo.descripcion:
-                    materia_str = f"{r.cargo.cargo_catalogo.descripcion}{carr_cod}"
+                    materia_str = r.cargo.cargo_catalogo.descripcion
                 else:
                     materia_str = str(r.cargo)
 
