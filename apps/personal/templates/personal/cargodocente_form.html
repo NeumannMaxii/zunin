@@ -123,7 +123,7 @@
                     <!-- Disposición / Resolución Legal -->
                     <div class="space-y-1.5 sm:col-span-2">
                         <label for="{{ form.disposicion.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Disposición / Resolución Legal
+                            Instrumento / Disposición de Designación <span class="text-rose-500">*</span>
                         </label>
                         {{ form.disposicion }}
                         <p class="text-xs text-slate-500">Número de disposición ministerial o institucional habilitante.</p>
@@ -194,7 +194,7 @@
                     <!-- Fecha de Alta -->
                     <div class="space-y-1.5">
                         <label for="{{ form.fecha_alta.id_for_label }}" class="block text-sm font-semibold text-slate-700">
-                            Fecha de Alta
+                            Fecha de Alta (Desde) <span class="text-rose-500">*</span>
                         </label>
                         {{ form.fecha_alta }}
                         {% if form.fecha_alta.errors %}
