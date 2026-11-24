@@ -3,8 +3,12 @@ Vistas para la aplicación Core (Panel de control / Dashboard principal).
 """
 
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views import View
+from apps.core.backup import generar_backup_completo_zip
+from apps.core.mixins import SoloAdminInstitucionalMixin
 from apps.core.services import obtener_panel_alertas_docentes
 
 
@@ -59,3 +63,26 @@ def dashboard_home(request):
         "total_critico": total_critico,
     }
     return render(request, "core/dashboard.html", context)
+
+
+class ExportarBackupView(SoloAdminInstitucionalMixin, View):
+    """
+    Vista protegida para exportación de la base de datos completa en ZIP (Ticket 22).
+    Restringida exclusivamente a Superusuarios y Admin_Institucional.
+    Genera el archivo ZIP en memoria y lo envía como archivo adjunto de descarga.
+    """
+
+    def get(self, request, *args, **kwargs):
+        zip_buffer, nombre_archivo, _ = generar_backup_completo_zip(
+            usuario=request.user
+        )
+
+        response = HttpResponse(
+            zip_buffer.getvalue(),
+            content_type="application/zip",
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{nombre_archivo}"'
+        )
+        response["Content-Length"] = len(zip_buffer.getvalue())
+        return response
