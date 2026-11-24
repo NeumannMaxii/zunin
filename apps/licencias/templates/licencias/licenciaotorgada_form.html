@@ -798,7 +798,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     manualEditado = false;
                 }
                 if (badgeCorrelativo) {
-                    badgeCorrelativo.textContent = `Siguiente: ${data.siguiente}`;
+                    badgeCorrelativo.textContent = data.anterior ? `Anterior: ${data.anterior}` : 'Sin anterior';
                     badgeCorrelativo.classList.remove('hidden');
                 }
             }
