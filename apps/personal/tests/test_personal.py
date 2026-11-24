@@ -173,6 +173,8 @@ class PersonalFormsTests(TestCase):
                 "materia": self.espacio.pk,
                 "tipo_cargo": "HORAS_CATEDRA",
                 "situacion_revista": "TIT",
+                "disposicion": "DISP-2026-101",
+                "fecha_alta": "2026-03-01",
                 "horas_lunes": 3,
                 "horas_martes": 2,
                 "activo": True,
@@ -190,6 +192,8 @@ class PersonalFormsTests(TestCase):
                 "materia": self.espacio.pk,
                 "tipo_cargo": "HORAS_CATEDRA",
                 "situacion_revista": "SUPLENTE",
+                "disposicion": "DISP-2026-102",
+                "fecha_alta": "2026-03-01",
                 "horas_lunes": 4,
                 "activo": True,
             }
@@ -205,6 +209,7 @@ class PersonalFormsTests(TestCase):
                 "docente": self.docente.pk,
                 "materia": self.espacio.pk,
                 "situacion_revista": "INT",
+                "disposicion": "DISP-2026-103",
                 "fecha_alta": "2026-06-01",
                 "fecha_baja": "2026-05-15",
             }
@@ -219,11 +224,86 @@ class PersonalFormsTests(TestCase):
                 "docente": self.docente.pk,
                 "materia": self.espacio.pk,
                 "situacion_revista": "INT",
+                "disposicion": "DISP-2026-104",
+                "fecha_alta": "2026-03-01",
                 "horas_lunes": -2,
             }
         )
         self.assertFalse(form.is_valid())
         self.assertIn("horas_lunes", form.errors)
+
+    def test_ticket21_fecha_alta_requerida_con_mensaje_especifico(self):
+        """Ticket 21: fecha_alta es obligatoria con el mensaje exacto requerido."""
+        form = CargoDocenteForm(
+            data={
+                "docente": self.docente.pk,
+                "materia": self.espacio.pk,
+                "disposicion": "DISP-2026-01",
+                "situacion_revista": "INT",
+                "horas_lunes": 3,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("fecha_alta", form.errors)
+        self.assertEqual(
+            form.errors["fecha_alta"][0],
+            "La fecha desde (alta del cargo) es obligatoria.",
+        )
+
+    def test_ticket21_disposicion_requerida_con_mensaje_especifico(self):
+        """Ticket 21: disposicion/resolucion es obligatoria con el mensaje exacto."""
+        form = CargoDocenteForm(
+            data={
+                "docente": self.docente.pk,
+                "materia": self.espacio.pk,
+                "fecha_alta": "2026-03-01",
+                "situacion_revista": "INT",
+                "horas_lunes": 3,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("disposicion", form.errors)
+        self.assertEqual(
+            form.errors["disposicion"][0],
+            (
+                "El instrumento legal de designación "
+                "(Disposición o Resolución) es obligatorio."
+            ),
+        )
+
+    def test_ticket21_resolucion_valida_disposicion(self):
+        """Ticket 21: si se provee resolucion, el formulario es válido."""
+        import datetime
+        form = CargoDocenteForm(
+            data={
+                "docente": self.docente.pk,
+                "materia": self.espacio.pk,
+                "fecha_alta": "2026-03-01",
+                "resolucion": "RES-2026-44",
+                "situacion_revista": "INT",
+                "horas_lunes": 3,
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        cargo = form.save()
+        self.assertEqual(cargo.resolucion, "RES-2026-44")
+        self.assertEqual(cargo.fecha_alta, datetime.date(2026, 3, 1))
+
+    def test_ticket21_fecha_alta_incoherente_rechazada(self):
+        """Ticket 21: rechaza años fuera del ciclo lectivo institucional razonable."""
+        form = CargoDocenteForm(
+            data={
+                "docente": self.docente.pk,
+                "materia": self.espacio.pk,
+                "fecha_alta": "1950-01-01",
+                "disposicion": "DISP-1950-01",
+                "situacion_revista": "INT",
+                "horas_lunes": 3,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("fecha_alta", form.errors)
+        self.assertIn("no es coherente", form.errors["fecha_alta"][0])
 
 
 class ImportadorCSVSincronizacionDualTests(TestCase):
@@ -1555,6 +1635,7 @@ class CargoDocenteCreateViewTests(TestCase):
             "espacio_curricular": self.materia.pk,
             "situacion_revista": "TIT",
             "disposicion": "DISP-2026-99",
+            "fecha_alta": "2026-03-01",
             "horas_semanales": 4,
             "turno": "NOCHE",
             "activo": "on",
@@ -1569,6 +1650,20 @@ class CargoDocenteCreateViewTests(TestCase):
         self.assertEqual(cargo.situacion_revista, "TIT")
         self.assertEqual(cargo.disposicion, "DISP-2026-99")
         self.assertEqual(cargo.total_horas_semanales, 4)
+
+    def test_ticket21_cargodocente_form_html_asteriscos_y_required(self):
+        """Ticket 21: verifica asterisco rojo y required en template."""
+        from django.urls import reverse
+
+        self.client.login(username="admin_cargos", password="password123")
+        url = reverse("personal:cargo_create", kwargs={"docente_id": self.docente.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("Fecha de Alta (Desde)", content)
+        self.assertIn("Instrumento / Disposición de Designación", content)
+        self.assertIn('name="fecha_alta"', content)
+        self.assertIn('required', content)
 
     def test_docente_list_contiene_boton_agregar_cargo(self):
         from django.urls import reverse

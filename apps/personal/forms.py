@@ -149,10 +149,19 @@ class CargoDocenteForm(TailwindModelForm):
     )
     disposicion = forms.CharField(
         max_length=100,
-        required=False,
-        label="Disposición / Resolución",
+        required=True,
+        label="Instrumento / Disposición de Designación",
+        error_messages={
+            "required": (
+                "El instrumento legal de designación "
+                "(Disposición o Resolución) es obligatorio."
+            ),
+        },
         widget=forms.TextInput(
-            attrs={"placeholder": "Ej: Disp. 145/26 o Res. 102/20"}
+            attrs={
+                "placeholder": "Ej: Disp. 145/26 o Res. 102/20",
+                "required": "required",
+            }
         ),
     )
     horas_semanales = forms.IntegerField(
@@ -198,7 +207,12 @@ class CargoDocenteForm(TailwindModelForm):
             "observaciones",
         ]
         widgets = {
-            "fecha_alta": forms.DateInput(attrs={"type": "date"}),
+            "fecha_alta": forms.DateInput(
+                attrs={
+                    "type": "date",
+                    "required": "required",
+                }
+            ),
             "fecha_baja": forms.DateInput(attrs={"type": "date"}),
             "observaciones": forms.Textarea(
                 attrs={
@@ -209,9 +223,38 @@ class CargoDocenteForm(TailwindModelForm):
             "codigo_cargo": forms.TextInput(attrs={"placeholder": "Ej: CARGO-BED-01"}),
             "numero_autorizacion": forms.TextInput(attrs={"placeholder": "Ej: 145/26"}),
         }
+        error_messages = {
+            "fecha_alta": {
+                "required": "La fecha desde (alta del cargo) es obligatoria.",
+                "invalid": "Ingrese una fecha válida para el alta del cargo.",
+            },
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["fecha_alta"].required = True
+        self.fields["fecha_alta"].label = "Fecha de Alta (Desde)"
+        self.fields["fecha_alta"].error_messages["required"] = (
+            "La fecha desde (alta del cargo) es obligatoria."
+        )
+        self.fields["fecha_alta"].widget.attrs["required"] = "required"
+
+        self.fields["disposicion"].required = True
+        self.fields["disposicion"].label = "Instrumento / Disposición de Designación"
+        self.fields["disposicion"].error_messages["required"] = (
+            "El instrumento legal de designación "
+            "(Disposición o Resolución) es obligatorio."
+        )
+        self.fields["disposicion"].widget.attrs["required"] = "required"
+
+        # Si se envió 'resolucion' en data y no 'disposicion', permitirlo para clean()
+        if (
+            self.data
+            and not self.data.get("disposicion")
+            and self.data.get("resolucion")
+        ):
+            self.fields["disposicion"].required = False
+
         self.fields["materia"].required = False
         self.fields["tipo_cargo"].required = False
         self.fields["tipo_cargo"].initial = "HORAS_CATEDRA"
@@ -234,6 +277,8 @@ class CargoDocenteForm(TailwindModelForm):
                     self.fields["turno"].initial = self.instance.materia.turno
             if hasattr(self.instance, "disposicion") and self.instance.disposicion:
                 self.fields["disposicion"].initial = self.instance.disposicion
+            elif hasattr(self.instance, "resolucion") and self.instance.resolucion:
+                self.fields["disposicion"].initial = self.instance.resolucion
             if hasattr(self.instance, "total_horas_semanales"):
                 self.fields["horas_semanales"].initial = (
                     self.instance.total_horas_semanales
@@ -298,15 +343,26 @@ class CargoDocenteForm(TailwindModelForm):
         elif cleaned_data.get("materia") and not espacio:
             cleaned_data["espacio_curricular"] = cleaned_data["materia"]
 
-        # Sincronizar disposicion con resolucion / numero_autorizacion
+        # Sincronizar y validar disposicion con resolucion / numero_autorizacion
         disp = cleaned_data.get("disposicion")
+        res = cleaned_data.get("resolucion")
+        if not disp and res:
+            cleaned_data["disposicion"] = res
+            disp = res
+        elif disp and not res:
+            cleaned_data["resolucion"] = disp
+
         if disp:
             if not cleaned_data.get("resolucion"):
                 cleaned_data["resolucion"] = disp
             if not cleaned_data.get("numero_autorizacion"):
                 cleaned_data["numero_autorizacion"] = disp
-        elif cleaned_data.get("resolucion"):
-            cleaned_data["disposicion"] = cleaned_data["resolucion"]
+        else:
+            self.add_error(
+                "disposicion",
+                "El instrumento legal de designación "
+                "(Disposición o Resolución) es obligatorio.",
+            )
 
         # Sincronizar horas_semanales con horas_lunes si los días están en 0
         hs = cleaned_data.get("horas_semanales")
@@ -318,6 +374,24 @@ class CargoDocenteForm(TailwindModelForm):
         docente_reemplazado = cleaned_data.get("docente_reemplazado")
         fecha_alta = cleaned_data.get("fecha_alta")
         fecha_baja = cleaned_data.get("fecha_baja")
+
+        # Validación obligatoria y consistencia de fecha_alta
+        if not fecha_alta:
+            self.add_error(
+                "fecha_alta",
+                "La fecha desde (alta del cargo) es obligatoria.",
+            )
+        else:
+            from django.utils import timezone
+            anio_actual = timezone.localdate().year
+            if fecha_alta.year < 1980 or fecha_alta.year > anio_actual + 2:
+                self.add_error(
+                    "fecha_alta",
+                    (
+                        f"El año de alta ({fecha_alta.year}) no es coherente con "
+                        "el ciclo lectivo o calendario institucional."
+                    ),
+                )
 
         # RF-04: Exigencia de docente reemplazado para cargos suplentes
         if situacion in ["SUPLENTE", "SUP"] and not docente_reemplazado:

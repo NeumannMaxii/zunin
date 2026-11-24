@@ -110,34 +110,37 @@
                 {% endif %}
             </form>
 
-            <!-- Filtro de Turno por Pills -->
-            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-                <span class="text-xs font-bold text-slate-500 px-2 uppercase text-[11px] tracking-wider">Turno:</span>
-                <a href="?fecha={{ fecha|date:'Y-m-d' }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if not turno_actual %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
-                    Todos
-                </a>
-                {% for t_cod, t_nom in turnos %}
-                <a href="?fecha={{ fecha|date:'Y-m-d' }}&turno={{ t_cod }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if turno_actual == t_cod %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
-                    {{ t_nom }}
-                </a>
-                {% endfor %}
-            </div>
+            <!-- Filtros Operativos: Turno y Carrera -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Filtro Desplegable de Turno -->
+                <div class="flex items-center gap-2">
+                    <label for="select-turno" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Turno:</label>
+                    <select id="select-turno" 
+                            onchange="aplicarFiltroTurno(this.value)"
+                            class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
+                        <option value="">-- Todos los Turnos --</option>
+                        {% for t_cod, t_nom in turnos %}
+                        <option value="{{ t_cod }}" {% if turno_actual == t_cod %}selected{% endif %}>
+                            {{ t_nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <!-- Filtro Desplegable de Carrera -->
-            <div class="flex items-center gap-2">
-                <label for="select-carrera" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Carrera:</label>
-                <select id="select-carrera" 
-                        onchange="aplicarFiltroCarrera(this.value)"
-                        class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
-                    <option value="">-- Todas las Carreras --</option>
-                    {% for c in carreras %}
-                    <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
-                        {{ c.nombre }}
-                    </option>
-                    {% endfor %}
-                </select>
+                <!-- Filtro Desplegable de Carrera -->
+                <div class="flex items-center gap-2">
+                    <label for="select-carrera" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Carrera:</label>
+                    <select id="select-carrera" 
+                            onchange="aplicarFiltroCarrera(this.value)"
+                            class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
+                        <option value="">-- Todas las Carreras --</option>
+                        {% for c in carreras %}
+                        <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
+                            {{ c.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -160,45 +163,60 @@
         {% endif %}
     </div>
 
-    <!-- Barra de KPIs en Vivo -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 no-print">
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Clases</span>
-            <div class="flex items-baseline justify-between mt-1">
-                <span id="kpi-total" class="text-2xl font-black text-slate-800">{{ estadisticas.total }}</span>
-                <span class="text-xs text-slate-400 font-medium">cargos</span>
-            </div>
+    <!-- Barra de KPIs en Vivo (Colapsable / Desplegable) -->
+    <div class="no-print">
+        <div class="flex items-center justify-between">
+            <button type="button" id="btn-toggle-kpis" onclick="toggleKPIs()" 
+                    class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-institucional-700 hover:bg-slate-50 bg-white border border-slate-200 rounded-xl transition-all cursor-pointer shadow-2xs">
+                <svg id="icono-chevron-kpis" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+                <span id="texto-toggle-kpis">Ver resumen de totales del día</span>
+                <span id="badge-resumen-kpis" class="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                    {{ estadisticas.total }} clases · {{ estadisticas.presentes }} PR · {{ estadisticas.inasistencias }} I · {{ estadisticas.licencias }} LIC · {{ estadisticas.permisos }} P
+                </span>
+            </button>
         </div>
 
-        <div class="bg-white p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-2xs flex flex-col">
-            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Presentes (PR)</span>
-            <div class="flex items-baseline justify-between mt-1">
-                <span id="kpi-pr" class="text-2xl font-black text-emerald-700">{{ estadisticas.presentes }}</span>
-                <span class="text-xs text-emerald-600 font-bold">&check;</span>
+        <div id="contenedor-kpis" class="hidden mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col">
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Clases</span>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="kpi-total" class="text-2xl font-black text-slate-800">{{ estadisticas.total }}</span>
+                    <span class="text-xs text-slate-400 font-medium">cargos</span>
+                </div>
             </div>
-        </div>
 
-        <div class="bg-white p-3.5 rounded-2xl border border-red-200 bg-red-50/20 shadow-2xs flex flex-col">
-            <span class="text-[11px] font-bold text-red-700 uppercase tracking-wider">Inasistencias (I)</span>
-            <div class="flex items-baseline justify-between mt-1">
-                <span id="kpi-i" class="text-2xl font-black text-red-700">{{ estadisticas.inasistencias }}</span>
-                <span class="text-xs text-red-600 font-bold">&#10006;</span>
+            <div class="bg-white p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-2xs flex flex-col">
+                <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Presentes (PR)</span>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="kpi-pr" class="text-2xl font-black text-emerald-700">{{ estadisticas.presentes }}</span>
+                    <span class="text-xs text-emerald-600 font-bold">&check;</span>
+                </div>
             </div>
-        </div>
 
-        <div class="bg-white p-3.5 rounded-2xl border border-blue-200 bg-blue-50/20 shadow-2xs flex flex-col">
-            <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Licencias (LIC)</span>
-            <div class="flex items-baseline justify-between mt-1">
-                <span id="kpi-lic" class="text-2xl font-black text-blue-700">{{ estadisticas.licencias }}</span>
-                <span class="text-xs text-blue-600 font-bold">&#128196;</span>
+            <div class="bg-white p-3.5 rounded-2xl border border-red-200 bg-red-50/20 shadow-2xs flex flex-col">
+                <span class="text-[11px] font-bold text-red-700 uppercase tracking-wider">Inasistencias (I)</span>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="kpi-i" class="text-2xl font-black text-red-700">{{ estadisticas.inasistencias }}</span>
+                    <span class="text-xs text-red-600 font-bold">&#10006;</span>
+                </div>
             </div>
-        </div>
 
-        <div class="bg-white p-3.5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs flex flex-col">
-            <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Permisos (P)</span>
-            <div class="flex items-baseline justify-between mt-1">
-                <span id="kpi-p" class="text-2xl font-black text-amber-700">{{ estadisticas.permisos }}</span>
-                <span class="text-xs text-amber-600 font-bold">&#9888;</span>
+            <div class="bg-white p-3.5 rounded-2xl border border-blue-200 bg-blue-50/20 shadow-2xs flex flex-col">
+                <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Licencias (LIC)</span>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="kpi-lic" class="text-2xl font-black text-blue-700">{{ estadisticas.licencias }}</span>
+                    <span class="text-xs text-blue-600 font-bold">&#128196;</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs flex flex-col">
+                <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Permisos (P)</span>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="kpi-p" class="text-2xl font-black text-amber-700">{{ estadisticas.permisos }}</span>
+                    <span class="text-xs text-amber-600 font-bold">&#9888;</span>
+                </div>
             </div>
         </div>
     </div>
@@ -791,6 +809,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Mantener preferencia de KPIs desplegados o colapsados (por defecto: colapsado)
+    if (localStorage.getItem('kpis_asistencia_abierto') === 'true') {
+        const contenedor = document.getElementById('contenedor-kpis');
+        const chevron = document.getElementById('icono-chevron-kpis');
+        const texto = document.getElementById('texto-toggle-kpis');
+        if (contenedor) {
+            contenedor.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            if (texto) texto.textContent = 'Ocultar resumen de totales';
+        }
+    }
+
     recalcularKPIs();
 });
 
@@ -861,6 +891,32 @@ function recalcularKPIs() {
     if (kpiI) kpiI.textContent = i;
     if (kpiLic) kpiLic.textContent = lic;
     if (kpiP) kpiP.textContent = p;
+
+    const badgeResumen = document.getElementById('badge-resumen-kpis');
+    if (badgeResumen) {
+        badgeResumen.textContent = `${inputsMarca.length} clases · ${pr} PR · ${i} I · ${lic} LIC · ${p} P`;
+    }
+}
+
+// Switcher de visibilidad de KPIs (Colapsable / Desplegable)
+function toggleKPIs() {
+    const contenedor = document.getElementById('contenedor-kpis');
+    const chevron = document.getElementById('icono-chevron-kpis');
+    const texto = document.getElementById('texto-toggle-kpis');
+    if (!contenedor) return;
+
+    const estaOculto = contenedor.classList.contains('hidden');
+    if (estaOculto) {
+        contenedor.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+        if (texto) texto.textContent = 'Ocultar resumen de totales';
+        localStorage.setItem('kpis_asistencia_abierto', 'true');
+    } else {
+        contenedor.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+        if (texto) texto.textContent = 'Ver resumen de totales del día';
+        localStorage.setItem('kpis_asistencia_abierto', 'false');
+    }
 }
 
 // Switcher de Vista: Planilla Excel vs Docentes
@@ -884,6 +940,15 @@ function cambiarVista(tipo) {
         btnDocentes.classList.remove('text-slate-600');
         btnPlanilla.classList.remove('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnPlanilla.classList.add('text-slate-600');
+    }
+}
+
+// Envío rápido de filtro de turno
+function aplicarFiltroTurno(turnoCod) {
+    const inputTurno = document.getElementById('input-filtro-turno');
+    if (inputTurno) {
+        inputTurno.value = turnoCod;
+        document.getElementById('form-filtro-principal').submit();
     }
 }
 
