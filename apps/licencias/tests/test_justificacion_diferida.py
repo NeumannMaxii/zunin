@@ -346,7 +346,7 @@ class JustificacionDiferidaRN03Tests(TestCase):
 
         resp = self.client.post(url, data)
         self.assertEqual(resp.status_code, 302)
-        self.assertRedirects(resp, reverse("licencias:planilla_list"))
+        self.assertRedirects(resp, reverse("asistencia:asistencia_list"))
 
         # Validar registros creados
         self.assertEqual(

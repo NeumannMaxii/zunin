@@ -8,7 +8,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
-                <a href="{% url 'licencias:planilla_list' %}" class="hover:text-slate-800 transition-colors">Licencias</a>
+                <a href="{% url 'asistencia:asistencia_list' %}" class="hover:text-slate-800 transition-colors">Asistencia</a>
                 <span>/</span>
                 <span class="text-slate-700 font-medium">Justificación Diferida</span>
             </div>
@@ -18,8 +18,8 @@
             <p class="text-sm text-slate-500">Carga diferida de certificados y formularios oficiales en papel.</p>
         </div>
         <div>
-            <a href="{% url 'licencias:planilla_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                &larr; Volver a Planillas
+            <a href="{% url 'asistencia:asistencia_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                &larr; Volver a Asistencia
             </a>
         </div>
     </div>
@@ -180,7 +180,7 @@
 
             <!-- Botones de Acción -->
             <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end items-center gap-3">
-                <a href="{% url 'licencias:planilla_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="w-full sm:w-auto px-4 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 text-center transition-colors">
                     Cancelar
                 </a>
                 <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-institucional-600 text-sm font-semibold rounded-lg text-white hover:bg-institucional-700 shadow-xs transition-colors cursor-pointer">

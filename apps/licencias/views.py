@@ -1023,8 +1023,14 @@ class JustificacionDiferidaView(PermisosEstrictosMixin, FormView):
 
     template_name = "licencias/justificacion_diferida.html"
     form_class = JustificacionDiferidaForm
-    success_url = reverse_lazy("licencias:planilla_list")
+    success_url = reverse_lazy("asistencia:asistencia_list")
     raise_exception = True
+
+    def get_success_url(self):
+        next_url = self.request.GET.get("next") or self.request.POST.get("next")
+        if next_url:
+            return next_url
+        return str(self.success_url)
 
     def test_func(self):
         user = self.request.user
