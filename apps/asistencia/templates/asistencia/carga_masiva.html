@@ -9,17 +9,14 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 border-b border-slate-200 no-print">
         <div>
             <div class="flex items-center gap-3">
-                <span class="p-2.5 bg-emerald-700 text-white rounded-xl shadow-xs">
+                <div class="p-2.5 bg-institucional-50 text-institucional-600 border border-institucional-200 rounded-xl shadow-2xs">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
-                </span>
+                </div>
                 <div>
-                    <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
                         Parte Diario de Bedelía
-                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Fase 19.5
-                        </span>
                     </h1>
                     <p class="text-xs sm:text-sm text-slate-500 font-medium">
                         Control operativo de asistencia docente y novedades estatutarias por jornada y cátedra.
@@ -31,8 +28,8 @@
         <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             <!-- Botón Exportar Excel -->
             <a href="{% url 'asistencia:asistencia_diaria' %}?fecha={{ fecha|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}&export=excel"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer">
-                <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 border border-emerald-600 shadow-xs text-xs sm:text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Exportar Excel (.xlsx)
@@ -40,7 +37,7 @@
 
             <!-- Botón Imprimir Parte Diario -->
             <button type="button" onclick="window.print()" 
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs sm:text-sm font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer">
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs sm:text-sm font-medium rounded-lg shadow-xs transition-colors cursor-pointer">
                 <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
@@ -49,7 +46,7 @@
 
             <!-- Volver al listado -->
             <a href="{% url 'asistencia:asistencia_list' %}" 
-               class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors">
+               class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-institucional-600 hover:bg-slate-100 rounded-lg transition-colors">
                 &larr; Listado
             </a>
         </div>
@@ -79,7 +76,7 @@
                 <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                     <a href="?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
                        title="Día Anterior"
-                       class="p-2 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg transition-colors shadow-2xs">
+                       class="p-2 hover:bg-white text-slate-700 hover:text-institucional-600 rounded-lg transition-colors shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                         </svg>
@@ -87,11 +84,11 @@
 
                     <input type="date" id="fecha" name="fecha" value="{{ fecha|date:'Y-m-d' }}" 
                            onchange="this.form.submit()"
-                           class="mx-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-bold text-slate-800 focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                           class="mx-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-bold text-slate-800 focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
 
                     <a href="?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
                        title="Día Siguiente"
-                       class="p-2 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg transition-colors shadow-2xs">
+                       class="p-2 hover:bg-white text-slate-700 hover:text-institucional-600 rounded-lg transition-colors shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
@@ -99,7 +96,7 @@
                 </div>
 
                 <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}{% if turno_actual %}&turno={{ turno_actual }}{% endif %}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-colors shadow-2xs">
+                   class="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs">
                     Hoy
                 </a>
 
@@ -115,14 +112,14 @@
 
             <!-- Filtro de Turno por Pills -->
             <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-                <span class="text-xs font-bold text-slate-500 px-2 uppercase">Turno:</span>
+                <span class="text-xs font-bold text-slate-500 px-2 uppercase text-[11px] tracking-wider">Turno:</span>
                 <a href="?fecha={{ fecha|date:'Y-m-d' }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-bold rounded-lg transition-all {% if not turno_actual %}bg-emerald-700 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
+                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if not turno_actual %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
                     Todos
                 </a>
                 {% for t_cod, t_nom in turnos %}
                 <a href="?fecha={{ fecha|date:'Y-m-d' }}&turno={{ t_cod }}{% if carrera_actual %}&carrera={{ carrera_actual }}{% endif %}{% if q_actual %}&q={{ q_actual }}{% endif %}"
-                   class="px-3 py-1 text-xs font-bold rounded-lg transition-all {% if turno_actual == t_cod %}bg-emerald-700 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
+                   class="px-3 py-1 text-xs font-semibold rounded-lg transition-all {% if turno_actual == t_cod %}bg-institucional-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-white{% endif %}">
                     {{ t_nom }}
                 </a>
                 {% endfor %}
@@ -130,10 +127,10 @@
 
             <!-- Filtro Desplegable de Carrera -->
             <div class="flex items-center gap-2">
-                <label for="select-carrera" class="text-xs font-bold text-slate-600 whitespace-nowrap">Carrera:</label>
+                <label for="select-carrera" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Carrera:</label>
                 <select id="select-carrera" 
                         onchange="aplicarFiltroCarrera(this.value)"
-                        class="text-xs font-semibold rounded-xl border-slate-300 bg-white text-slate-800 py-2 px-3 shadow-2xs focus:ring-emerald-500 focus:border-emerald-500">
+                        class="text-xs font-semibold rounded-lg border-slate-300 bg-white text-slate-800 py-1.5 px-3 shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
                     <option value="">-- Todas las Carreras --</option>
                     {% for c in carreras %}
                     <option value="{{ c.id }}" {% if carrera_actual == c.id|stringformat:"s" %}selected{% endif %}>
@@ -224,7 +221,7 @@
                 <input type="text" id="filtro-docente-asistencia" 
                        value="{{ q_actual }}"
                        placeholder="Buscar por Docente, DNI, Materia o Carrera..." 
-                       class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                       class="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
                 <button type="button" id="btn-limpiar-filtro-asistencia" class="{% if not q_actual %}hidden{% endif %} absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-sm">
                     &times;
                 </button>
@@ -233,28 +230,28 @@
             <!-- Selector de Vista (Planilla Excel vs Tarjetas por Docente) -->
             <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button type="button" id="btn-vista-planilla" onclick="cambiarVista('planilla')"
-                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-2xs">
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white text-institucional-800 shadow-2xs">
                     📊 Vista Planilla Excel
                 </button>
                 <button type="button" id="btn-vista-docentes" onclick="cambiarVista('docentes')"
-                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900">
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900">
                     👥 Vista por Docente
                 </button>
             </div>
 
             <!-- Acciones y Botón Guardar -->
             <div class="flex flex-wrap items-center gap-2">
-                <span id="contador-filas" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                <span id="contador-filas" class="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
                     Mostrando {{ total_cargos }} clases
                 </span>
 
                 <button type="button" id="btn-todos-presentes" 
-                        class="inline-flex items-center gap-1 px-3 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer">
+                        class="inline-flex items-center gap-1 px-3 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer">
                     &check; Todos Presente
                 </button>
 
                 <button type="submit" 
-                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-xs transition-colors cursor-pointer">
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-institucional-600 hover:bg-institucional-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
@@ -268,19 +265,19 @@
         <!-- ============================================================== -->
         <div id="contenedor-vista-planilla" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs text-left border-collapse" id="tabla-parte-diario">
-                    <thead class="bg-slate-800 text-white font-bold uppercase tracking-wider text-[11px]">
+                <table class="min-w-full tabla-institucional tabla-compacta text-xs text-left" id="tabla-parte-diario">
+                    <thead class="text-left text-xs font-bold uppercase tracking-wider">
                         <tr>
-                            <th class="px-3 py-3 text-center border-r border-slate-700 w-12">N°</th>
-                            <th class="px-3 py-3 text-center border-r border-slate-700 w-20">Turno</th>
-                            <th class="px-3 py-3 border-r border-slate-700 min-w-[150px]">Carrera</th>
-                            <th class="px-3 py-3 text-center border-r border-slate-700 w-20">Año / Com.</th>
-                            <th class="px-3 py-3 border-r border-slate-700 min-w-[200px]">Espacio Curricular (Hs)</th>
-                            <th class="px-3 py-3 border-r border-slate-700 min-w-[180px]">Docente (Apellido, Nombre y DNI)</th>
-                            <th class="px-2 py-3 text-center border-r border-slate-700 w-16">Revista</th>
-                            <th class="px-3 py-3 text-center border-r border-slate-700 min-w-[180px] bg-slate-900">Asistencia Rápida</th>
-                            <th class="px-3 py-3 border-r border-slate-700 min-w-[210px]">Licencia / Novedad</th>
-                            <th class="px-3 py-3 border-r border-slate-700 min-w-[140px]">Observaciones</th>
+                            <th class="px-2.5 py-3 text-center w-12">N°</th>
+                            <th class="px-2.5 py-3 text-center w-20">Turno</th>
+                            <th class="px-3 py-3 min-w-[150px]">Carrera</th>
+                            <th class="px-2.5 py-3 text-center w-20">Año / Com.</th>
+                            <th class="px-3 py-3 min-w-[200px]">Espacio Curricular (Hs)</th>
+                            <th class="px-3 py-3 min-w-[180px]">Docente (Apellido, Nombre y DNI)</th>
+                            <th class="px-2 py-3 text-center w-20">Revista</th>
+                            <th class="px-3 py-3 text-center min-w-[180px]">Asistencia Rápida</th>
+                            <th class="px-3 py-3 min-w-[210px]">Licencia / Novedad</th>
+                            <th class="px-3 py-3 min-w-[140px]">Observaciones</th>
                             <th class="px-2 py-3 text-center w-24">Estado Previo</th>
                         </tr>
                     </thead>
@@ -292,12 +289,12 @@
                             data-busqueda="{{ item.docente.apellido|lower }} {{ item.docente.nombre|lower }} {{ item.docente.dni }} {{ item.cargo.espacio_curricular.nombre|default:''|lower }} {{ item.carrera_nombre|lower }}">
                             
                             <!-- 1. N° Orden -->
-                            <td class="px-3 py-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200">
+                            <td class="px-3 py-2.5 text-center font-mono font-bold text-slate-500">
                                 {{ forloop.counter }}
                             </td>
 
                             <!-- 2. Turno -->
-                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            <td class="px-2 py-2.5 text-center whitespace-nowrap">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase
                                     {% if item.cargo.turno == 'MANANA' %}bg-sky-100 text-sky-800
                                     {% elif item.cargo.turno == 'TARDE' %}bg-amber-100 text-amber-800
@@ -307,12 +304,12 @@
                             </td>
 
                             <!-- 3. Carrera -->
-                            <td class="px-3 py-2.5 border-r border-slate-200 text-slate-800 font-medium leading-tight">
+                            <td class="px-3 py-2.5 text-slate-800 font-medium leading-tight">
                                 {{ item.carrera_nombre }}
                             </td>
 
                             <!-- 4. Año / Comisión -->
-                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap text-slate-700 font-semibold">
+                            <td class="px-2 py-2.5 text-center whitespace-nowrap text-slate-700 font-semibold">
                                 {% if item.cargo.materia %}
                                     {{ item.cargo.materia.anio }}° ({{ item.cargo.materia.get_comision_display|default:item.cargo.materia.comision }})
                                 {% else %}
@@ -321,7 +318,7 @@
                             </td>
 
                             <!-- 5. Espacio Curricular / Materia (Hs) -->
-                            <td class="px-3 py-2.5 border-r border-slate-200">
+                            <td class="px-3 py-2.5">
                                 <div class="font-bold text-slate-900 leading-tight">
                                     {{ item.cargo.espacio_curricular.nombre|default:item.cargo.situacion_revista }}
                                 </div>
@@ -336,7 +333,7 @@
                             </td>
 
                             <!-- 6. Docente y DNI -->
-                            <td class="px-3 py-2.5 border-r border-slate-200">
+                            <td class="px-3 py-2.5">
                                 <div class="font-black text-slate-900 text-xs">
                                     {{ item.docente.apellido }}, {{ item.docente.nombre }}
                                 </div>
@@ -351,7 +348,7 @@
                             </td>
 
                             <!-- 7. Situación de Revista -->
-                            <td class="px-2 py-2.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            <td class="px-2 py-2.5 text-center whitespace-nowrap">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono
                                     {% if item.cargo.situacion_revista == 'TIT' or item.cargo.situacion_revista == 'TITULAR' %}bg-emerald-100 text-emerald-800
                                     {% elif item.cargo.situacion_revista == 'INT' or item.cargo.situacion_revista == 'INTERINO' %}bg-sky-100 text-sky-800
@@ -361,7 +358,7 @@
                             </td>
 
                             <!-- 8. Asistencia Rápida (Pills Interactivos) -->
-                            <td class="px-2 py-2 text-center border-r border-slate-200 whitespace-nowrap bg-slate-50/50">
+                            <td class="px-2 py-2 text-center whitespace-nowrap bg-slate-50/50">
                                 <!-- Contenedor de inputs ocultos sincronizados -->
                                 <input type="hidden" name="estado_{{ item.cargo.id }}" id="input-estado-{{ item.cargo.id }}" value="{{ item.estado_sugerido }}">
                                 <input type="hidden" name="marca_diaria_{{ item.cargo.id }}" id="input-marca-{{ item.cargo.id }}" value="{{ item.marca_sugerida }}">
@@ -406,7 +403,7 @@
                             </td>
 
                             <!-- 9. Licencia / Novedad Estatutaria -->
-                            <td class="px-2.5 py-2 border-r border-slate-200">
+                            <td class="px-2.5 py-2">
                                 {% if item.licencia_activa %}
                                 <div class="mb-1">
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200 shadow-2xs">
@@ -420,7 +417,7 @@
                                 <select name="licencia_{{ item.cargo.id }}" 
                                         id="select-licencia-{{ item.cargo.id }}"
                                         onchange="actualizarLicenciaRow({{ item.cargo.id }}, this.value)"
-                                        class="select-licencia-planilla w-full text-xs rounded-lg border-slate-300 py-1 px-1.5 bg-white shadow-2xs focus:ring-emerald-500 focus:border-emerald-500">
+                                        class="select-licencia-planilla w-full text-xs rounded-lg border-slate-300 py-1 px-1.5 bg-white shadow-2xs focus:ring-institucional-500 focus:border-institucional-500">
                                     <option value="">-- Sin licencia / Novedad --</option>
                                     {% for tl in tipos_licencia %}
                                     <option value="{{ tl.id }}" 
@@ -434,11 +431,11 @@
                             </td>
 
                             <!-- 10. Observaciones -->
-                            <td class="px-2 py-2 border-r border-slate-200">
+                            <td class="px-2 py-2">
                                 <input type="text" name="observaciones_{{ item.cargo.id }}" 
                                        value="{{ item.registro.observaciones|default:'' }}" 
                                        placeholder="Observaciones..." 
-                                       class="w-full text-xs rounded-lg border-slate-300 py-1 px-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-2xs">
+                                       class="w-full text-xs rounded-lg border-slate-300 py-1 px-2 focus:ring-institucional-500 focus:border-institucional-500 shadow-2xs">
                             </td>
 
                             <!-- 11. Estado Previo -->
@@ -477,7 +474,7 @@
                 <!-- Encabezado del Docente -->
                 <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-emerald-700 text-white font-black flex items-center justify-center shrink-0">
+                        <div class="w-10 h-10 rounded-xl bg-institucional-600 text-white font-bold flex items-center justify-center shrink-0">
                             {{ fila.docente.apellido|slice:":1" }}{{ fila.docente.nombre|slice:":1" }}
                         </div>
                         <div>
@@ -591,10 +588,10 @@
                 {% if es_feriado %}<span class="text-red-600 font-bold ml-2">(Jornada no laborable)</span>{% endif %}
             </div>
             <div class="flex items-center space-x-3">
-                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-xs sm:text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                <a href="{% url 'asistencia:asistencia_list' %}" class="px-4 py-2 border border-slate-300 text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                     Cancelar
                 </a>
-                <button type="submit" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-black rounded-xl shadow-xs transition-colors cursor-pointer">
+                <button type="submit" class="px-5 py-2.5 bg-institucional-600 hover:bg-institucional-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors cursor-pointer">
                     Guardar Asistencia Diaria
                 </button>
             </div>
@@ -622,6 +619,12 @@
 <!-- ESTILOS Y COMPORTAMIENTO JAVASCRIPT EXCEL-LIKE                 -->
 <!-- ============================================================== -->
 <style>
+.tabla-compacta thead th {
+    padding: 0.65rem 0.75rem !important;
+}
+.tabla-compacta tbody td {
+    padding: 0.5rem 0.75rem !important;
+}
 @media print {
     .no-print {
         display: none !important;
@@ -870,16 +873,16 @@ function cambiarVista(tipo) {
     if (tipo === 'planilla') {
         vistaPlanilla.classList.remove('hidden');
         vistaDocentes.classList.add('hidden');
-        btnPlanilla.classList.add('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnPlanilla.classList.add('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnPlanilla.classList.remove('text-slate-600');
-        btnDocentes.classList.remove('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnDocentes.classList.remove('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnDocentes.classList.add('text-slate-600');
     } else {
         vistaPlanilla.classList.add('hidden');
         vistaDocentes.classList.remove('hidden');
-        btnDocentes.classList.add('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnDocentes.classList.add('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnDocentes.classList.remove('text-slate-600');
-        btnPlanilla.classList.remove('bg-white', 'text-emerald-800', 'shadow-2xs');
+        btnPlanilla.classList.remove('bg-white', 'text-institucional-800', 'shadow-2xs');
         btnPlanilla.classList.add('text-slate-600');
     }
 }
