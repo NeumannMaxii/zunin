@@ -288,3 +288,98 @@ class Ticket195ParteDiarioTests(TestCase):
         ws = wb.active
         self.assertTrue(ws.title.startswith("Parte Diario"))
         self.assertEqual(ws["B6"].value, "Mañana")
+
+    def test_post_asistencia_fecha_futura_rechazada_y_redirigida_a_hoy(self):
+        """
+        Verifica que intentar enviar asistencia con fecha futura (mañana)
+        sea rechazado sin persistir registros, emitiendo el mensaje de
+        advertencia institucional y redirigiendo a la fecha actual.
+        """
+        self.client.force_login(self.user_bedel)
+        hoy = datetime.date.today()
+        manana = hoy + datetime.timedelta(days=1)
+
+        post_data = {
+            "fecha": manana.isoformat(),
+            f"estado_{self.cargo_1.id}": "PRESENTE",
+            f"marca_diaria_{self.cargo_1.id}": "PR",
+            f"estado_{self.cargo_2.id}": "AUSENTE",
+            f"marca_diaria_{self.cargo_2.id}": "I",
+        }
+        resp = self.client.post(
+            reverse("asistencia:asistencia_diaria"),
+            post_data,
+            follow=True,
+        )
+        self.assertRedirects(
+            resp,
+            f"{reverse('asistencia:asistencia_diaria')}?fecha={hoy.isoformat()}",
+        )
+        self.assertFalse(
+            RegistroAsistencia.objects.filter(fecha=manana).exists()
+        )
+        mensajes = [m.message for m in resp.context["messages"]]
+        self.assertIn(
+            "No está permitido registrar ni visualizar partes diarios de "
+            "asistencia para fechas futuras.",
+            mensajes,
+        )
+
+    def test_get_asistencia_fecha_futura_bloqueada_y_redirigida_a_hoy(self):
+        """
+        Verifica que una petición GET con fecha posterior a hoy no procese
+        la vista, emita la advertencia institucional y redirija a hoy.
+        """
+        self.client.force_login(self.user_bedel)
+        hoy = datetime.date.today()
+        manana = hoy + datetime.timedelta(days=1)
+
+        url = (
+            f"{reverse('asistencia:asistencia_diaria')}?"
+            f"fecha={manana.isoformat()}"
+        )
+        resp = self.client.get(url, follow=True)
+        self.assertRedirects(
+            resp,
+            f"{reverse('asistencia:asistencia_diaria')}?fecha={hoy.isoformat()}",
+        )
+        self.assertEqual(resp.context["fecha"], hoy)
+        mensajes = [m.message for m in resp.context["messages"]]
+        self.assertIn(
+            "No está permitido registrar ni visualizar partes diarios de "
+            "asistencia para fechas futuras.",
+            mensajes,
+        )
+
+    def test_frontend_max_hoy_y_boton_dia_siguiente_deshabilitado_en_hoy(self):
+        """
+        Verifica que en el frontend el input #fecha incluya max con la fecha
+        de hoy y que el botón 'Día Siguiente' esté deshabilitado cuando la
+        fecha mostrada es igual a hoy, pero habilitado en fechas pasadas.
+        """
+        self.client.force_login(self.user_bedel)
+        hoy = datetime.date.today()
+        manana = hoy + datetime.timedelta(days=1)
+
+        # 1. En la fecha de hoy: input tiene max=hoy y botón Día Siguiente disabled
+        resp_hoy = self.client.get(
+            f"{reverse('asistencia:asistencia_diaria')}?fecha={hoy.isoformat()}"
+        )
+        self.assertEqual(resp_hoy.status_code, 200)
+        self.assertContains(resp_hoy, f'max="{hoy.isoformat()}"')
+        self.assertContains(resp_hoy, 'id="btn-dia-siguiente"')
+        self.assertContains(resp_hoy, "cursor-not-allowed")
+        self.assertNotContains(
+            resp_hoy, f"?fecha={manana.isoformat()}"
+        )
+
+        # 2. En una fecha pasada: botón Día Siguiente es un enlace activo
+        ayer = hoy - datetime.timedelta(days=1)
+        resp_ayer = self.client.get(
+            f"{reverse('asistencia:asistencia_diaria')}?fecha={ayer.isoformat()}"
+        )
+        self.assertEqual(resp_ayer.status_code, 200)
+        self.assertContains(resp_ayer, f'max="{hoy.isoformat()}"')
+        self.assertContains(
+            resp_ayer, f'href="?fecha={hoy.isoformat()}"'
+        )

@@ -200,6 +200,10 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
     """
 
     raise_exception = True
+    MENSAJE_FECHA_FUTURA = (
+        "No está permitido registrar ni visualizar partes diarios de "
+        "asistencia para fechas futuras."
+    )
 
     def test_func(self):
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
@@ -221,10 +225,17 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             parsed = parse_date(str(fecha_str).strip())
             if parsed:
                 return parsed
-        return timezone.localdate()
+        return datetime.date.today()
 
     def get(self, request):
+        hoy = datetime.date.today()
         fecha = self.get_fecha(request)
+        if fecha > hoy:
+            messages.warning(request, self.MENSAJE_FECHA_FUTURA)
+            return redirect(
+                f"{reverse('asistencia:asistencia_diaria')}"
+                f"?fecha={hoy.isoformat()}"
+            )
         feriado = DiaNoLaborable.objects.filter(fecha=fecha).first()
 
         # Filtros de búsqueda y navegación rápida
@@ -458,7 +469,9 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
             "fecha": fecha,
             "fecha_anterior": fecha - datetime.timedelta(days=1),
             "fecha_siguiente": fecha + datetime.timedelta(days=1),
-            "fecha_hoy": timezone.localdate(),
+            "hoy": hoy,
+            "fecha_hoy": hoy,
+            "es_hoy": fecha >= hoy,
             "feriado": feriado,
             "es_feriado": feriado is not None,
             "grilla": grilla,
@@ -479,7 +492,14 @@ class AsistenciaDiariaView(BackendPermisoMixin, View):
         return render(request, "asistencia/carga_masiva.html", context)
 
     def post(self, request):
+        hoy = datetime.date.today()
         fecha = self.get_fecha(request)
+        if fecha > hoy:
+            messages.warning(request, self.MENSAJE_FECHA_FUTURA)
+            return redirect(
+                f"{reverse('asistencia:asistencia_diaria')}"
+                f"?fecha={hoy.isoformat()}"
+            )
         feriado = DiaNoLaborable.objects.filter(fecha=fecha).first()
         es_feriado = feriado is not None
 
