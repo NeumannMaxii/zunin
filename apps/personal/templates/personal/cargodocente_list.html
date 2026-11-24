@@ -9,11 +9,11 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cargos y Designaciones</h1>
             <p class="text-sm text-slate-500">Distribución de horas, situaciones de revista, vigencias y cese puntual.</p>
         </div>
-        <div class="flex items-center space-x-3">
-            <a href="{% url 'personal:cargodocente_nuevo' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-xs text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors">
+        <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <a href="{% url 'personal:cargodocente_nuevo' %}" class="inline-flex items-center justify-center px-3.5 py-2 border border-transparent shadow-xs text-xs sm:text-sm font-semibold rounded-lg text-white bg-institucional-600 hover:bg-institucional-700 transition-colors flex-1 sm:flex-initial text-center shrink-0 sm:shrink">
                 + Nueva Designación
             </a>
-            <a href="{% url 'personal:docente_list' %}" class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-xs text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+            <a href="{% url 'personal:docente_list' %}" class="inline-flex items-center justify-center px-3.5 py-2 border border-slate-300 shadow-xs text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition-colors flex-1 sm:flex-initial text-center shrink-0 sm:shrink whitespace-nowrap">
                 &larr; Ver Docentes
             </a>
         </div>
